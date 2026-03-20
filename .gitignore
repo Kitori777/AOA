@@ -3,7 +3,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Virtual environment
+# Virtual environments
 .venv/
 venv/
 env/
@@ -12,27 +12,40 @@ env/
 build/
 dist/
 *.egg-info/
+.eggs/
 
 # Testing
 .pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
 
-# Type checkers
+# Type checkers / static analysis
 .mypy_cache/
 .pyre/
+.ruff_cache/
 
 # IDE
-.vscode/
 .idea/
+.vscode/
 
 # OS
 .DS_Store
 Thumbs.db
 
-# uv
-.uv/
-uv.lock
-
 # Logs
 *.log
+
+# Local environment files
+.env
+.env.*
+
+# Jupyter
+.ipynb_checkpoints/
+
+# UV cache
+.uv/
+
+# Optional local data/models artifacts
+data/*.csv
+models/*.pkl
