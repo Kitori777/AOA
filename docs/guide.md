@@ -31,7 +31,6 @@ Użytkownik może wybrać jeden z trybów:
 - **Quality** – przewidywanie jakości produkcji,
 - **Delay** – przewidywanie opóźnienia realizacji,
 - **Schedule** – przewidywanie strategii harmonogramowania,
-- **Oba** – jednoczesne trenowanie modeli Quality i Delay.
 
 ### 2. Przygotowanie danych
 
