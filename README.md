@@ -105,13 +105,13 @@ cd passthebranch-Kitori2137
 
 #### 2. Zainstaluj zależności i uruchom aplikację
 ```bash
-py -m uv sync --dev
-py -m uv run aoa
+uv sync --dev
+uv run aoa
 ```
 
 #### 3. Uruchom testy
 ```bash
-py -m uv run pytest
+uv run pytest
 ```
 
 ---

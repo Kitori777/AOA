@@ -13,6 +13,7 @@ build/
 dist/
 *.egg-info/
 .eggs/
+logs/
 
 # Testing
 .pytest_cache/

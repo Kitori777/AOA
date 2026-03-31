@@ -13,6 +13,7 @@ from AOA.core.services import (
     solve_models_flow,
     train_models_flow,
 )
+from AOA.utils.error_utils import write_exception_log
 
 
 class MainPage(ctk.CTkFrame):
@@ -370,8 +371,15 @@ class MainPage(ctk.CTkFrame):
             self.render_status()
             self.render_preview()
 
+        except ValueError as e:
+            messagebox.showerror("Błąd danych", str(e))
         except Exception as e:
-            messagebox.showerror("Błąd", str(e))
+            log_path = write_exception_log("main_page.gen", e)
+            self.log(f"❌ Nieoczekiwany błąd. Szczegóły zapisano w: {log_path}")
+            messagebox.showerror(
+                "Błąd",
+                "Wystąpił nieoczekiwany błąd podczas generowania danych."
+            )
 
     def load_from_disk(self):
         path = filedialog.askopenfilename(
@@ -395,8 +403,17 @@ class MainPage(ctk.CTkFrame):
             self.render_status()
             self.render_preview()
 
+        except FileNotFoundError:
+            messagebox.showerror("Błąd", "Nie znaleziono wskazanego pliku.")
+        except ValueError as e:
+            messagebox.showerror("Błąd danych", str(e))
         except Exception as e:
-            messagebox.showerror("Błąd", str(e))
+            log_path = write_exception_log("main_page.load_from_disk", e)
+            self.log(f"❌ Nieoczekiwany błąd. Szczegóły zapisano w: {log_path}")
+            messagebox.showerror(
+                "Błąd",
+                "Wystąpił nieoczekiwany błąd podczas wczytywania danych."
+            )
 
     def train(self):
         if self.df_train is None:
@@ -422,8 +439,11 @@ class MainPage(ctk.CTkFrame):
             for line in result["messages"]:
                 self.log(line)
 
+        except ValueError as e:
+            self.log(f"⚠ Błąd danych: {e}")
         except Exception as e:
-            self.log(f"❌ Błąd treningu: {e}")
+            log_path = write_exception_log("main_page.train_worker", e)
+            self.log(f"❌ Nieoczekiwany błąd. Szczegóły zapisano w: {log_path}")
 
     def solve_existing_models(self):
         threading.Thread(target=self._solve_existing_models_thread, daemon=True).start()
@@ -451,8 +471,11 @@ class MainPage(ctk.CTkFrame):
             for line in result["messages"]:
                 self.log(line)
 
+        except ValueError as e:
+            self.log(f"⚠ Błąd danych: {e}")
         except Exception as e:
-            self.log(f"❌ Błąd rozwiązywania: {e}")
+            log_path = write_exception_log("main_page.solve_existing_models", e)
+            self.log(f"❌ Nieoczekiwany błąd. Szczegóły zapisano w: {log_path}")
 
     def run_sto_analysis(self):
         selected = [name for name, var in self.sto_vars.items() if var.get()]
@@ -469,5 +492,12 @@ class MainPage(ctk.CTkFrame):
             )
             self.render_sto_report(result["report"])
 
-        except Exception as e:
+        except ValueError as e:
             messagebox.showerror("Błąd STO", str(e))
+        except Exception as e:
+            log_path = write_exception_log("main_page.run_sto_analysis", e)
+            self.log(f"❌ Nieoczekiwany błąd STO. Szczegóły zapisano w: {log_path}")
+            messagebox.showerror(
+                "Błąd STO",
+                "Wystąpił nieoczekiwany błąd podczas analizy STO."
+            )

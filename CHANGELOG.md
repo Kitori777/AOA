@@ -1,5 +1,36 @@
 # CHANGELOG
 
+## [0.2.1] - 2026-03-31
+
+### Fixed
+- Naprawiono obsługę błędów w `main_page.py`, tak aby błędy danych były odróżniane od błędów nieoczekiwanych.
+- Ograniczono użycie ogólnego `except Exception as e` jako jedynej formy obsługi błędów.
+- Dodano zapisywanie pełnego tracebacka do plików logów dla nieoczekiwanych wyjątków.
+- Poprawiono diagnostykę problemów podczas:
+  - generowania danych,
+  - wczytywania plików CSV,
+  - treningu modeli,
+  - rozwiązywania istniejących modeli,
+  - analizy modeli STO.
+
+### Added
+- Dodano nowy moduł `utils/error_utils.py`.
+- Dodano funkcję zapisu błędów do plików w katalogu `logs/`.
+- Dodano kontekst błędu do logów, aby łatwiej identyfikować miejsce awarii.
+- Dodano katalog `logs/` do `.gitignore`.
+
+### Changed
+- Zmieniono komunikaty błędów wyświetlane użytkownikowi w `main_page.py`.
+- Dla błędów spodziewanych, takich jak błędne dane wejściowe, aplikacja pokazuje teraz bardziej precyzyjne komunikaty.
+- Dla błędów nieoczekiwanych aplikacja pokazuje ogólny komunikat użytkownikowi, a szczegóły zapisuje do logu.
+- Usprawniono logowanie zdarzeń w zakładce głównej, tak aby użytkownik widział informację o zapisaniu szczegółów błędu do pliku.
+
+### Improved
+- Zwiększono czytelność i użyteczność komunikatów błędów.
+- Ułatwiono debugowanie i dalsze rozwijanie aplikacji.
+- Poprawiono odporność interfejsu GUI na trudniejsze do przewidzenia błędy wykonania.
+- Poprawiono README o usunięcie z uv "py -m"
+
 ## [0.2.0] - 2026-03-30
 
 ### Added
