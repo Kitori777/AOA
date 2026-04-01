@@ -210,3 +210,4 @@ Obecna wersja projektu stanowi działającą bazę do dalszej rozbudowy zarówno
 - kompletny overhaul struktury wizualnej, wprowadzenie początkowych dashboard oraz lepsza dla użytkownika strukura,
 - więcej modeli oraz ciekawych wizualizacji,
 - helpdesk z agentem/AIKA
+# AOA
