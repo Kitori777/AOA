@@ -1,5 +1,34 @@
 # CHANGELOG
 
+## [0.2.2] - 2026-04-02
+
+### Fixed
+- Dodano walidację dodatnich wartości dla parametrów liczbowych używanych w generowaniu danych oraz w analizie STO.
+- Zablokowano możliwość podawania wartości ujemnych lub zerowych w polach, które powinny przyjmować wyłącznie wartości dodatnie.
+- Dodano komunikat walidacyjny dla nieprawidłowych danych wejściowych:
+  - „Głuptasie, czemu wpisujesz ujemne rzeczy. Wpisuj dodatnie”.
+- Naprawiono problem powodujący wywalanie aplikacji podczas treningu modeli w `main_page.py`.
+- Naprawiono problem powodujący wywalanie aplikacji przy opcji **„Rozwiąż istniejące modele”**.
+- Naprawiono obsługę wątków w `main_page.py`, tak aby komunikaty GUI były aktualizowane bezpiecznie z użyciem metod wykonywanych w głównym wątku.
+- Naprawiono problem z `DecisionTree` w `visual_page`, wynikający z nieprawidłowego przygotowania figury do renderowania.
+- Naprawiono błąd importu w `sto_models.py`, powodujący circular import i uniemożliwiający uruchomienie aplikacji.
+
+### Added
+- Dodano centralne parsowanie i walidację konfiguracji generowania danych w warstwie `core/services.py`.
+- Dodano funkcję `generate_and_store_datasets_from_config()` do obsługi konfiguracji przekazywanej z GUI.
+- Dodano bezpieczne pomocnicze metody do obsługi logów i komunikatów błędów wywoływanych z worker threadów w `main_page.py`.
+
+### Changed
+- Przeniesiono dodatkową walidację pól wejściowych z GUI do warstwy `core`, aby zachować brak logiki biznesowej w `main_page.py`.
+- Uporządkowano obsługę błędów w `main_page.py`, tak aby spodziewane błędy danych były oddzielone od błędów nieoczekiwanych.
+- Usprawniono przepływ generowania danych, treningu i rozwiązywania modeli z zachowaniem architektury opartej na `core/services.py`.
+- Usprawniono analizę STO tak, aby błędne dane wejściowe były walidowane spójnie z resztą aplikacji.
+
+### Improved
+- Zwiększono stabilność działania głównej zakładki aplikacji.
+- Poprawiono odporność aplikacji na błędy użytkownika przy wpisywaniu danych liczbowych.
+- Poprawiono kompatybilność modułów analitycznych i wizualizacyjnych po rozbudowie projektu o modele STO.
+
 ## [0.2.1] - 2026-03-31
 
 ### Fixed

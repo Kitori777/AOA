@@ -5,6 +5,9 @@ from itertools import permutations
 import random
 
 
+POSITIVE_VALUES_MESSAGE = "Głuptasie, czemu wpisujesz ujemne rzeczy. Wpisuj dodatnie"
+
+
 @dataclass(frozen=True)
 class Job:
     job_id: str
@@ -25,8 +28,8 @@ def parse_jobs(job_ids_text: str, processing_text: str, deadlines_text: str) -> 
 
     jobs = []
     for job_id, p, d in zip(job_ids, processing, deadlines):
-        if p <= 0:
-            raise ValueError(f"Czas wykonania dla {job_id} musi być > 0.")
+        if p <= 0 or d <= 0:
+            raise ValueError(POSITIVE_VALUES_MESSAGE)
         jobs.append(Job(job_id=job_id, processing_time=p, deadline=d))
 
     return jobs
@@ -75,8 +78,10 @@ def sequence_genetic(
     seed: int = 42,
 ) -> list[Job]:
     if len(jobs) <= 8:
-        # dla małych zestawów bierzemy optimum dokładne
-        best_perm = min(permutations(jobs), key=lambda perm: evaluate_sequence(list(perm))["sto"])
+        best_perm = min(
+            permutations(jobs),
+            key=lambda perm: evaluate_sequence(list(perm))["sto"]
+        )
         return list(best_perm)
 
     rng = random.Random(seed)
@@ -157,6 +162,7 @@ def build_sto_report(jobs: list[Job], results: list[dict]) -> str:
     lines.append("===========")
     lines.append("")
     lines.append("Dane wejściowe:")
+
     for job in jobs:
         lines.append(
             f"- {job.job_id}: czas={job.processing_time:g}, termin={job.deadline:g}"
@@ -176,6 +182,7 @@ def build_sto_report(jobs: list[Job], results: list[dict]) -> str:
             step_texts.append(
                 f"{step['job_id']} -> C={step['completion_time']:g}, d={step['deadline']:g}, T+={step['lateness']:g}"
             )
+
         lines.append("   Kroki: " + " | ".join(step_texts))
         lines.append("")
 
