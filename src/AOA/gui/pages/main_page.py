@@ -8,7 +8,7 @@ from AOA.core.services import (
     build_dataframe_preview_text,
     build_main_page_status,
     build_main_page_summary,
-    generate_and_store_datasets,
+    generate_and_store_datasets_from_config,
     load_training_data,
     solve_models_flow,
     train_models_flow,
@@ -333,6 +333,18 @@ class MainPage(ctk.CTkFrame):
         self.sto_box.insert("end", report)
         self.sto_box.configure(state="disabled")
 
+    def _safe_log(self, msg: str):
+        self.after(0, lambda: self.log(msg))
+
+    def _safe_showerror(self, title: str, msg: str):
+        self.after(0, lambda: messagebox.showerror(title, msg))
+
+    def _safe_render_status(self):
+        self.after(0, self.render_status)
+
+    def _safe_render_preview(self):
+        self.after(0, self.render_preview)
+
     def log(self, msg: str):
         self.logbox.configure(state="normal")
         self.logbox.insert("end", msg + "\n")
@@ -343,16 +355,7 @@ class MainPage(ctk.CTkFrame):
         try:
             cfg = self._ui_config()
 
-            result = generate_and_store_datasets(
-                n=int(cfg["n"]),
-                n_machines=int(cfg["n_machines"]),
-                test_size=float(cfg["test_size"]),
-                seed=int(cfg["seed"]),
-                ksztalty=cfg["selected_ksztalty"],
-                materialy=cfg["selected_materialy"],
-                production_time_range=(float(cfg["prod_min"]), float(cfg["prod_max"])),
-                deadline_buffer_range=(float(cfg["deadline_min"]), float(cfg["deadline_max"])),
-            )
+            result = generate_and_store_datasets_from_config(cfg)
 
             self.df_full = result["full_df"]
             self.df_train = result["train_df"]
@@ -433,49 +436,57 @@ class MainPage(ctk.CTkFrame):
                 df_train=self.df_train,
                 selected_models=selected_models,
                 metadata=self.last_generation_metadata,
-                progress_callback=lambda p: self.log(f"⏳ ScheduleModel: {p:.1f}%")
+                progress_callback=lambda p: self._safe_log(f"⏳ ScheduleModel: {p:.1f}%")
             )
 
             for line in result["messages"]:
-                self.log(line)
+                self._safe_log(line)
 
         except ValueError as e:
-            self.log(f"⚠ Błąd danych: {e}")
+            self._safe_log(f"⚠ Błąd danych: {e}")
+            self._safe_showerror("Błąd danych", str(e))
         except Exception as e:
             log_path = write_exception_log("main_page.train_worker", e)
-            self.log(f"❌ Nieoczekiwany błąd. Szczegóły zapisano w: {log_path}")
+            self._safe_log(f"❌ Nieoczekiwany błąd. Szczegóły zapisano w: {log_path}")
+            self._safe_showerror("Błąd", "Wystąpił nieoczekiwany błąd podczas treningu modeli.")
 
     def solve_existing_models(self):
-        threading.Thread(target=self._solve_existing_models_thread, daemon=True).start()
+        model_path = filedialog.askopenfilename(
+            title="Wybierz wytrenowany model",
+            initialdir=str(MODELS_DIR),
+            filetypes=[("Pickle", "*.pkl")]
+        )
+        if not model_path:
+            return
 
-    def _solve_existing_models_thread(self):
+        data_path = filedialog.askopenfilename(
+            title="Wybierz dane do rozwiązania",
+            initialdir=str(DATA_DIR),
+            filetypes=[("CSV", "*.csv")]
+        )
+        if not data_path:
+            return
+
+        threading.Thread(
+            target=self._solve_existing_models_worker,
+            args=(model_path, data_path),
+            daemon=True
+        ).start()
+
+    def _solve_existing_models_worker(self, model_path, data_path):
         try:
-            model_path = filedialog.askopenfilename(
-                title="Wybierz wytrenowany model",
-                initialdir=str(MODELS_DIR),
-                filetypes=[("Pickle", "*.pkl")]
-            )
-            if not model_path:
-                return
-
-            data_path = filedialog.askopenfilename(
-                title="Wybierz dane do rozwiązania",
-                initialdir=str(DATA_DIR),
-                filetypes=[("CSV", "*.csv")]
-            )
-            if not data_path:
-                return
-
             result = solve_models_flow(model_path=model_path, data_path=data_path)
 
             for line in result["messages"]:
-                self.log(line)
+                self._safe_log(line)
 
         except ValueError as e:
-            self.log(f"⚠ Błąd danych: {e}")
+            self._safe_log(f"⚠ Błąd danych: {e}")
+            self._safe_showerror("Błąd danych", str(e))
         except Exception as e:
             log_path = write_exception_log("main_page.solve_existing_models", e)
-            self.log(f"❌ Nieoczekiwany błąd. Szczegóły zapisano w: {log_path}")
+            self._safe_log(f"❌ Nieoczekiwany błąd. Szczegóły zapisano w: {log_path}")
+            self._safe_showerror("Błąd", "Wystąpił nieoczekiwany błąd podczas rozwiązywania modeli.")
 
     def run_sto_analysis(self):
         selected = [name for name, var in self.sto_vars.items() if var.get()]

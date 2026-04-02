@@ -1,4 +1,5 @@
 from matplotlib.figure import Figure
+from matplotlib.backends.backend_agg import FigureCanvasAgg
 from sklearn.tree import plot_tree
 import seaborn as sns
 
@@ -14,6 +15,7 @@ def build_figure_from_request(df, chart_type, x_col=None, y_col=None):
         raise ValueError("Brak danych do wizualizacji")
 
     fig = Figure(figsize=(9, 5), dpi=100)
+    FigureCanvasAgg(fig)
     ax = fig.add_subplot(111)
 
     if chart_type == "Scatter":

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from AOA.config import DATA_DIR, DEFAULT_RESULT_FILE, MODEL_FILE, MODELS_DIR
+from AOA.config import DATA_DIR, DEFAULT_RESULT_FILE, MODELS_DIR
 from AOA.core.data_generation import generate_production_data
 from AOA.core.data_io import load_csv, save_csv
 from AOA.core.dataset_ops import split_train_test
@@ -15,6 +15,67 @@ from AOA.core.features import prepare_features
 from AOA.core.models import load_model_pack, save_model_pack, train_selected_models
 from AOA.core.scheduling import simulate_schedule
 from AOA.core.sto_models import build_sto_report, parse_jobs, run_selected_sto_models
+
+
+POSITIVE_VALUES_MESSAGE = "Głuptasie, czemu wpisujesz ujemne rzeczy. Wpisuj dodatnie"
+
+
+def _parse_positive_int(value: str, field_name: str) -> int:
+    parsed = int(value)
+    if parsed <= 0:
+        raise ValueError(POSITIVE_VALUES_MESSAGE)
+    return parsed
+
+
+def _parse_positive_float(value: str, field_name: str) -> float:
+    parsed = float(value)
+    if parsed <= 0:
+        raise ValueError(POSITIVE_VALUES_MESSAGE)
+    return parsed
+
+
+def parse_generation_config(raw_config: dict) -> dict:
+    n = _parse_positive_int(raw_config.get("n", ""), "n")
+    n_machines = _parse_positive_int(raw_config.get("n_machines", ""), "n_machines")
+    test_size = float(raw_config.get("test_size", ""))
+
+    if test_size <= 0:
+        raise ValueError(POSITIVE_VALUES_MESSAGE)
+    if test_size >= 1:
+        raise ValueError("Test size musi być mniejsze od 1.")
+
+    seed = _parse_positive_int(raw_config.get("seed", ""), "seed")
+    prod_min = _parse_positive_float(raw_config.get("prod_min", ""), "prod_min")
+    prod_max = _parse_positive_float(raw_config.get("prod_max", ""), "prod_max")
+    deadline_min = _parse_positive_float(raw_config.get("deadline_min", ""), "deadline_min")
+    deadline_max = _parse_positive_float(raw_config.get("deadline_max", ""), "deadline_max")
+
+    if prod_min > prod_max:
+        raise ValueError("Minimalny czas produkcji nie może być większy niż maksymalny.")
+    if deadline_min > deadline_max:
+        raise ValueError("Minimalny bufor terminu nie może być większy niż maksymalny.")
+
+    selected_ksztalty = raw_config.get("selected_ksztalty", [])
+    selected_materialy = raw_config.get("selected_materialy", [])
+
+    if not selected_ksztalty:
+        raise ValueError("Wybierz przynajmniej jeden kształt.")
+    if not selected_materialy:
+        raise ValueError("Wybierz przynajmniej jeden materiał.")
+
+    return {
+        "n": n,
+        "n_machines": n_machines,
+        "test_size": test_size,
+        "seed": seed,
+        "prod_min": prod_min,
+        "prod_max": prod_max,
+        "deadline_min": deadline_min,
+        "deadline_max": deadline_max,
+        "selected_ksztalty": selected_ksztalty,
+        "selected_materialy": selected_materialy,
+    }
+
 
 def build_main_page_summary(config: dict) -> str:
     selected_models = config.get("selected_models", [])
@@ -44,6 +105,39 @@ def build_main_page_status(df_train=None, df_test=None) -> str:
         "Dane treningowe gotowe\n"
         f"Train: {len(df_train)} rekordów\n"
         f"Test: {len(df_test) if df_test is not None else 0} rekordów"
+    )
+
+
+def build_dataframe_preview_text(df, title="Podgląd danych", max_rows=15):
+    if df is None:
+        return f"{title}\n\nBrak danych."
+
+    if df.empty:
+        return f"{title}\n\nDataFrame jest pusty."
+
+    preview = df.head(max_rows).to_string(index=True)
+
+    return (
+        f"{title}\n"
+        f"{'=' * len(title)}\n\n"
+        f"Liczba rekordów: {len(df)}\n"
+        f"Liczba kolumn: {len(df.columns)}\n\n"
+        f"{preview}"
+    )
+
+
+def generate_and_store_datasets_from_config(raw_config: dict):
+    parsed = parse_generation_config(raw_config)
+
+    return generate_and_store_datasets(
+        n=parsed["n"],
+        n_machines=parsed["n_machines"],
+        test_size=parsed["test_size"],
+        seed=parsed["seed"],
+        ksztalty=parsed["selected_ksztalty"],
+        materialy=parsed["selected_materialy"],
+        production_time_range=(parsed["prod_min"], parsed["prod_max"]),
+        deadline_buffer_range=(parsed["deadline_min"], parsed["deadline_max"]),
     )
 
 
@@ -150,11 +244,21 @@ def load_training_data(path, train_ratio=0.8):
         "full_df": df_full,
         "train_df": df_train,
         "test_df": df_test,
-        "messages": build_loaded_file_messages(path, df_train, df_test),
+        "messages": [
+            f"✔ Wczytano dane: {path}",
+            f"Train: {len(df_train)} rekordów",
+            f"Test: {len(df_test)} rekordów",
+        ],
     }
 
 
 def train_models_flow(df_train, selected_models, metadata=None, progress_callback=None):
+    if df_train is None or df_train.empty:
+        raise ValueError("Brak danych treningowych.")
+
+    if not selected_models:
+        raise ValueError("Nie wybrano żadnego modelu do trenowania.")
+
     pack = train_selected_models(
         df_train=df_train,
         selected_models=selected_models,
@@ -175,8 +279,16 @@ def train_models_flow(df_train, selected_models, metadata=None, progress_callbac
 
 
 def solve_models_flow(model_path, data_path):
+    if not model_path:
+        raise ValueError("Nie wybrano pliku modelu.")
+    if not data_path:
+        raise ValueError("Nie wybrano pliku danych.")
+
     pack = load_model_pack(model_path)
     df_sol = load_csv(data_path)
+
+    if df_sol is None or df_sol.empty:
+        raise ValueError("Plik danych jest pusty.")
 
     X, _, _, _ = prepare_features(df_sol, pack.get("scaler"))
 
@@ -204,6 +316,18 @@ def solve_models_flow(model_path, data_path):
     }
 
 
+def analyze_sto_models(job_ids_text, processing_text, deadlines_text, selected_methods):
+    jobs = parse_jobs(job_ids_text, processing_text, deadlines_text)
+    results = run_selected_sto_models(jobs, selected_methods)
+    report = build_sto_report(jobs, results)
+
+    return {
+        "jobs": jobs,
+        "results": results,
+        "report": report,
+    }
+
+
 def build_model_filename(selected_models, metadata):
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
@@ -228,39 +352,3 @@ def sanitize_filename(name: str) -> str:
     for ch in invalid:
         name = name.replace(ch, "_")
     return name
-
-def build_dataframe_preview_text(df, title="Podgląd danych", max_rows=15):
-    if df is None:
-        return f"{title}\n\nBrak danych."
-
-    if df.empty:
-        return f"{title}\n\nDataFrame jest pusty."
-
-    preview = df.head(max_rows).to_string(index=True)
-
-    return (
-        f"{title}\n"
-        f"{'=' * len(title)}\n\n"
-        f"Liczba rekordów: {len(df)}\n"
-        f"Liczba kolumn: {len(df.columns)}\n\n"
-        f"{preview}"
-    )
-
-
-def build_loaded_file_messages(path, df_train, df_test):
-    return [
-        f"✔ Wczytano dane: {path}",
-        f"Train: {len(df_train)} rekordów",
-        f"Test: {len(df_test)} rekordów",
-    ]
-
-def analyze_sto_models(job_ids_text, processing_text, deadlines_text, selected_methods):
-    jobs = parse_jobs(job_ids_text, processing_text, deadlines_text)
-    results = run_selected_sto_models(jobs, selected_methods)
-    report = build_sto_report(jobs, results)
-
-    return {
-        "jobs": jobs,
-        "results": results,
-        "report": report,
-    }
