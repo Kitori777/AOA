@@ -18,6 +18,16 @@ from AOA.core.evaluation import (
 )
 from AOA.core.features import prepare_features
 from AOA.core.models import load_model_pack, save_model_pack, train_selected_models
+from AOA.messages import (
+    DEADLINE_MIN_GT_MAX,
+    MUST_BE_FLOAT,
+    MUST_BE_INT,
+    MUST_BE_POSITIVE,
+    MUST_SELECT_MATERIAL,
+    MUST_SELECT_SHAPE,
+    PROD_MIN_GT_MAX,
+    TEST_SIZE_TOO_LARGE,
+)
 from AOA.core.scheduling import simulate_schedule
 from AOA.core.sto_models import (
     apply_sto_result_to_dataframe,
@@ -27,8 +37,6 @@ from AOA.core.sto_models import (
     run_selected_sto_models,
 )
 
-POSITIVE_VALUES_MESSAGE = "Głuptasie, czemu wpisujesz ujemne rzeczy.\nWpisuj dodatnie"
-
 ML_MODEL_NAMES = {"Quality", "Delay", "Schedule"}
 STO_MODEL_NAMES = {"MT", "MO", "MZO", "GENETIC"}
 
@@ -37,10 +45,10 @@ def _parse_positive_int(value, field_name: str) -> int:
     try:
         number = int(value)
     except (TypeError, ValueError):
-        raise ValueError(f"Pole '{field_name}' musi być liczbą całkowitą.")
+        raise ValueError(MUST_BE_INT.format(field=field_name))
 
     if number <= 0:
-        raise ValueError(POSITIVE_VALUES_MESSAGE)
+        raise ValueError(MUST_BE_POSITIVE)
     return number
 
 
@@ -48,10 +56,10 @@ def _parse_positive_float(value, field_name: str) -> float:
     try:
         number = float(value)
     except (TypeError, ValueError):
-        raise ValueError(f"Pole '{field_name}' musi być liczbą.")
+        raise ValueError(MUST_BE_FLOAT.format(field=field_name))
 
     if number <= 0:
-        raise ValueError(POSITIVE_VALUES_MESSAGE)
+        raise ValueError(MUST_BE_POSITIVE)
     return number
 
 
@@ -68,9 +76,9 @@ def parse_generation_config(raw_config: dict) -> dict:
 
     test_size = float(raw_config.get("test_size", ""))
     if test_size <= 0:
-        raise ValueError(POSITIVE_VALUES_MESSAGE)
+        raise ValueError(MUST_BE_POSITIVE)
     if test_size >= 1:
-        raise ValueError("Test size musi być mniejsze od 1.")
+        raise ValueError(TEST_SIZE_TOO_LARGE)
 
     seed = _parse_positive_int(raw_config.get("seed", ""), "seed")
     prod_min = _parse_positive_float(raw_config.get("prod_min", ""), "prod_min")
@@ -79,17 +87,17 @@ def parse_generation_config(raw_config: dict) -> dict:
     deadline_max = _parse_positive_float(raw_config.get("deadline_max", ""), "deadline_max")
 
     if prod_min > prod_max:
-        raise ValueError("Minimalny czas produkcji nie może być większy niż maksymalny.")
+        raise ValueError(PROD_MIN_GT_MAX)
     if deadline_min > deadline_max:
-        raise ValueError("Minimalny bufor terminu nie może być większy niż maksymalny.")
+        raise ValueError(DEADLINE_MIN_GT_MAX)
 
     selected_ksztalty = raw_config.get("selected_ksztalty", [])
     selected_materialy = raw_config.get("selected_materialy", [])
 
     if not selected_ksztalty:
-        raise ValueError("Wybierz przynajmniej jeden kształt.")
+        raise ValueError(MUST_SELECT_SHAPE)
     if not selected_materialy:
-        raise ValueError("Wybierz przynajmniej jeden materiał.")
+        raise ValueError(MUST_SELECT_MATERIAL)
 
     return {
         "n": n,
