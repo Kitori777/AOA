@@ -1,8 +1,10 @@
-import numpy as np
-import pandas as pd
 
 
 def optimize_schedule(df, time_col="czas_produkcji_h", alpha=1.0, beta=2.0):
+    """Pick the best simple scheduling strategy for the provided jobs.
+
+    Returns a copy of the best schedule enriched with start/end/lateness data.
+    """
     best_score = float("inf")
     best_df = None
 
@@ -48,6 +50,7 @@ def optimize_schedule(df, time_col="czas_produkcji_h", alpha=1.0, beta=2.0):
 
 
 def simulate_schedule(df, time_col="czas_produkcji_h"):
+    """Simulate sequential execution of jobs and append timing columns."""
     t = 0.0
     t_start, t_end, lateness = [], [], []
 
@@ -70,6 +73,7 @@ def simulate_schedule(df, time_col="czas_produkcji_h"):
 
 
 def extract_schedule_features(df):
+    """Aggregate a schedule candidate into numeric features for training."""
     return {
         "n_jobs": len(df),
         "mean_time": df["czas_produkcji_h"].mean(),
@@ -81,5 +85,6 @@ def extract_schedule_features(df):
 
 
 def generate_schedule_label(df, alpha=1.0, beta=2.0):
+    """Return the best strategy label for a given schedule candidate."""
     best = optimize_schedule(df, alpha=alpha, beta=beta)
     return best["strategy"].iloc[0]

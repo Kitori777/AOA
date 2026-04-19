@@ -5,6 +5,16 @@ from AOA.core.constants import FEATURES, KSZTALT_MAP, MATERIAL_MAP
 
 
 def prepare_features(df: pd.DataFrame, scaler_obj=None):
+    """Build model features, training targets and a scaler for production data.
+
+    Args:
+        df: Input production DataFrame.
+        scaler_obj: Existing scaler used for transforming new data. When not
+            provided, a new `MinMaxScaler` is fitted.
+
+    Returns:
+        Tuple `(X_scaled, y_quality, y_delay, scaler_obj)`.
+    """
     df = df.copy()
 
     df["ksztalt_q"] = df["ksztalt"].map(KSZTALT_MAP).fillna(0.8)
