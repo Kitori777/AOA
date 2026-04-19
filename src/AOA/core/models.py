@@ -1,3 +1,4 @@
+import inspect
 import pickle
 
 import numpy as np
@@ -11,28 +12,58 @@ from sklearn.ensemble import (
 from AOA.core.features import prepare_features
 from AOA.core.scheduling import extract_schedule_features, generate_schedule_label
 from AOA.core.tabpfn_models import train_tabpfn_classifier, train_tabpfn_regressor
+from AOA.messages import (
+    NO_MODELS_SELECTED,
+    PROGRESS_DONE,
+    PROGRESS_ESTIMATOR,
+    PROGRESS_PREPARING_DATA,
+    PROGRESS_SAMPLE,
+    PROGRESS_START,
+    PROGRESS_TABPFN_DONE,
+    PROGRESS_TABPFN_INIT,
+    PROGRESS_TREE,
+    UNKNOWN_MODEL_BACKEND,
+)
 
 
 def _emit_progress(progress_callback, model_name: str, percent: float, detail: str = ""):
+    """Call a progress callback with a supported argument shape.
+
+    Supported callback forms are:
+    - `(model_name, percent, detail)`
+    - `(model_name, percent)`
+    - `(percent)`
+
+    Internal exceptions raised by the callback are propagated unchanged.
+    """
     if progress_callback is None:
         return
 
+    callback_args_candidates = [
+        (model_name, percent, detail),
+        (model_name, percent),
+        (percent,),
+    ]
+
     try:
+        signature = inspect.signature(progress_callback)
+    except (TypeError, ValueError):
         progress_callback(model_name, percent, detail)
         return
-    except TypeError:
-        pass
 
-    try:
-        progress_callback(model_name, percent)
-        return
-    except TypeError:
-        pass
+    for args in callback_args_candidates:
+        try:
+            signature.bind(*args)
+        except TypeError:
+            continue
 
-    try:
-        progress_callback(percent)
-    except TypeError:
+        progress_callback(*args)
         return
+
+    raise TypeError(
+        "Progress callback must accept one of the supported signatures: "
+        "(model_name, percent, detail), (model_name, percent) or (percent)."
+    )
 
 
 def _train_quality_with_progress(X_train, yq, progress_callback=None):
@@ -43,8 +74,8 @@ def _train_quality_with_progress(X_train, yq, progress_callback=None):
         random_state=42,
     )
 
-    _emit_progress(progress_callback, "Quality", 0.0, "Start")
-    _emit_progress(progress_callback, "Quality", 0.5, "Przygotowanie danych")
+    _emit_progress(progress_callback, "Quality", 0.0, PROGRESS_START)
+    _emit_progress(progress_callback, "Quality", 0.5, PROGRESS_PREPARING_DATA)
 
     for i in range(1, total_estimators + 1):
         model.n_estimators = i
@@ -54,10 +85,10 @@ def _train_quality_with_progress(X_train, yq, progress_callback=None):
             progress_callback,
             "Quality",
             round(percent, 1),
-            f"Drzewo {i}/{total_estimators}",
+            PROGRESS_TREE.format(index=i, total=total_estimators),
         )
 
-    _emit_progress(progress_callback, "Quality", 100.0, "Zakończono")
+    _emit_progress(progress_callback, "Quality", 100.0, PROGRESS_DONE)
     return model
 
 
@@ -69,8 +100,8 @@ def _train_delay_with_progress(X_train, yd, progress_callback=None):
         random_state=42,
     )
 
-    _emit_progress(progress_callback, "Delay", 0.0, "Start")
-    _emit_progress(progress_callback, "Delay", 0.5, "Przygotowanie danych")
+    _emit_progress(progress_callback, "Delay", 0.0, PROGRESS_START)
+    _emit_progress(progress_callback, "Delay", 0.5, PROGRESS_PREPARING_DATA)
 
     for i in range(1, total_estimators + 1):
         model.n_estimators = i
@@ -80,31 +111,42 @@ def _train_delay_with_progress(X_train, yd, progress_callback=None):
             progress_callback,
             "Delay",
             round(percent, 1),
-            f"Estimator {i}/{total_estimators}",
+            PROGRESS_ESTIMATOR.format(index=i, total=total_estimators),
         )
 
-    _emit_progress(progress_callback, "Delay", 100.0, "Zakończono")
+    _emit_progress(progress_callback, "Delay", 100.0, PROGRESS_DONE)
     return model
 
 
 def _train_tabpfn_quality_with_progress(X_train, yq, progress_callback=None):
-    _emit_progress(progress_callback, "Quality", 0.0, "Start")
-    _emit_progress(progress_callback, "Quality", 5.0, "TabPFN | Inicjalizacja")
+    _emit_progress(progress_callback, "Quality", 0.0, PROGRESS_START)
+    _emit_progress(progress_callback, "Quality", 5.0, PROGRESS_TABPFN_INIT)
     model = train_tabpfn_regressor(X_train, yq)
-    _emit_progress(progress_callback, "Quality", 100.0, "Zakończono | TabPFN")
+    _emit_progress(progress_callback, "Quality", 100.0, PROGRESS_TABPFN_DONE)
     return model
 
 
 def _train_tabpfn_delay_with_progress(X_train, yd, progress_callback=None):
-    _emit_progress(progress_callback, "Delay", 0.0, "Start")
-    _emit_progress(progress_callback, "Delay", 5.0, "TabPFN | Inicjalizacja")
+    _emit_progress(progress_callback, "Delay", 0.0, PROGRESS_START)
+    _emit_progress(progress_callback, "Delay", 5.0, PROGRESS_TABPFN_INIT)
     model = train_tabpfn_regressor(X_train, yd)
-    _emit_progress(progress_callback, "Delay", 100.0, "Zakończono | TabPFN")
+    _emit_progress(progress_callback, "Delay", 100.0, PROGRESS_TABPFN_DONE)
     return model
 
 
 def train_schedule_model(df, n_samples=200, progress_callback=None, backend="classic"):
-    _emit_progress(progress_callback, "Schedule", 0.0, "Start")
+    """Train a schedule classification model on sampled schedule descriptors.
+
+    Args:
+        df: Production DataFrame used to derive schedule samples.
+        n_samples: Number of synthetic schedule samples used for training.
+        progress_callback: Optional callback invoked as `(model, percent, detail)`.
+        backend: Supported backend name: `"classic"` or `"tabpfn"`.
+
+    Returns:
+        Trained schedule classification model.
+    """
+    _emit_progress(progress_callback, "Schedule", 0.0, PROGRESS_START)
 
     X = []
     y = []
@@ -119,7 +161,7 @@ def train_schedule_model(df, n_samples=200, progress_callback=None, backend="cla
             progress_callback,
             "Schedule",
             round(percent, 1),
-            f"Próbka {i + 1}/{n_samples}",
+            PROGRESS_SAMPLE.format(index=i + 1, total=n_samples),
         )
 
     X = pd.DataFrame(X)
@@ -131,16 +173,32 @@ def train_schedule_model(df, n_samples=200, progress_callback=None, backend="cla
         model = RandomForestClassifier(n_estimators=200, random_state=42)
         model.fit(X, y)
 
-    _emit_progress(progress_callback, "Schedule", 100.0, "Zakończono")
+    _emit_progress(progress_callback, "Schedule", 100.0, PROGRESS_DONE)
     return model
 
 
 def train_selected_models(df_train, selected_models, progress_callback=None, backend="classic"):
+    """Train selected production models and return them as a model pack.
+
+    Args:
+        df_train: Training DataFrame with production rows.
+        selected_models: Names of models to train, e.g. `Quality`, `Delay`,
+            `Schedule`.
+        progress_callback: Optional callback invoked as `(model, percent, detail)`.
+        backend: Supported backend name: `"classic"` or `"tabpfn"`.
+
+    Returns:
+        Dict with keys: `quality`, `delay`, `schedule`, `scaler`,
+        `selected_models`, `backend`.
+
+    Raises:
+        ValueError: If no models were selected or the backend name is unknown.
+    """
     if not selected_models:
-        raise ValueError("Nie wybrano żadnego modelu do trenowania")
+        raise ValueError(NO_MODELS_SELECTED)
 
     if backend not in {"classic", "tabpfn"}:
-        raise ValueError(f"Nieznany backend modeli: {backend}")
+        raise ValueError(UNKNOWN_MODEL_BACKEND.format(backend=backend))
 
     X_train, yq, yd, scaler = prepare_features(df_train)
 
@@ -194,10 +252,12 @@ def train_selected_models(df_train, selected_models, progress_callback=None, bac
 
 
 def save_model_pack(model_pack, path):
+    """Serialize a trained model pack to disk using pickle."""
     with open(path, "wb") as f:
         pickle.dump(model_pack, f)
 
 
 def load_model_pack(path):
+    """Load a pickled model pack from disk."""
     with open(path, "rb") as f:
         return pickle.load(f)
