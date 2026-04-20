@@ -22,11 +22,11 @@ from AOA.core.services import (
     train_sto_models_flow,
 )
 from AOA.utils.error_utils import write_exception_log
-<<<<<<< HEAD
+
 from AOA.utils.logging_utils import configure_logging, ensure_logging_configured, get_logger
-=======
+
 from AOA.utils.logging_utils import configure_logging, get_logger
->>>>>>> origin/main
+
 
 
 AVAILABLE_ML_MODELS = {"Quality", "Delay", "Schedule"}
@@ -68,18 +68,16 @@ def print_messages(messages: list[str] | None):
 
 
 def print_key_value(title: str, value):
-<<<<<<< HEAD
+
     ensure_logging_configured()
-=======
->>>>>>> origin/main
+
     logger.info("%s: %s", title, value)
 
 
 def hr(title: str):
-<<<<<<< HEAD
+
     ensure_logging_configured()
-=======
->>>>>>> origin/main
+
     logger.info("")
     logger.info("===== %s =====", title)
 
