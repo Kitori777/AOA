@@ -22,6 +22,7 @@ from AOA.core.services import (
     train_sto_models_flow,
 )
 from AOA.utils.error_utils import write_exception_log
+from AOA.utils.logging_utils import configure_logging, get_logger
 
 
 AVAILABLE_ML_MODELS = {"Quality", "Delay", "Schedule"}
@@ -29,6 +30,8 @@ AVAILABLE_STO_MODELS = {"MT", "MO", "MZO", "GENETIC"}
 AVAILABLE_BACKENDS = {"classic", "tabpfn"}
 DEFAULT_SHAPES = ["kwadrat", "trojkat", "trapez"]
 DEFAULT_MATERIALS = ["bawelna", "mikrofibra", "poliester", "wiskoza"]
+
+logger = get_logger(__name__)
 
 
 def eprint(*args, **kwargs):
@@ -56,20 +59,21 @@ def print_messages(messages: list[str] | None):
     if not messages:
         return
     for msg in messages:
-        print(msg)
+        logger.info(msg)
 
 
 def print_key_value(title: str, value):
-    print(f"{title}: {value}")
+    logger.info("%s: %s", title, value)
 
 
 def hr(title: str):
-    print(f"\n===== {title} =====")
+    logger.info("")
+    logger.info("===== %s =====", title)
 
 
 def progress_callback(model_name: str, percent: float, detail: str = ""):
     suffix = f" | {detail}" if detail else ""
-    print(f"[POSTĘP] {model_name}: {percent:.1f}%{suffix}")
+    logger.info("[POSTĘP] %s: %.1f%%%s", model_name, percent, suffix)
 
 
 def resolve_existing_file(path_str: str, label: str) -> Path:
@@ -128,6 +132,8 @@ def build_parser() -> argparse.ArgumentParser:
         epilog=build_examples_text(),
         formatter_class=ExamplesHelpFormatter,
     )
+    parser.add_argument("--verbose", action="store_true", help="Włącz bardziej szczegółowe logowanie")
+    parser.add_argument("--quiet", action="store_true", help="Ogranicz logowanie do ostrzeżeń i błędów")
 
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -384,8 +390,8 @@ def command_train(args: argparse.Namespace) -> int:
         }
 
         hr("TRENING ML")
-        print(f"Modele ML: {', '.join(ml_models)}")
-        print(f"Backend: {backend}")
+        logger.info("Modele ML: %s", ", ".join(ml_models))
+        logger.info("Backend: %s", backend)
 
         result = train_models_flow(
             df_train=df_train,
@@ -399,7 +405,7 @@ def command_train(args: argparse.Namespace) -> int:
 
     if sto_models:
         hr("ZAPIS STO")
-        print(f"Metody STO: {', '.join(sto_models)}")
+        logger.info("Metody STO: %s", ", ".join(sto_models))
         result = train_sto_models_flow(sto_models)
         print_messages(result.get("messages"))
         print_key_value("MODEL_STO", result["model_path"])
@@ -433,15 +439,16 @@ def command_sto_run(args: argparse.Namespace) -> int:
 
     print_messages(result.get("messages"))
     hr("RAPORT STO")
-    print(result["report"])
+    logger.info("%s", result["report"])
 
     if result.get("saved_paths"):
         hr("ZAPISANE PLIKI")
         for item in result["saved_paths"]:
-            print(f"{item['method']}: {item['path']} | STO={item['sto']:.3f}")
+            logger.info("%s: %s | STO=%.3f", item["method"], item["path"], item["sto"])
 
     if result.get("best_path"):
-        print(f"\nBEST: {result['best_path']}")
+        logger.info("")
+        logger.info("BEST: %s", result["best_path"])
 
     return 0
 
@@ -462,15 +469,16 @@ def command_sto_solve(args: argparse.Namespace) -> int:
     result = solve_sto_with_saved_model(model_path=str(model_path), data_path=str(data_path))
     print_messages(result.get("messages"))
     hr("RAPORT STO")
-    print(result["report"])
+    logger.info("%s", result["report"])
 
     if result.get("saved_paths"):
         hr("ZAPISANE PLIKI")
         for item in result["saved_paths"]:
-            print(f"{item['method']}: {item['path']} | STO={item['sto']:.3f}")
+            logger.info("%s: %s | STO=%.3f", item["method"], item["path"], item["sto"])
 
     if result.get("best_path"):
-        print(f"\nBEST: {result['best_path']}")
+        logger.info("")
+        logger.info("BEST: %s", result["best_path"])
 
     return 0
 
@@ -478,7 +486,7 @@ def command_sto_solve(args: argparse.Namespace) -> int:
 def command_preview(args: argparse.Namespace) -> int:
     data_path = resolve_existing_file(args.data, "pliku danych")
     df = load_csv(data_path)
-    print(build_dataframe_preview_text(df, title=f"Podgląd: {data_path.name}", max_rows=args.rows))
+    logger.info("%s", build_dataframe_preview_text(df, title=f"Podgląd: {data_path.name}", max_rows=args.rows))
     return 0
 
 
@@ -505,21 +513,21 @@ def command_summary(args: argparse.Namespace) -> int:
     }
 
     hr("PODSUMOWANIE KONFIGURACJI")
-    print(build_main_page_summary(config))
+    logger.info("%s", build_main_page_summary(config))
     return 0
 
 
 def command_status(args: argparse.Namespace) -> int:
     if not args.data:
         hr("STATUS")
-        print(build_main_page_status(None, None))
+        logger.info("%s", build_main_page_status(None, None))
         return 0
 
     data_path = resolve_existing_file(args.data, "pliku danych")
     loaded = load_training_data(path=str(data_path), train_ratio=args.train_ratio)
 
     hr("STATUS")
-    print(build_main_page_status(loaded["train_df"], loaded["test_df"]))
+    logger.info("%s", build_main_page_status(loaded["train_df"], loaded["test_df"]))
     print_key_value("ŹRÓDŁO", data_path)
     return 0
 
@@ -695,14 +703,14 @@ def interactive_workflow():
 def command_interactive(args: argparse.Namespace) -> int:
     while True:
         hr("TRYB INTERAKTYWNY")
-        print("1. Generate")
-        print("2. Train")
-        print("3. Solve")
-        print("4. STO run")
-        print("5. Summary")
-        print("6. Status")
-        print("7. Workflow")
-        print("0. Wyjście")
+        logger.info("1. Generate")
+        logger.info("2. Train")
+        logger.info("3. Solve")
+        logger.info("4. STO run")
+        logger.info("5. Summary")
+        logger.info("6. Status")
+        logger.info("7. Workflow")
+        logger.info("0. Wyjście")
 
         choice = input("Wybierz opcję: ").strip()
 
@@ -721,15 +729,16 @@ def command_interactive(args: argparse.Namespace) -> int:
         elif choice == "7":
             interactive_workflow()
         elif choice == "0":
-            print("Koniec.")
+            logger.info("Koniec.")
             return 0
         else:
-            print("Nieprawidłowy wybór.")
+            logger.warning("Nieprawidłowy wybór.")
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    configure_logging(verbose=getattr(args, "verbose", False), quiet=getattr(args, "quiet", False))
 
     try:
         if args.command == "generate":
