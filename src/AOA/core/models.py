@@ -116,6 +116,18 @@ def _train_tabpfn_delay_with_progress(X_train, yd, progress_callback=None):
 
 
 def train_schedule_model(df, n_samples=200, progress_callback=None, backend="classic"):
+    """Train a schedule classification model on sampled schedule descriptors.
+
+    Args:
+        df: Production DataFrame used to derive schedule samples.
+        n_samples: Number of synthetic schedule samples used for training.
+        progress_callback: Optional callback invoked as `(model, percent, detail)`.
+        backend: Supported backend name: `"classic"` or `"tabpfn"`.
+
+    Returns:
+        Trained schedule classification model.
+    """
+
     _emit_progress(progress_callback, "Schedule", 0.0, PROGRESS_START)
 
     X = []
@@ -148,6 +160,22 @@ def train_schedule_model(df, n_samples=200, progress_callback=None, backend="cla
 
 
 def train_selected_models(df_train, selected_models, progress_callback=None, backend="classic"):
+    """Train selected production models and return them as a model pack.
+
+    Args:
+        df_train: Training DataFrame with production rows.
+        selected_models: Names of models to train, e.g. `Quality`, `Delay`,
+            `Schedule`.
+        progress_callback: Optional callback invoked as `(model, percent, detail)`.
+        backend: Supported backend name: `"classic"` or `"tabpfn"`.
+
+    Returns:
+        Dict with keys: `quality`, `delay`, `schedule`, `scaler`,
+        `selected_models`, `backend`.
+
+    Raises:
+        ValueError: If no models were selected or the backend name is unknown.
+    """
     if not selected_models:
         raise ValueError(NO_MODELS_SELECTED)
 
@@ -206,10 +234,12 @@ def train_selected_models(df_train, selected_models, progress_callback=None, bac
 
 
 def save_model_pack(model_pack, path):
+    """Serialize a trained model pack to disk using pickle."""
     with open(path, "wb") as f:
         pickle.dump(model_pack, f)
 
 
 def load_model_pack(path):
+    """Load a pickled model pack from disk."""
     with open(path, "rb") as f:
         return pickle.load(f)
