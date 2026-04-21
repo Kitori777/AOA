@@ -116,6 +116,7 @@ def _train_tabpfn_delay_with_progress(X_train, yd, progress_callback=None):
 
 
 def train_schedule_model(df, n_samples=200, progress_callback=None, backend="classic"):
+<<<<<<< HEAD
     """Train a schedule classification model on sampled schedule descriptors.
 
     Args:
@@ -127,6 +128,8 @@ def train_schedule_model(df, n_samples=200, progress_callback=None, backend="cla
     Returns:
         Trained schedule classification model.
     """
+=======
+>>>>>>> origin/main
     _emit_progress(progress_callback, "Schedule", 0.0, PROGRESS_START)
 
     X = []
