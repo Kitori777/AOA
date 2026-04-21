@@ -17,6 +17,26 @@ def generate_production_data(
     production_time_range=(1.0, 48.0),
     deadline_buffer_range=(1.0, 72.0),
 ):
+    """Generate synthetic production data and a reproducible train/test split.
+
+    Args:
+        n: Number of rows to generate.
+        n_machines: Number of machines used in lateness simulation.
+        test_size: Fraction of data reserved for the test subset.
+        seed: Random seed used for generation and shuffling.
+        ksztalty: Optional allowed shapes.
+        materialy: Optional allowed materials.
+        price_range: Inclusive-like numeric range used for price sampling.
+        waste_range: Numeric range used for waste sampling.
+        production_time_range: Numeric range used for production time sampling.
+        deadline_buffer_range: Numeric range used for deadline buffer sampling.
+
+    Returns:
+        Tuple `(full_df, train_df, test_df)`.
+
+    Raises:
+        ValueError: If selected shapes or materials contain unsupported values.
+    """
     np.random.seed(seed)
 
     available_ksztalty = list(KSZTALT_DIMENSIONS.keys())
@@ -78,6 +98,7 @@ def generate_production_data(
 
 
 def ksztaty_or_materialy_valid(values, allowed, field_name):
+    """Check whether every provided value belongs to the allowed set."""
     if not values:
         return False
     return all(v in allowed for v in values)

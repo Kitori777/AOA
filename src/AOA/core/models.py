@@ -147,6 +147,7 @@ def train_schedule_model(df, n_samples=200, progress_callback=None, backend="cla
     Returns:
         Trained schedule classification model.
     """
+
     _emit_progress(progress_callback, "Schedule", 0.0, PROGRESS_START)
 
     X = []
@@ -291,7 +292,10 @@ def save_model_pack(model_pack, path):
 
 
 def load_model_pack(path):
+
     """Load a pickled model pack from disk using a restricted unpickler."""
     path = _validate_model_pack_path(path)
+    """Load a pickled model pack from disk."""
+
     with open(path, "rb") as f:
         return RestrictedModelUnpickler(f).load()
