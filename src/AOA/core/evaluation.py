@@ -15,6 +15,7 @@ from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 
 
 def fill_missing_values(df: pd.DataFrame) -> pd.DataFrame:
+    """Fill missing numeric values with the mean and text values forward."""
     df = df.copy()
 
     for col in df.columns:
@@ -27,6 +28,7 @@ def fill_missing_values(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def transform_numeric_columns(df: pd.DataFrame, transformation: str) -> pd.DataFrame:
+    """Apply a named numeric transformation to all numeric columns."""
     df = df.copy()
     numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
 
@@ -54,6 +56,7 @@ def transform_numeric_columns(df: pd.DataFrame, transformation: str) -> pd.DataF
 
 
 def calculate_regression_metrics(df: pd.DataFrame, target: str) -> dict:
+    """Train a simple regression baseline and return standard metrics."""
     numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
 
     if target not in numeric_cols:
@@ -80,6 +83,7 @@ def calculate_regression_metrics(df: pd.DataFrame, target: str) -> dict:
 
 
 def calculate_classification_metrics(df: pd.DataFrame, target: str) -> dict:
+    """Train a simple classification baseline and return standard metrics."""
     numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
     categorical_cols = df.select_dtypes(include=["object", "category"]).columns.tolist()
 
@@ -108,6 +112,7 @@ def calculate_classification_metrics(df: pd.DataFrame, target: str) -> dict:
 
 
 def append_metrics_row(df: pd.DataFrame, metrics: dict) -> pd.DataFrame:
+    """Append a metrics summary row to the provided DataFrame."""
     df = df.copy()
 
     metrics_row = {col: "" for col in df.columns}
