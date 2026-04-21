@@ -146,6 +146,7 @@ def train_schedule_model(df, n_samples=200, progress_callback=None, backend="cla
     Returns:
         Trained schedule classification model.
     """
+
     _emit_progress(progress_callback, "Schedule", 0.0, PROGRESS_START)
 
     X = []
