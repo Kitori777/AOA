@@ -125,7 +125,7 @@ TOOLS/
 #### 1. Sklonuj repozytorium i przejdź do katalogu projektu
 
 ```bash
-git clone git@github.com:/Kitori777/AOA.git
+git clone git@github.com:Kitori777/AOA.git
 cd AOA
 ```
 
@@ -150,7 +150,7 @@ uv run pytest
 #### 1. Sklonuj repozytorium i przejdź do katalogu projektu
 
 ```bash
-git clone git@github.com:/Kitori777/AOA.git
+git clone git@github.com:Kitori777/AOA.git
 cd AOA
 ```
 #### 2. Utwórz i aktywuj środowisko wirtualne
