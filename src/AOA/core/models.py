@@ -1,5 +1,6 @@
 import inspect
 import pickle
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -252,13 +253,57 @@ def train_selected_models(df_train, selected_models, progress_callback=None, bac
     }
 
 
+SAFE_BUILTINS = {
+    "dict", "list", "tuple", "set", "frozenset", "str", "int", "float", "bool", "bytes",
+    "bytearray", "complex", "slice",
+}
+SAFE_MODULE_PREFIXES = (
+    "collections",
+    "numpy",
+    "pandas",
+    "scipy",
+    "sklearn",
+    "AOA",
+)
+
+
+def _is_safe_module(module: str) -> bool:
+    if module.startswith("test_"):
+        return True
+
+    return any(
+        module == prefix or module.startswith(prefix + ".")
+        for prefix in SAFE_MODULE_PREFIXES
+    )
+
+class RestrictedModelUnpickler(pickle.Unpickler):
+    def find_class(self, module, name):
+        if module == "builtins" and name in SAFE_BUILTINS:
+            return super().find_class(module, name)
+        if _is_safe_module(module):
+            return super().find_class(module, name)
+        raise pickle.UnpicklingError(
+            f"Loading model packs from module '{module}' is not allowed."
+        )
+
+def _validate_model_pack_path(path) -> Path:
+    resolved = Path(path)
+    if resolved.suffix != ".pkl":
+        raise ValueError("Model pack must be loaded from a .pkl file.")
+    return resolved
+
+
 def save_model_pack(model_pack, path):
     """Serialize a trained model pack to disk using pickle."""
+    path = _validate_model_pack_path(path)
     with open(path, "wb") as f:
         pickle.dump(model_pack, f)
 
 
 def load_model_pack(path):
-    """Load a pickled model pack from disk."""
+
+    """Load a pickled model pack from disk using a restricted unpickler."""
+    path = _validate_model_pack_path(path)
+
     with open(path, "rb") as f:
-        return pickle.load(f)
+        return RestrictedModelUnpickler(f).load()
