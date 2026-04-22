@@ -1,3 +1,4 @@
+import inspect
 import pickle
 
 import numpy as np
@@ -26,25 +27,43 @@ from AOA.messages import (
 
 
 def _emit_progress(progress_callback, model_name: str, percent: float, detail: str = ""):
+    """Call a progress callback with a supported argument shape.
+
+    Supported callback forms are:
+    - `(model_name, percent, detail)`
+    - `(model_name, percent)`
+    - `(percent)`
+
+    Internal exceptions raised by the callback are propagated unchanged.
+    """
     if progress_callback is None:
         return
 
+    callback_args_candidates = [
+        (model_name, percent, detail),
+        (model_name, percent),
+        (percent,),
+    ]
+
     try:
+        signature = inspect.signature(progress_callback)
+    except (TypeError, ValueError):
         progress_callback(model_name, percent, detail)
         return
-    except TypeError:
-        pass
 
-    try:
-        progress_callback(model_name, percent)
-        return
-    except TypeError:
-        pass
+    for args in callback_args_candidates:
+        try:
+            signature.bind(*args)
+        except TypeError:
+            continue
 
-    try:
-        progress_callback(percent)
-    except TypeError:
+        progress_callback(*args)
         return
+
+    raise TypeError(
+        "Progress callback must accept one of the supported signatures: "
+        "(model_name, percent, detail), (model_name, percent) or (percent)."
+    )
 
 
 def _train_quality_with_progress(X_train, yq, progress_callback=None):

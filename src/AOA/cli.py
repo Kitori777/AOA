@@ -22,11 +22,7 @@ from AOA.core.services import (
     train_sto_models_flow,
 )
 from AOA.utils.error_utils import write_exception_log
-
-from AOA.utils.logging_utils import configure_logging, ensure_logging_configured, get_logger
-
 from AOA.utils.logging_utils import configure_logging, get_logger
-
 
 
 AVAILABLE_ML_MODELS = {"Quality", "Delay", "Schedule"}
@@ -60,7 +56,6 @@ def validate_models(selected: Iterable[str], allowed: set[str], label: str) -> l
 
 
 def print_messages(messages: list[str] | None):
-    ensure_logging_configured()
     if not messages:
         return
     for msg in messages:
@@ -68,22 +63,15 @@ def print_messages(messages: list[str] | None):
 
 
 def print_key_value(title: str, value):
-
-    ensure_logging_configured()
-
     logger.info("%s: %s", title, value)
 
 
 def hr(title: str):
-
-    ensure_logging_configured()
-
     logger.info("")
     logger.info("===== %s =====", title)
 
 
 def progress_callback(model_name: str, percent: float, detail: str = ""):
-    ensure_logging_configured()
     suffix = f" | {detail}" if detail else ""
     logger.info("[POSTĘP] %s: %.1f%%%s", model_name, percent, suffix)
 
@@ -492,7 +480,6 @@ def command_sto_solve(args: argparse.Namespace) -> int:
 
 
 def command_preview(args: argparse.Namespace) -> int:
-    ensure_logging_configured()
     data_path = resolve_existing_file(args.data, "pliku danych")
     df = load_csv(data_path)
     logger.info("%s", build_dataframe_preview_text(df, title=f"Podgląd: {data_path.name}", max_rows=args.rows))
@@ -500,7 +487,6 @@ def command_preview(args: argparse.Namespace) -> int:
 
 
 def command_summary(args: argparse.Namespace) -> int:
-    ensure_logging_configured()
     selected_models = parse_csv_list(args.models)
     ml_models, sto_models = split_selected_models(selected_models)
     invalid = [m for m in selected_models if m not in AVAILABLE_ML_MODELS | AVAILABLE_STO_MODELS]
@@ -711,7 +697,6 @@ def interactive_workflow():
 
 
 def command_interactive(args: argparse.Namespace) -> int:
-    ensure_logging_configured()
     while True:
         hr("TRYB INTERAKTYWNY")
         logger.info("1. Generate")
