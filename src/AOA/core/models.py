@@ -264,18 +264,27 @@ SAFE_MODULE_PREFIXES = (
     "scipy",
     "sklearn",
     "AOA",
-    "tests",
 )
 
+
+def _is_safe_module(module: str) -> bool:
+    if module.startswith("test_"):
+        return True
+
+    return any(
+        module == prefix or module.startswith(prefix + ".")
+        for prefix in SAFE_MODULE_PREFIXES
+    )
 
 class RestrictedModelUnpickler(pickle.Unpickler):
     def find_class(self, module, name):
         if module == "builtins" and name in SAFE_BUILTINS:
             return super().find_class(module, name)
-        if module.startswith(SAFE_MODULE_PREFIXES) or module.startswith("test_"):
+        if _is_safe_module(module):
             return super().find_class(module, name)
-        raise pickle.UnpicklingError(f"Loading model packs from module '{module}' is not allowed.")
-
+        raise pickle.UnpicklingError(
+            f"Loading model packs from module '{module}' is not allowed."
+        )
 
 def _validate_model_pack_path(path) -> Path:
     resolved = Path(path)
@@ -295,7 +304,6 @@ def load_model_pack(path):
 
     """Load a pickled model pack from disk using a restricted unpickler."""
     path = _validate_model_pack_path(path)
-    """Load a pickled model pack from disk."""
 
     with open(path, "rb") as f:
         return RestrictedModelUnpickler(f).load()
