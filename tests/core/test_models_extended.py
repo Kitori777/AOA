@@ -3,8 +3,8 @@ import pandas as pd
 import pytest
 
 from AOA.core import models
-
 from AOA.core.models import _emit_progress
+
 
 def _sample_training_df(n=40):
     rng = np.random.default_rng(42)

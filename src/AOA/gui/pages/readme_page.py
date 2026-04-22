@@ -1,6 +1,7 @@
 import re
+from tkinter import BOTH, Scrollbar, Text
+
 import customtkinter as ctk
-from tkinter import Text, Scrollbar, BOTH
 
 from AOA.config import GUIDE_FILE
 
@@ -99,7 +100,7 @@ class ReadmePage(ctk.CTkFrame):
 
     def _load_content(self):
         try:
-            with open(GUIDE_FILE, "r", encoding="utf-8") as f:
+            with open(GUIDE_FILE, encoding="utf-8") as f:
                 content = f.read()
         except FileNotFoundError:
             content = (

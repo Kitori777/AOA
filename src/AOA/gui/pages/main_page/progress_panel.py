@@ -1,7 +1,12 @@
-import customtkinter as ctk
 from tkinter import messagebox
 
-from AOA.core.services import build_dataframe_preview_text, build_main_page_status, build_main_page_summary
+import customtkinter as ctk
+
+from AOA.core.services import (
+    build_dataframe_preview_text,
+    build_main_page_status,
+    build_main_page_summary,
+)
 
 
 class MainPageProgressPanelMixin:

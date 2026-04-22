@@ -3,7 +3,18 @@ from __future__ import annotations
 import argparse
 
 from AOA.core.services import load_training_data, train_models_flow, train_sto_models_flow
-from ..helpers import AVAILABLE_ML_MODELS, AVAILABLE_STO_MODELS, hr, logger, parse_csv_list, print_key_value, print_messages, progress_callback, resolve_existing_file
+
+from ..helpers import (
+    AVAILABLE_ML_MODELS,
+    AVAILABLE_STO_MODELS,
+    hr,
+    logger,
+    parse_csv_list,
+    print_key_value,
+    print_messages,
+    progress_callback,
+    resolve_existing_file,
+)
 
 
 def command_train(args: argparse.Namespace) -> int:

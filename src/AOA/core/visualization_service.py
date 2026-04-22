@@ -1,7 +1,7 @@
-from matplotlib.figure import Figure
-from matplotlib.backends.backend_agg import FigureCanvasAgg
-from sklearn.tree import plot_tree
 import seaborn as sns
+from matplotlib.backends.backend_agg import FigureCanvasAgg
+from matplotlib.figure import Figure
+from sklearn.tree import plot_tree
 
 from AOA.core.diagrams.correlation_matrix import prepare_correlation_matrix_data
 from AOA.core.diagrams.decision_tree_diagram import prepare_decision_tree_data

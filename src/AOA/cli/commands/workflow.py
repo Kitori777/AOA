@@ -2,8 +2,22 @@ from __future__ import annotations
 
 import argparse
 
-from AOA.core.services import generate_and_store_datasets, solve_models_flow, train_models_flow, train_sto_models_flow
-from ..helpers import AVAILABLE_ML_MODELS, AVAILABLE_STO_MODELS, hr, parse_csv_list, print_key_value, print_messages, progress_callback
+from AOA.core.services import (
+    generate_and_store_datasets,
+    solve_models_flow,
+    train_models_flow,
+    train_sto_models_flow,
+)
+
+from ..helpers import (
+    AVAILABLE_ML_MODELS,
+    AVAILABLE_STO_MODELS,
+    hr,
+    parse_csv_list,
+    print_key_value,
+    print_messages,
+    progress_callback,
+)
 
 
 def command_workflow(args: argparse.Namespace) -> int:

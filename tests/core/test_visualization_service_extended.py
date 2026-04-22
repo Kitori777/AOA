@@ -1,6 +1,6 @@
-from matplotlib.figure import Figure
 import pandas as pd
 import pytest
+from matplotlib.figure import Figure
 
 from AOA.core.visualization_service import build_figure_from_request
 

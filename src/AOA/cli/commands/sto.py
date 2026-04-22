@@ -3,7 +3,17 @@ from __future__ import annotations
 import argparse
 
 from AOA.core.services import analyze_sto_models, solve_sto_with_saved_model, train_sto_models_flow
-from ..helpers import AVAILABLE_STO_MODELS, hr, logger, parse_csv_list, print_key_value, print_messages, resolve_existing_file, validate_models
+
+from ..helpers import (
+    AVAILABLE_STO_MODELS,
+    hr,
+    logger,
+    parse_csv_list,
+    print_key_value,
+    print_messages,
+    resolve_existing_file,
+    validate_models,
+)
 
 
 def command_sto_run(args: argparse.Namespace) -> int:

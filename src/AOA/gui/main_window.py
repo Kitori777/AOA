@@ -1,11 +1,10 @@
 import customtkinter as ctk
 
-from AOA.gui.pages.readme_page import ReadmePage
 from AOA.gui.pages.main_page import MainPage
-from AOA.gui.pages.visual_page import VisualPage
+from AOA.gui.pages.readme_page import ReadmePage
 from AOA.gui.pages.results_page import ResultsPage
 from AOA.gui.pages.theory_page import TheoryPage
-
+from AOA.gui.pages.visual_page import VisualPage
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")

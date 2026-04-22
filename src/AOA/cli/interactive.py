@@ -4,7 +4,6 @@ import argparse
 
 from .commands import (
     command_generate,
-    command_preview,
     command_solve,
     command_status,
     command_sto_run,

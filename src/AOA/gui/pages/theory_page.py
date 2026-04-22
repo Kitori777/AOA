@@ -1,6 +1,7 @@
 import re
+from tkinter import BOTH, Scrollbar, Text
+
 import customtkinter as ctk
-from tkinter import Text, Scrollbar, BOTH
 
 from AOA.config import THEORY_FILE
 
@@ -99,7 +100,7 @@ class TheoryPage(ctk.CTkFrame):
 
     def _load_content(self):
         try:
-            with open(THEORY_FILE, "r", encoding="utf-8") as f:
+            with open(THEORY_FILE, encoding="utf-8") as f:
                 content = f.read()
         except FileNotFoundError:
             content = (

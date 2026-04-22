@@ -18,7 +18,14 @@ from AOA.core.evaluation import (
 )
 from AOA.core.features import prepare_features
 from AOA.core.models import load_model_pack, save_model_pack, train_selected_models
-
+from AOA.core.scheduling import simulate_schedule
+from AOA.core.sto_models import (
+    apply_sto_result_to_dataframe,
+    build_sto_report,
+    dataframe_to_jobs,
+    parse_jobs,
+    run_selected_sto_models,
+)
 from AOA.messages import (
     DEADLINE_MIN_GT_MAX,
     MUST_BE_FLOAT,
@@ -29,16 +36,6 @@ from AOA.messages import (
     PROD_MIN_GT_MAX,
     TEST_SIZE_TOO_LARGE,
 )
-
-from AOA.core.scheduling import simulate_schedule
-from AOA.core.sto_models import (
-    apply_sto_result_to_dataframe,
-    build_sto_report,
-    dataframe_to_jobs,
-    parse_jobs,
-    run_selected_sto_models,
-)
-
 
 ML_MODEL_NAMES = {"Quality", "Delay", "Schedule"}
 STO_MODEL_NAMES = {"MT", "MO", "MZO", "GENETIC"}

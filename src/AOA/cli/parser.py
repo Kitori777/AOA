@@ -9,7 +9,7 @@ from .helpers import AVAILABLE_BACKENDS, DEFAULT_MATERIALS, DEFAULT_SHAPES
 def build_examples_text() -> str:
     return dedent(
 
-        f"""
+        """
 
         Przykłady:
 

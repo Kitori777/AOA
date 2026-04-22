@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import argparse
 import sys
+from collections.abc import Iterable
 from pathlib import Path
 from textwrap import dedent
-from typing import Iterable
 
-from AOA.config import DATA_DIR, MODELS_DIR
 from AOA.core.data_io import load_csv
 from AOA.core.services import (
     analyze_sto_models,
@@ -23,7 +22,6 @@ from AOA.core.services import (
 )
 from AOA.utils.error_utils import write_exception_log
 from AOA.utils.logging_utils import configure_logging, get_logger
-
 
 AVAILABLE_ML_MODELS = {"Quality", "Delay", "Schedule"}
 AVAILABLE_STO_MODELS = {"MT", "MO", "MZO", "GENETIC"}
@@ -91,7 +89,7 @@ def resolve_optional_path(path_str: str | None) -> Path | None:
 
 def build_examples_text() -> str:
     return dedent(
-        f"""
+        """
         Przykłady:
 
           aoa-cli generate --n 800 --machines 1 --test-size 0.2 --seed 42

@@ -1,5 +1,5 @@
-from matplotlib.figure import Figure
 import pandas as pd
+from matplotlib.figure import Figure
 
 from AOA.core.visualization_service import build_figure_from_request
 

@@ -17,7 +17,6 @@ from AOA.core.services import (
     train_sto_models_flow,
 )
 from AOA.utils.error_utils import write_exception_log
-
 from AOA.utils.logging_utils import configure_logging
 
 from .helpers import *
