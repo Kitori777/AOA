@@ -18,14 +18,7 @@ from AOA.core.evaluation import (
 )
 from AOA.core.features import prepare_features
 from AOA.core.models import load_model_pack, save_model_pack, train_selected_models
-from AOA.core.scheduling import simulate_schedule
-from AOA.core.sto_models import (
-    apply_sto_result_to_dataframe,
-    build_sto_report,
-    dataframe_to_jobs,
-    parse_jobs,
-    run_selected_sto_models,
-)
+
 from AOA.messages import (
     DEADLINE_MIN_GT_MAX,
     MUST_BE_FLOAT,
@@ -37,6 +30,16 @@ from AOA.messages import (
     TEST_SIZE_TOO_LARGE,
 )
 
+from AOA.core.scheduling import simulate_schedule
+from AOA.core.sto_models import (
+    apply_sto_result_to_dataframe,
+    build_sto_report,
+    dataframe_to_jobs,
+    parse_jobs,
+    run_selected_sto_models,
+)
+
+
 ML_MODEL_NAMES = {"Quality", "Delay", "Schedule"}
 STO_MODEL_NAMES = {"MT", "MO", "MZO", "GENETIC"}
 
@@ -46,6 +49,7 @@ def _parse_positive_int(value, field_name: str) -> int:
         number = int(value)
     except (TypeError, ValueError):
         raise ValueError(MUST_BE_INT.format(field=field_name))
+
     if number <= 0:
         raise ValueError(MUST_BE_POSITIVE)
     return number
@@ -56,6 +60,7 @@ def _parse_positive_float(value, field_name: str) -> float:
         number = float(value)
     except (TypeError, ValueError):
         raise ValueError(MUST_BE_FLOAT.format(field=field_name))
+
     if number <= 0:
         raise ValueError(MUST_BE_POSITIVE)
     return number
@@ -76,6 +81,9 @@ def parse_generation_config(raw_config: dict) -> dict:
         raise ValueError(MUST_BE_POSITIVE)
     if test_size >= 1:
         raise ValueError(TEST_SIZE_TOO_LARGE)
+
+    seed = _parse_positive_int(raw_config.get("seed", ""), "seed")
+
     prod_min = _parse_positive_float(raw_config.get("prod_min", ""), "prod_min")
     prod_max = _parse_positive_float(raw_config.get("prod_max", ""), "prod_max")
     deadline_min = _parse_positive_float(raw_config.get("deadline_min", ""), "deadline_min")
@@ -84,12 +92,14 @@ def parse_generation_config(raw_config: dict) -> dict:
         raise ValueError(PROD_MIN_GT_MAX)
     if deadline_min > deadline_max:
         raise ValueError(DEADLINE_MIN_GT_MAX)
+
     selected_ksztalty = raw_config.get("selected_ksztalty", [])
     selected_materialy = raw_config.get("selected_materialy", [])
     if not selected_ksztalty:
         raise ValueError(MUST_SELECT_SHAPE)
     if not selected_materialy:
         raise ValueError(MUST_SELECT_MATERIAL)
+
     return {
         "n": n,
         "n_machines": n_machines,

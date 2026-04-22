@@ -5,11 +5,18 @@ import argparse
 from AOA.core.data_io import load_csv
 from AOA.core.services import build_dataframe_preview_text, build_main_page_status, build_main_page_summary, load_training_data, split_selected_models
 from ..helpers import AVAILABLE_ML_MODELS, AVAILABLE_STO_MODELS, logger, parse_csv_list, print_key_value, resolve_existing_file
+<<<<<<< HEAD
 from AOA.utils.logging_utils import ensure_logging_configured
 
 
 def command_preview(args: argparse.Namespace) -> int:
     ensure_logging_configured()
+=======
+
+
+def command_preview(args: argparse.Namespace) -> int:
+
+>>>>>>> origin/main
     data_path = resolve_existing_file(args.data, "pliku danych")
     df = load_csv(data_path)
     logger.info("%s", build_dataframe_preview_text(df, title=f"Podgląd: {data_path.name}", max_rows=args.rows))
@@ -17,7 +24,10 @@ def command_preview(args: argparse.Namespace) -> int:
 
 
 def command_summary(args: argparse.Namespace) -> int:
+<<<<<<< HEAD
     ensure_logging_configured()
+=======
+>>>>>>> origin/main
     selected_models = parse_csv_list(args.models)
     ml_models, sto_models = split_selected_models(selected_models)
     invalid = [m for m in selected_models if m not in AVAILABLE_ML_MODELS | AVAILABLE_STO_MODELS]

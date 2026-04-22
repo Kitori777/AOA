@@ -35,6 +35,7 @@ dev = [
     "ruff>=0.11,<0.14",
     "mypy>=1.11,<1.16",
     "pre-commit>=4.0,<5.0",
+
 ]
 
 [tool.pytest.ini_options]
@@ -53,7 +54,6 @@ branch = true
 [tool.coverage.report]
 skip_empty = true
 show_missing = true
-
 
 [tool.ruff]
 target-version = "py311"

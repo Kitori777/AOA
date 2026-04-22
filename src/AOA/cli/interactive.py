@@ -13,7 +13,6 @@ from .commands import (
     command_workflow,
 )
 from .helpers import DEFAULT_MATERIALS, DEFAULT_SHAPES, logger
-from AOA.utils.logging_utils import ensure_logging_configured
 
 
 def ask(prompt: str, default: str = "") -> str:
@@ -63,7 +62,7 @@ def interactive_workflow():
 
 
 def command_interactive(args: argparse.Namespace) -> int:
-    ensure_logging_configured()
+
     from .helpers import hr
     while True:
         hr("TRYB INTERAKTYWNY")

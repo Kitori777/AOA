@@ -1,11 +1,17 @@
 from __future__ import annotations
 
+
 import argparse
+
 import sys
 from pathlib import Path
 from typing import Iterable
 
-from AOA.utils.logging_utils import ensure_logging_configured, get_logger
+
+from AOA.utils.logging_utils import  get_logger
+
+from AOA.utils.logging_utils import get_logger
+
 
 AVAILABLE_ML_MODELS = {"Quality", "Delay", "Schedule"}
 AVAILABLE_STO_MODELS = {"MT", "MO", "MZO", "GENETIC"}
@@ -38,7 +44,6 @@ def validate_models(selected: Iterable[str], allowed: set[str], label: str) -> l
 
 
 def print_messages(messages: list[str] | None):
-    ensure_logging_configured()
     if not messages:
         return
     for msg in messages:
@@ -46,18 +51,17 @@ def print_messages(messages: list[str] | None):
 
 
 def print_key_value(title: str, value):
-    ensure_logging_configured()
+
     logger.info("%s: %s", title, value)
 
 
 def hr(title: str):
-    ensure_logging_configured()
     logger.info("")
     logger.info("===== %s =====", title)
 
 
 def progress_callback(model_name: str, percent: float, detail: str = ""):
-    ensure_logging_configured()
+
     suffix = f" | {detail}" if detail else ""
     logger.info("[POSTĘP] %s: %.1f%%%s", model_name, percent, suffix)
 
