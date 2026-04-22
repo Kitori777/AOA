@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import sys
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
 
 from AOA.utils.logging_utils import get_logger
 
@@ -44,6 +44,7 @@ def print_messages(messages: list[str] | None):
 
 
 def print_key_value(title: str, value):
+
     logger.info("%s: %s", title, value)
 
 
@@ -53,6 +54,7 @@ def hr(title: str):
 
 
 def progress_callback(model_name: str, percent: float, detail: str = ""):
+
     suffix = f" | {detail}" if detail else ""
     logger.info("[POSTĘP] %s: %.1f%%%s", model_name, percent, suffix)
 

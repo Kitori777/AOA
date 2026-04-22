@@ -8,7 +8,9 @@ from .helpers import AVAILABLE_BACKENDS, DEFAULT_MATERIALS, DEFAULT_SHAPES
 
 def build_examples_text() -> str:
     return dedent(
-        f"""
+
+        """
+
         Przykłady:
 
           aoa-cli generate --n 800 --machines 1 --test-size 0.2 --seed 42

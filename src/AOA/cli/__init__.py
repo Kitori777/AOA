@@ -18,6 +18,7 @@ from AOA.core.services import (
 )
 from AOA.utils.error_utils import write_exception_log
 from AOA.utils.logging_utils import configure_logging
+
 from .helpers import *
 from .parser import build_examples_text, build_parser
 
@@ -32,6 +33,7 @@ def command_generate(args: argparse.Namespace) -> int:
         materialy=parse_csv_list(args.materials),
         production_time_range=(args.prod_min, args.prod_max),
         deadline_buffer_range=(args.deadline_min, args.deadline_max),
+
     )
     hr("GENEROWANIE")
     print_messages(result.get("messages"))
@@ -66,6 +68,7 @@ def command_train(args: argparse.Namespace) -> int:
         hr("TRENING ML")
         logger.info("Modele ML: %s", ", ".join(ml_models))
         logger.info("Backend: %s", args.backend)
+
         result = train_models_flow(
             df_train=loaded["train_df"],
             selected_models=ml_models,
@@ -81,10 +84,12 @@ def command_train(args: argparse.Namespace) -> int:
         print_messages(result.get("messages"))
         print_key_value("MODEL_ML", result["model_path"])
 
+
     if sto_models:
         hr("ZAPIS STO")
         logger.info("Metody STO: %s", ", ".join(sto_models))
         result = train_sto_models_flow(sto_models)
+
         print_messages(result.get("messages"))
         print_key_value("MODEL_STO", result["model_path"])
 
@@ -100,11 +105,13 @@ def command_solve(args: argparse.Namespace) -> int:
     result = solve_models_flow(model_path=str(model_path), data_path=str(data_path))
     print_messages(result.get("messages"))
     print_key_value("WYNIK", result["result_path"])
+
     return 0
 
 
 def command_sto_run(args: argparse.Namespace) -> int:
     methods = validate_models(parse_csv_list(args.methods), AVAILABLE_STO_MODELS, "metody STO")
+
     result = analyze_sto_models(
         job_ids_text=args.jobs,
         processing_text=args.times,
@@ -140,6 +147,7 @@ def command_sto_solve(args: argparse.Namespace) -> int:
     model_path = resolve_existing_file(args.model, "pliku modelu STO")
     data_path = resolve_existing_file(args.data, "pliku danych STO")
     result = solve_sto_with_saved_model(model_path=str(model_path), data_path=str(data_path))
+
     print_messages(result.get("messages"))
     hr("RAPORT STO")
     logger.info("%s", result["report"])
@@ -171,6 +179,7 @@ def command_preview(args: argparse.Namespace) -> int:
 
 
 def command_summary(args: argparse.Namespace) -> int:
+
     selected_models = parse_csv_list(args.models)
     ml_models, sto_models = split_selected_models(selected_models)
     invalid = [m for m in selected_models if m not in AVAILABLE_ML_MODELS | AVAILABLE_STO_MODELS]
@@ -197,8 +206,10 @@ def command_summary(args: argparse.Namespace) -> int:
     return 0
 
 
+
 def command_status(args: argparse.Namespace) -> int:
     if not args.data:
+
         hr("STATUS")
         logger.info("%s", build_main_page_status(None, None))
         return 0
@@ -211,8 +222,10 @@ def command_status(args: argparse.Namespace) -> int:
     return 0
 
 
+
 def command_workflow(args: argparse.Namespace) -> int:
     selected_models = parse_csv_list(args.models)
+
     if not selected_models:
         raise ValueError("Nie podano modeli do workflow.")
 
@@ -274,6 +287,7 @@ def command_workflow(args: argparse.Namespace) -> int:
     print_key_value("TEST", gen_result["test_path"])
     if ml_model_path is not None:
         print_key_value("MODEL_ML", ml_model_path)
+
     return 0
 
 
@@ -284,6 +298,7 @@ def ask(prompt: str, default: str = "") -> str:
 
 
 def interactive_generate():
+
     return command_generate(
         argparse.Namespace(
             n=int(ask("Liczba rekordów", "800")),
@@ -453,6 +468,7 @@ def main(argv: list[str] | None = None) -> int:
     except KeyboardInterrupt:
         eprint("Przerwano przez użytkownika.")
         return 130
+
     except Exception as e:
         log_path = write_exception_log("cli.main", e)
         eprint(f"❌ Błąd: {type(e).__name__}: {e}")

@@ -3,8 +3,22 @@ from __future__ import annotations
 import argparse
 
 from AOA.core.data_io import load_csv
-from AOA.core.services import build_dataframe_preview_text, build_main_page_status, build_main_page_summary, load_training_data, split_selected_models
-from ..helpers import AVAILABLE_ML_MODELS, AVAILABLE_STO_MODELS, logger, parse_csv_list, print_key_value, resolve_existing_file
+from AOA.core.services import (
+    build_dataframe_preview_text,
+    build_main_page_status,
+    build_main_page_summary,
+    load_training_data,
+    split_selected_models,
+)
+
+from ..helpers import (
+    AVAILABLE_ML_MODELS,
+    AVAILABLE_STO_MODELS,
+    logger,
+    parse_csv_list,
+    print_key_value,
+    resolve_existing_file,
+)
 
 
 def command_preview(args: argparse.Namespace) -> int:
@@ -16,6 +30,7 @@ def command_preview(args: argparse.Namespace) -> int:
 
 
 def command_summary(args: argparse.Namespace) -> int:
+
     selected_models = parse_csv_list(args.models)
     ml_models, sto_models = split_selected_models(selected_models)
     invalid = [m for m in selected_models if m not in AVAILABLE_ML_MODELS | AVAILABLE_STO_MODELS]

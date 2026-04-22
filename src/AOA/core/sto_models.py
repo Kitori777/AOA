@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import random
 from dataclasses import dataclass
 from itertools import permutations
-import random
 
 import pandas as pd
 
@@ -26,7 +26,7 @@ def parse_jobs(job_ids_text: str, processing_text: str, deadlines_text: str) -> 
         raise ValueError("Liczba zleceń, czasów i terminów musi być taka sama.")
 
     jobs: list[Job] = []
-    for job_id, p_raw, d_raw in zip(job_ids, processing_values, deadline_values):
+    for job_id, p_raw, d_raw in zip(job_ids, processing_values, deadline_values, strict=False):
         try:
             processing_time = float(p_raw)
             deadline = float(d_raw)

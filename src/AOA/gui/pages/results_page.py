@@ -1,5 +1,6 @@
+from tkinter import BOTH, Scrollbar, Text, filedialog, messagebox
+
 import customtkinter as ctk
-from tkinter import filedialog, messagebox, Text, Scrollbar, BOTH
 
 from AOA.config import DATA_DIR
 from AOA.core.services import load_and_prepare_visual_file, prepare_results_analysis

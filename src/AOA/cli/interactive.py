@@ -4,7 +4,6 @@ import argparse
 
 from .commands import (
     command_generate,
-    command_preview,
     command_solve,
     command_status,
     command_sto_run,
@@ -13,7 +12,6 @@ from .commands import (
     command_workflow,
 )
 from .helpers import DEFAULT_MATERIALS, DEFAULT_SHAPES, logger
-
 
 
 def ask(prompt: str, default: str = "") -> str:

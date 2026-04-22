@@ -1,5 +1,3 @@
-import numpy as np
-import pandas as pd
 
 
 def optimize_schedule(df, time_col="czas_produkcji_h", alpha=1.0, beta=2.0):

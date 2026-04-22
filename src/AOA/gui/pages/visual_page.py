@@ -1,5 +1,6 @@
-import customtkinter as ctk
 from tkinter import filedialog, messagebox
+
+import customtkinter as ctk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 from AOA.config import DATA_DIR

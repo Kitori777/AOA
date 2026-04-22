@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from AOA.utils.error_utils import write_exception_log
 from AOA.utils.logging_utils import configure_logging
+
 from .commands import (
     command_generate,
     command_preview,
