@@ -121,12 +121,16 @@ def build_examples_text() -> str:
     ).strip()
 
 
+class ExamplesHelpFormatter(argparse.RawDescriptionHelpFormatter):
+    pass
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="aoa-cli",
         description="CLI do AOA: generowanie danych, trening modeli ML/STO i rozwiązywanie bez GUI.",
         epilog=build_examples_text(),
-        formatter_class=argparse.RawDescriptionHelpFormatter,
+        formatter_class=ExamplesHelpFormatter,
     )
     parser.add_argument("--verbose", action="store_true", help="Włącz bardziej szczegółowe logowanie")
     parser.add_argument("--quiet", action="store_true", help="Ogranicz logowanie do ostrzeżeń i błędów")
@@ -139,7 +143,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Wygeneruj dane treningowe i testowe",
         description="Generuje pełny zbiór danych oraz automatycznie zapisuje full/train/test do katalogu data.",
         epilog="Przykład: aoa-cli generate --n 800 --machines 1 --test-size 0.2 --seed 42",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
+        formatter_class=ExamplesHelpFormatter,
     )
     gen_parser.add_argument("--n", type=int, default=5000, help="Liczba rekordów do wygenerowania")
     gen_parser.add_argument("--machines", type=int, default=1, help="Liczba maszyn")
@@ -168,7 +172,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Wytrenuj i zapisz modele ML lub STO",
         description="Wczytuje CSV, dzieli dane na train/test i zapisuje wytrenowane modele.",
         epilog="Przykład: aoa-cli train --data data/train_x.csv --models Quality,Delay --backend classic",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
+        formatter_class=ExamplesHelpFormatter,
     )
     train_parser.add_argument("--data", required=True, type=str, help="Ścieżka do CSV z danymi")
     train_parser.add_argument(
@@ -200,7 +204,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Rozwiąż zapisanym modelem ML",
         description="Wczytuje zapisany model ML i tworzy wynikowy CSV dla wskazanych danych.",
         epilog="Przykład: aoa-cli solve --model models/model_x.pkl --data data/test_x.csv",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
+        formatter_class=ExamplesHelpFormatter,
     )
     solve_parser.add_argument("--model", required=True, type=str, help="Ścieżka do pliku modelu .pkl")
     solve_parser.add_argument("--data", required=True, type=str, help="Ścieżka do pliku CSV")
@@ -211,7 +215,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Uruchom ręczną analizę STO",
         description="Liczy metody STO na danych wpisanych bezpośrednio z terminala.",
         epilog="Przykład: aoa-cli sto-run --jobs Z1,Z2,Z3 --times 10,20,100 --deadlines 150,30,110 --methods MT,MO,MZO",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
+        formatter_class=ExamplesHelpFormatter,
     )
     sto_run_parser.add_argument("--jobs", required=True, type=str, help="Lista zleceń, np. Z1,Z2,Z3")
     sto_run_parser.add_argument("--times", required=True, type=str, help="Lista czasów, np. 10,20,100")
@@ -224,7 +228,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Zapisz paczkę modeli STO",
         description="Zapisuje paczkę metod STO do późniejszego użycia.",
         epilog="Przykład: aoa-cli sto-train --methods MT,MO,MZO,GENETIC",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
+        formatter_class=ExamplesHelpFormatter,
     )
     sto_train_parser.add_argument("--methods", required=True, type=str, help="Lista metod STO")
 
@@ -234,7 +238,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Rozwiąż zapisanym modelem STO",
         description="Wczytuje paczkę STO i tworzy wynikowe CSV dla wskazanych danych.",
         epilog="Przykład: aoa-cli sto-solve --model models/model_sto_x.pkl --data data/test_x.csv",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
+        formatter_class=ExamplesHelpFormatter,
     )
     sto_solve_parser.add_argument("--model", required=True, type=str, help="Ścieżka do pliku modelu STO .pkl")
     sto_solve_parser.add_argument("--data", required=True, type=str, help="Ścieżka do pliku CSV")
@@ -245,7 +249,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Pokaż podgląd CSV",
         description="Wyświetla podgląd danych z pliku CSV w terminalu.",
         epilog="Przykład: aoa-cli preview --data data/test_x.csv --rows 10",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
+        formatter_class=ExamplesHelpFormatter,
     )
     preview_parser.add_argument("--data", required=True, type=str, help="Ścieżka do pliku CSV")
     preview_parser.add_argument("--rows", type=int, default=15, help="Maksymalna liczba wierszy podglądu")
@@ -256,7 +260,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Pokaż podsumowanie konfiguracji jak w GUI",
         description="Buduje tekstowe podsumowanie podobne do panelu bocznego w GUI.",
         epilog="Przykład: aoa-cli summary --models Quality,Delay,MT --backend tabpfn --n 800 --machines 1",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
+        formatter_class=ExamplesHelpFormatter,
     )
     summary_parser.add_argument("--models", required=True, type=str, help="Lista modeli po przecinku")
     summary_parser.add_argument("--backend", choices=sorted(AVAILABLE_BACKENDS), default="classic", help="Backend ML")
@@ -277,7 +281,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Pokaż status danych",
         description="Pokazuje status danych podobny do GUI. Gdy podasz CSV, liczy train/test z podziałem.",
         epilog="Przykład: aoa-cli status --data data/train_x.csv",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
+        formatter_class=ExamplesHelpFormatter,
     )
     status_parser.add_argument("--data", type=str, default="", help="Opcjonalna ścieżka do pliku CSV")
     status_parser.add_argument("--train-ratio", type=float, default=0.8, help="Podział train/test")
@@ -288,7 +292,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Wykonaj cały przepływ: generate -> train -> solve",
         description="Komenda zbiorcza dla pracy bez GUI: generuje dane, trenuje modele i rozwiązuje test.",
         epilog="Przykład: aoa-cli workflow --n 800 --models Quality,Delay --backend classic",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
+        formatter_class=ExamplesHelpFormatter,
     )
     workflow_parser.add_argument("--n", type=int, default=800, help="Liczba rekordów")
     workflow_parser.add_argument("--machines", type=int, default=1, help="Liczba maszyn")
@@ -318,7 +322,7 @@ def build_parser() -> argparse.ArgumentParser:
         "interactive",
         help="Uruchom prosty tryb interaktywny",
         description="Proste menu tekstowe do pracy z terminala bez wpisywania pełnych komend.",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
+        formatter_class=ExamplesHelpFormatter,
     )
     interactive_parser.add_argument(
         "--quick",
