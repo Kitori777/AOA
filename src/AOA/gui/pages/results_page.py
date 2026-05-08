@@ -72,7 +72,9 @@ class ResultsPage(ctk.CTkFrame):
         ctk.CTkEntry(toolbar, textvariable=self.limit_var, placeholder_text="Limit", width=80).grid(
             row=0, column=4, padx=6, pady=10
         )
-        self.profile_menu = ctk.CTkOptionMenu(toolbar, values=[], variable=self.profile_var, width=150)
+        self.profile_menu = ctk.CTkOptionMenu(
+            toolbar, values=[], variable=self.profile_var, width=150
+        )
         self.profile_menu.grid(row=0, column=5, padx=6, pady=10)
         ctk.CTkButton(toolbar, text="Odśwież", command=self.refresh_view, width=100).grid(
             row=0, column=6, padx=6, pady=10

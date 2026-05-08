@@ -76,9 +76,11 @@ def filter_sort_limit_dataframe(
     result = df.copy()
     query = query.strip()
     if query:
-        mask = result.astype(str).apply(
-            lambda col: col.str.contains(query, case=False, na=False), axis=0
-        ).any(axis=1)
+        mask = (
+            result.astype(str)
+            .apply(lambda col: col.str.contains(query, case=False, na=False), axis=0)
+            .any(axis=1)
+        )
         result = result.loc[mask]
 
     if sort_column and sort_column in result.columns:

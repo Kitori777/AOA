@@ -157,13 +157,17 @@ def _diagnostics(df: pd.DataFrame, x_col: str | None, y_col: str | None) -> Figu
     return fig
 
 
-def _scatter_3d(df: pd.DataFrame, x_col: str | None, y_col: str | None, z_col: str | None) -> Figure:
+def _scatter_3d(
+    df: pd.DataFrame, x_col: str | None, y_col: str | None, z_col: str | None
+) -> Figure:
     common = _paired_numeric(df, x_col, y_col, z_col)
     x_name, y_name, z_name = common.columns
     fig = Figure(figsize=(9, 5.8), dpi=100)
     FigureCanvasAgg(fig)
     ax = fig.add_subplot(111, projection="3d")
-    points = ax.scatter(common[x_name], common[y_name], common[z_name], c=common[z_name], alpha=0.75)
+    points = ax.scatter(
+        common[x_name], common[y_name], common[z_name], c=common[z_name], alpha=0.75
+    )
     ax.set_xlabel(x_name)
     ax.set_ylabel(y_name)
     ax.set_zlabel(z_name)
@@ -173,7 +177,9 @@ def _scatter_3d(df: pd.DataFrame, x_col: str | None, y_col: str | None, z_col: s
     return fig
 
 
-def _surface_3d(df: pd.DataFrame, x_col: str | None, y_col: str | None, z_col: str | None) -> Figure:
+def _surface_3d(
+    df: pd.DataFrame, x_col: str | None, y_col: str | None, z_col: str | None
+) -> Figure:
     common = _paired_numeric(df, x_col, y_col, z_col).head(2500)
     x_name, y_name, z_name = common.columns
     x = common[x_name].to_numpy()
@@ -221,7 +227,14 @@ def _step_view(df: pd.DataFrame, x_col: str | None, y_col: str | None) -> Figure
     fig = Figure(figsize=(9, 5.8), dpi=100)
     FigureCanvasAgg(fig)
     ax = fig.add_subplot(111)
-    ax.plot(ordered[x_name], ordered[y_name], marker="o", linewidth=1, alpha=0.45, label="kolejne punkty")
+    ax.plot(
+        ordered[x_name],
+        ordered[y_name],
+        marker="o",
+        linewidth=1,
+        alpha=0.45,
+        label="kolejne punkty",
+    )
     ax.plot(ordered[x_name], rolling, linewidth=3, label="trend krokowy")
     ax.set_xlabel(x_name)
     ax.set_ylabel(y_name)
@@ -316,7 +329,9 @@ def _build_figure_legacy(df, chart_type, x_col=None, y_col=None, z_col=None):
 
 
 # --- extended interactive charts for Visual Lab ---
-def _bubble_chart(df: pd.DataFrame, x_col: str | None, y_col: str | None, z_col: str | None) -> Figure:
+def _bubble_chart(
+    df: pd.DataFrame, x_col: str | None, y_col: str | None, z_col: str | None
+) -> Figure:
     common = _paired_numeric(df, x_col, y_col, z_col)
     x_name, y_name, z_name = common.columns
     size = common[z_name].abs()

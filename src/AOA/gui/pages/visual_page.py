@@ -40,9 +40,9 @@ class VisualPage(ctk.CTkFrame):
 
         header = ctk.CTkFrame(self)
         header.grid(row=0, column=0, sticky="ew", padx=20, pady=(14, 8))
-        ctk.CTkLabel(header, text="Visual Lab — interaktywna eksploracja danych", font=("Arial", 24, "bold")).pack(
-            anchor="w", padx=15, pady=(12, 2)
-        )
+        ctk.CTkLabel(
+            header, text="Visual Lab — interaktywna eksploracja danych", font=("Arial", 24, "bold")
+        ).pack(anchor="w", padx=15, pady=(12, 2))
         ctk.CTkLabel(
             header,
             text="Wczytaj dowolne dane tabelaryczne, zmieniaj X/Y/Z, obracaj 3D i od razu czytaj raport po prawej.",
@@ -99,9 +99,9 @@ class VisualPage(ctk.CTkFrame):
         self.report_frame.grid_propagate(False)
         self.report_frame.grid_columnconfigure(0, weight=1)
         self.report_frame.grid_rowconfigure(1, weight=1)
-        ctk.CTkLabel(self.report_frame, text="Raport dla użytkownika", font=("Arial", 18, "bold")).grid(
-            row=0, column=0, sticky="w", padx=14, pady=(14, 8)
-        )
+        ctk.CTkLabel(
+            self.report_frame, text="Raport dla użytkownika", font=("Arial", 18, "bold")
+        ).grid(row=0, column=0, sticky="w", padx=14, pady=(14, 8))
         self.report_box = ctk.CTkTextbox(self.report_frame, wrap="word")
         self.report_box.grid(row=1, column=0, sticky="nsew", padx=14, pady=(0, 14))
         self._set_report(
@@ -113,7 +113,12 @@ class VisualPage(ctk.CTkFrame):
         path = filedialog.askopenfilename(
             title="Wybierz plik z danymi",
             initialdir=str(DATA_DIR),
-            filetypes=[("Pliki tabelaryczne", "*.csv *.txt *.tsv"), ("CSV", "*.csv"), ("TXT", "*.txt"), ("TSV", "*.tsv")],
+            filetypes=[
+                ("Pliki tabelaryczne", "*.csv *.txt *.tsv"),
+                ("CSV", "*.csv"),
+                ("TXT", "*.txt"),
+                ("TSV", "*.tsv"),
+            ],
         )
         if not path:
             return

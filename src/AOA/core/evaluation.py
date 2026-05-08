@@ -118,7 +118,9 @@ def append_metrics_row(df: pd.DataFrame, metrics: dict) -> pd.DataFrame:
     return df.fillna("")
 
 
-def calculate_model_training_metrics(model_pack: dict, df_train: pd.DataFrame) -> dict[str, dict[str, float]]:
+def calculate_model_training_metrics(
+    model_pack: dict, df_train: pd.DataFrame
+) -> dict[str, dict[str, float]]:
     """Calculate compact in-sample metrics for real trained ML models.
 
     This helper is defensive because tests and some GUI flows may use lightweight
@@ -168,6 +170,7 @@ def calculate_model_training_metrics(model_pack: dict, df_train: pd.DataFrame) -
         results["Schedule"] = {"trained": 1.0}
     return results
 
+
 def format_training_metrics(metrics: dict[str, dict[str, float]]) -> list[str]:
     """Format model metrics as log lines for the GUI and CLI."""
     if not metrics:
@@ -175,7 +178,9 @@ def format_training_metrics(metrics: dict[str, dict[str, float]]) -> list[str]:
     lines = ["📊 Ocena uczenia modelu:"]
     for model_name, values in metrics.items():
         if model_name == "Schedule" and "trained" in values:
-            lines.append("   Schedule: model klasyfikacyjny nauczony; oceniaj go później przez Accuracy/F1 na danych testowych.")
+            lines.append(
+                "   Schedule: model klasyfikacyjny nauczony; oceniaj go później przez Accuracy/F1 na danych testowych."
+            )
             continue
         metric_text = " | ".join(f"{name}={value}" for name, value in values.items())
         lines.append(f"   {model_name}: {metric_text}")

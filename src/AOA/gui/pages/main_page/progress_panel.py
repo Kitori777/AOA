@@ -47,7 +47,9 @@ class MainPageProgressPanelMixin:
         ctk.CTkLabel(frame, text="Szybki status", font=("Arial", 18, "bold")).pack(
             anchor="w", padx=15, pady=(12, 8)
         )
-        self.status_label = ctk.CTkLabel(frame, text="", font=("Arial", 13), justify="left", wraplength=320)
+        self.status_label = ctk.CTkLabel(
+            frame, text="", font=("Arial", 13), justify="left", wraplength=320
+        )
         self.status_label.pack(anchor="w", fill="x", padx=15, pady=(0, 12))
 
     def _build_right_hint_section(self, parent):
