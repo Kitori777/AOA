@@ -12,8 +12,10 @@ from AOA.core.dataset_ops import split_train_test
 from AOA.core.evaluation import (
     append_metrics_row,
     calculate_classification_metrics,
+    calculate_model_training_metrics,
     calculate_regression_metrics,
     fill_missing_values,
+    format_training_metrics,
     transform_numeric_columns,
 )
 from AOA.core.features import prepare_features
@@ -216,13 +218,23 @@ def generate_and_store_datasets(
 def load_and_prepare_visual_file(path, train_ratio=0.8):
     df = load_csv(path)
     columns = list(df.columns)
+
     if not columns:
         raise ValueError("Plik CSV nie zawiera kolumn")
+
+    numeric_columns = df.select_dtypes(include=["number"]).columns.tolist()
+    defaults = numeric_columns if len(numeric_columns) >= 2 else columns
+    x_default = defaults[0]
+    y_default = defaults[1] if len(defaults) > 1 else defaults[0]
+    z_default = defaults[2] if len(defaults) > 2 else y_default
+
     return {
         "df": df,
         "columns": columns,
-        "x_default": columns[0],
-        "y_default": columns[1] if len(columns) > 1 else columns[0],
+        "numeric_columns": numeric_columns,
+        "x_default": x_default,
+        "y_default": y_default,
+        "z_default": z_default,
     }
 
 
@@ -357,13 +369,16 @@ def train_models_flow(
         model_path = build_model_filename(selected_models, metadata)
     save_model_pack(pack, model_path)
     backend_label = "TabPFN" if backend == "tabpfn" else "Classic"
+    metric_lines = format_training_metrics(calculate_model_training_metrics(pack, df_train))
+    messages = [
+        f"✔ Modele zapisane do: {model_path}",
+        f"✔ Trening zakończony | backend: {backend_label}",
+    ]
+    messages.extend(metric_lines)
     return {
         "model_pack": pack,
         "model_path": model_path,
-        "messages": [
-            f"✔ Modele zapisane do: {model_path}",
-            f"✔ Trening zakończony | backend: {backend_label}",
-        ],
+        "messages": messages,
     }
 
 

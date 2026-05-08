@@ -76,14 +76,19 @@ def load_and_prepare_visual_file(path, train_ratio=0.8):
     if not columns:
         raise ValueError("Plik CSV nie zawiera kolumn")
 
-    x_default = columns[0]
-    y_default = columns[1] if len(columns) > 1 else columns[0]
+    numeric_columns = df.select_dtypes(include=["number"]).columns.tolist()
+    defaults = numeric_columns if len(numeric_columns) >= 2 else columns
+    x_default = defaults[0]
+    y_default = defaults[1] if len(defaults) > 1 else defaults[0]
+    z_default = defaults[2] if len(defaults) > 2 else y_default
 
     return {
         "df": df,
         "columns": columns,
+        "numeric_columns": numeric_columns,
         "x_default": x_default,
         "y_default": y_default,
+        "z_default": z_default,
     }
 
 

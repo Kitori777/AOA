@@ -5,6 +5,7 @@ from pathlib import Path
 import pandas as pd
 
 from AOA.core.data_io import load_csv, save_csv
+from AOA.core.evaluation import calculate_model_training_metrics, format_training_metrics
 from AOA.core.features import prepare_features
 from AOA.core.models import load_model_pack, save_model_pack, train_selected_models
 from AOA.core.scheduling import simulate_schedule
@@ -41,13 +42,16 @@ def train_models_flow(
     save_model_pack(pack, model_path)
     backend_label = "TabPFN" if backend == "tabpfn" else "Classic"
 
+    metric_lines = format_training_metrics(calculate_model_training_metrics(pack, df_train))
+    messages = [
+        f"✔ Modele zapisane do: {model_path}",
+        f"✔ Trening zakończony | backend: {backend_label}",
+    ]
+    messages.extend(metric_lines)
     return {
         "model_pack": pack,
         "model_path": model_path,
-        "messages": [
-            f"✔ Modele zapisane do: {model_path}",
-            f"✔ Trening zakończony | backend: {backend_label}",
-        ],
+        "messages": messages,
     }
 
 

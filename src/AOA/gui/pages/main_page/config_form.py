@@ -24,17 +24,12 @@ class MainPageConfigFormMixin:
         left_panel = ctk.CTkScrollableFrame(content)
         left_panel.grid(row=0, column=0, sticky="nsew", padx=(0, 10), pady=0)
 
-        right_panel = ctk.CTkFrame(content, width=340)
+        right_panel = ctk.CTkScrollableFrame(content, width=380, label_text="Panel boczny")
         right_panel.grid(row=0, column=1, sticky="nsew", padx=(10, 0), pady=0)
-        right_panel.grid_propagate(False)
-        right_panel.grid_rowconfigure(0, weight=0)
-        right_panel.grid_rowconfigure(1, weight=0)
-        right_panel.grid_rowconfigure(2, weight=1)
         right_panel.grid_columnconfigure(0, weight=1)
 
         self._build_models_section(left_panel)
         self._build_generation_section(left_panel)
-        self._build_sto_section(left_panel)
         self._build_actions_section(left_panel)
         self._build_preview_section(left_panel)
         self._build_sto_results_section(left_panel)

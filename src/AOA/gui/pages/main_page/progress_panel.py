@@ -37,7 +37,7 @@ class MainPageProgressPanelMixin:
         ctk.CTkLabel(frame, text="Podsumowanie wyboru", font=("Arial", 18, "bold")).pack(
             anchor="w", padx=15, pady=(12, 8)
         )
-        self.summary_box = ctk.CTkTextbox(frame, height=320)
+        self.summary_box = ctk.CTkTextbox(frame, height=260, wrap="word")
         self.summary_box.pack(fill="x", padx=15, pady=(0, 15))
         self.summary_box.configure(state="disabled")
 
@@ -47,25 +47,26 @@ class MainPageProgressPanelMixin:
         ctk.CTkLabel(frame, text="Szybki status", font=("Arial", 18, "bold")).pack(
             anchor="w", padx=15, pady=(12, 8)
         )
-        self.status_label = ctk.CTkLabel(frame, text="", font=("Arial", 13), justify="left")
-        self.status_label.pack(anchor="w", padx=15, pady=(0, 12))
+        self.status_label = ctk.CTkLabel(frame, text="", font=("Arial", 13), justify="left", wraplength=320)
+        self.status_label.pack(anchor="w", fill="x", padx=15, pady=(0, 12))
 
     def _build_right_hint_section(self, parent):
         frame = ctk.CTkFrame(parent)
-        frame.grid(row=2, column=0, sticky="nsew", padx=10, pady=8)
-        ctk.CTkLabel(frame, text="Panel boczny", font=("Arial", 18, "bold")).pack(
+        frame.grid(row=2, column=0, sticky="ew", padx=10, pady=8)
+        frame.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(frame, text="Jak czytać wyniki", font=("Arial", 18, "bold")).pack(
             anchor="w", padx=15, pady=(12, 8)
         )
         hint = (
-            "STO działa teraz też dwustopniowo:\n"
-            "1) zapisujesz model STO,\n"
-            "2) później wybierasz zapisany model i dane.\n\n"
-            "Pliki wynikowe zapisują się do katalogu data.\n\n"
-            "Dla TabPFN na CPU najlepiej testować mniejsze zbiory,\n"
-            "np. 300–1000 rekordów."
+            "Po treningu modeli ML w logu pojawiają się metryki:\n"
+            "• RMSE / MAE — im niżej, tym lepiej,\n"
+            "• R² — im bliżej 1, tym lepiej.\n\n"
+            "Dla STO zapisujesz model algorytmiczny, a później uruchamiasz go na CSV. "
+            "Wyniki zapisują się w katalogu data/.\n\n"
+            "Dla TabPFN na CPU najlepiej testować mniejsze zbiory, np. 300–1000 rekordów."
         )
-        ctk.CTkLabel(frame, text=hint, justify="left", wraplength=280, font=("Arial", 12)).pack(
-            anchor="w", padx=15, pady=(0, 15)
+        ctk.CTkLabel(frame, text=hint, justify="left", wraplength=320, font=("Arial", 12)).pack(
+            anchor="w", fill="x", padx=15, pady=(0, 15)
         )
 
     def render_summary(self):

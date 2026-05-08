@@ -116,3 +116,68 @@ def append_metrics_row(df: pd.DataFrame, metrics: dict) -> pd.DataFrame:
 
     df = pd.concat([df, pd.DataFrame([metrics_row])], ignore_index=True)
     return df.fillna("")
+
+
+def calculate_model_training_metrics(model_pack: dict, df_train: pd.DataFrame) -> dict[str, dict[str, float]]:
+    """Calculate compact in-sample metrics for real trained ML models.
+
+    This helper is defensive because tests and some GUI flows may use lightweight
+    placeholder objects in model packs. Metrics are displayed only when the
+    object behaves like a fitted estimator and the input contains all production
+    feature columns required by ``prepare_features``.
+    """
+    from AOA.core.features import prepare_features
+
+    if df_train is None or df_train.empty:
+        return {}
+
+    try:
+        X_train, y_quality, y_delay, _ = prepare_features(df_train)
+    except (KeyError, TypeError, ValueError):
+        return {}
+
+    results: dict[str, dict[str, float]] = {}
+
+    quality_model = model_pack.get("quality")
+    if quality_model is not None and hasattr(quality_model, "predict"):
+        try:
+            pred = quality_model.predict(X_train)
+        except (AttributeError, TypeError, ValueError):
+            pred = None
+        if pred is not None:
+            results["Quality"] = {
+                "R2": round(float(r2_score(y_quality, pred)), 4),
+                "MAE": round(float(mean_absolute_error(y_quality, pred)), 4),
+                "RMSE": round(float(np.sqrt(mean_squared_error(y_quality, pred))), 4),
+            }
+
+    delay_model = model_pack.get("delay")
+    if delay_model is not None and hasattr(delay_model, "predict"):
+        try:
+            pred = delay_model.predict(X_train)
+        except (AttributeError, TypeError, ValueError):
+            pred = None
+        if pred is not None:
+            results["Delay"] = {
+                "R2": round(float(r2_score(y_delay, pred)), 4),
+                "MAE": round(float(mean_absolute_error(y_delay, pred)), 4),
+                "RMSE": round(float(np.sqrt(mean_squared_error(y_delay, pred))), 4),
+            }
+
+    if model_pack.get("schedule") is not None:
+        results["Schedule"] = {"trained": 1.0}
+    return results
+
+def format_training_metrics(metrics: dict[str, dict[str, float]]) -> list[str]:
+    """Format model metrics as log lines for the GUI and CLI."""
+    if not metrics:
+        return []
+    lines = ["📊 Ocena uczenia modelu:"]
+    for model_name, values in metrics.items():
+        if model_name == "Schedule" and "trained" in values:
+            lines.append("   Schedule: model klasyfikacyjny nauczony; oceniaj go później przez Accuracy/F1 na danych testowych.")
+            continue
+        metric_text = " | ".join(f"{name}={value}" for name, value in values.items())
+        lines.append(f"   {model_name}: {metric_text}")
+    lines.append("   Jak czytać: RMSE/MAE im niżej tym lepiej, R² im bliżej 1 tym lepiej.")
+    return lines
