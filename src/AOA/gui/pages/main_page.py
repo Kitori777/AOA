@@ -1,7 +1,7 @@
 import threading
+from tkinter import filedialog, messagebox
 
 import customtkinter as ctk
-from tkinter import filedialog, messagebox
 
 from AOA.config import DATA_DIR, MODELS_DIR
 from AOA.core.services import (
@@ -424,15 +424,9 @@ class MainPage(ctk.CTkFrame):
 
     def _ui_config(self):
         return {
-            "selected_models": [
-                name for name, var in self.model_vars.items() if var.get()
-            ],
-            "selected_ksztalty": [
-                name for name, var in self.ksztalt_vars.items() if var.get()
-            ],
-            "selected_materialy": [
-                name for name, var in self.material_vars.items() if var.get()
-            ],
+            "selected_models": [name for name, var in self.model_vars.items() if var.get()],
+            "selected_ksztalty": [name for name, var in self.ksztalt_vars.items() if var.get()],
+            "selected_materialy": [name for name, var in self.material_vars.items() if var.get()],
             "n": self.n_var.get(),
             "n_machines": self.n_machines_var.get(),
             "test_size": self.test_size_var.get(),
@@ -452,9 +446,7 @@ class MainPage(ctk.CTkFrame):
         self.summary_box.configure(state="disabled")
 
     def render_status(self):
-        self.status_label.configure(
-            text=build_main_page_status(self.df_train, self.df_test)
-        )
+        self.status_label.configure(text=build_main_page_status(self.df_train, self.df_test))
 
     def render_preview(self):
         text = build_dataframe_preview_text(
@@ -540,9 +532,7 @@ class MainPage(ctk.CTkFrame):
             self._safe_log("")
             self._safe_log("===== ZAPISANE PLIKI STO =====")
             for item in saved_paths:
-                self._safe_log(
-                    f"- {item['method']} | STO={item['sto']:.3f} | {item['path']}"
-                )
+                self._safe_log(f"- {item['method']} | STO={item['sto']:.3f} | {item['path']}")
 
         if best_path:
             self._safe_log(f"- BEST | {best_path}")

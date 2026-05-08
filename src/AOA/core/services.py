@@ -36,8 +36,8 @@ STO_MODEL_NAMES = {"MT", "MO", "MZO", "GENETIC"}
 def _parse_positive_int(value, field_name: str) -> int:
     try:
         number = int(value)
-    except (TypeError, ValueError):
-        raise ValueError(f"Pole '{field_name}' musi być liczbą całkowitą.")
+    except (TypeError, ValueError) as err:
+        raise ValueError(f"Pole '{field_name}' musi być liczbą całkowitą.") from err
 
     if number <= 0:
         raise ValueError(POSITIVE_VALUES_MESSAGE)
@@ -47,8 +47,8 @@ def _parse_positive_int(value, field_name: str) -> int:
 def _parse_positive_float(value, field_name: str) -> float:
     try:
         number = float(value)
-    except (TypeError, ValueError):
-        raise ValueError(f"Pole '{field_name}' musi być liczbą.")
+    except (TypeError, ValueError) as err:
+        raise ValueError(f"Pole '{field_name}' musi być liczbą.") from err
 
     if number <= 0:
         raise ValueError(POSITIVE_VALUES_MESSAGE)
@@ -351,9 +351,7 @@ def build_model_filename(selected_models, metadata, backend="classic"):
     kszt_part = "-".join(ksztalty) if ksztalty else "allshapes"
     mat_part = "-".join(materialy) if materialy else "allmaterials"
 
-    filename = (
-        f"model_{backend_part}_{models_part}_{n_part}_{mach_part}_{kszt_part}_{mat_part}_{stamp}.pkl"
-    )
+    filename = f"model_{backend_part}_{models_part}_{n_part}_{mach_part}_{kszt_part}_{mat_part}_{stamp}.pkl"
     filename = sanitize_filename(filename)
     return MODELS_DIR / filename
 
@@ -481,8 +479,7 @@ def solve_models_flow(model_path, data_path):
 
     if quality_model is not None and delay_model is not None:
         result_df["priority"] = (
-            result_df["pred_quality"] * 0.7
-            + (1.0 / (1.0 + result_df["pred_delay"])) * 0.3
+            result_df["pred_quality"] * 0.7 + (1.0 / (1.0 + result_df["pred_delay"])) * 0.3
         )
         result_df = result_df.sort_values("priority", ascending=False).reset_index(drop=True)
 
