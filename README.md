@@ -2,30 +2,93 @@
 
 ## Opis projektu
 
-AOA to rozwijana aplikacja napisana w Pythonie, której celem jest wspomaganie analizy danych produkcyjnych, trenowania modeli uczenia maszynowego, porównywania metod harmonogramowania oraz prezentacji wyników w formie tabelarycznej i wizualnej.
+AOA to rozwijana aplikacja desktopowa i terminalowa napisana w Pythonie. Jej celem jest wspomaganie analizy danych, uczenia modeli, porównywania metod harmonogramowania oraz prezentowania wyników w formie czytelnych tabel, raportów i wykresów.
 
-Projekt został przygotowany w architekturze modułowej, z wyraźnym podziałem na niezależne warstwy odpowiedzialności:
+Od wersji `0.5.0` projekt rozwija się nie tylko jako narzędzie produkcyjno-optymalizacyjne, ale również jako aplikacja analityczno-edukacyjna. Użytkownik może wczytać własne dane tabelaryczne, obejrzeć je w widoku podobnym do prostego CSV viewera, przygotować raport, uruchomić wizualizację oraz sprawdzić krótkie wyjaśnienia modeli i metryk.
 
-- warstwę `core`, odpowiadającą za logikę aplikacji, generowanie i przetwarzanie danych, trenowanie modeli, ewaluację wyników, obsługę harmonogramowania oraz przygotowanie danych do wizualizacji,
-- warstwę `gui`, odpowiedzialną za graficzny interfejs użytkownika aplikacji desktopowej,
-- warstwę `cli`, umożliwiającą pełną obsługę aplikacji z poziomu terminala, bez uruchamiania interfejsu graficznego,
-- katalog `tests`, zawierający testy jednostkowe i testy przepływów dla warstwy `core` oraz interfejsu CLI,
-- katalog `docs`, zawierający dokumentację użytkową i teoretyczną projektu,
-- katalog `logs`, przechowujący logi błędów i informacje diagnostyczne pomocne podczas debugowania.
+Projekt zachowuje architekturę modułową:
+
+- warstwa `core` odpowiada za logikę aplikacji, generowanie i przetwarzanie danych, trenowanie modeli, ewaluację wyników, harmonogramowanie, raporty, treści edukacyjne i przygotowanie danych do wizualizacji,
+- warstwa `gui` odpowiada za graficzny interfejs użytkownika i nie powinna przechowywać logiki biznesowej,
+- warstwa `cli` umożliwia obsługę aplikacji z poziomu terminala,
+- katalog `tests` zawiera testy jednostkowe i testy przepływów,
+- katalog `docs` zawiera dokumentację użytkową i teoretyczną,
+- katalog `logs` przechowuje logi błędów i informacje diagnostyczne.
 
 Aplikacja umożliwia między innymi:
 
 - generowanie przykładowych danych produkcyjnych,
-- wczytywanie danych z plików CSV,
+- wczytywanie danych z plików `.csv`, `.txt` i `.tsv`,
+- pracę także na dowolnych danych tabelarycznych, nie tylko produkcyjnych,
 - trenowanie modeli ML dla jakości, opóźnień i strategii harmonogramowania,
-- korzystanie zarówno z klasycznych modeli opartych o `scikit-learn`, jak i z eksperymentalnego backendu `TabPFN`,
-- analizę wyników regresji i klasyfikacji,
+- korzystanie z klasycznych modeli `scikit-learn` oraz eksperymentalnego backendu `TabPFN`,
+- ocenę modeli za pomocą metryk takich jak RMSE, MAE, R², Accuracy i F1,
 - uruchamianie metod harmonogramowania STO i porównywanie ich wyników,
-- tworzenie wykresów i wizualizacji danych,
+- tworzenie wykresów 2D i 3D,
+- przeglądanie danych w przebudowanym `Results Studio`,
+- filtrowanie, sortowanie, limitowanie, profilowanie i eksport widocznego widoku danych,
+- korzystanie z interaktywnej instrukcji użytkownika na stronie `Readme`,
+- korzystanie ze strony `Theory`, która prostym językiem wyjaśnia zachowanie modeli, metryk i algorytmów,
 - zapis modeli, raportów i wyników do plików,
 - obsługę pełnych przepływów pracy zarówno z poziomu GUI, jak i z terminala.
 
-Projekt ma charakter rozwojowy i stanowi bazę pod dalszą rozbudowę o nowe algorytmy, dokładniejsze analizy, kolejne metody optymalizacji, bardziej zaawansowane moduły wspomagania decyzji oraz dalsze rozszerzanie obsługi terminalowej i automatyzacji pracy.
+## Najważniejsze nowości w wersji 0.5.0
+
+### Interaktywna instrukcja użytkownika
+
+Strona `Readme` została przebudowana z prostego widoku dokumentacji na interaktywną instrukcję. Użytkownik może przechodzić po kolejnych krokach i sprawdzać:
+
+- co robi dany moduł,
+- gdzie kliknąć,
+- po co wykonywany jest dany etap,
+- na co uważać przy danych, modelach, STO i wynikach.
+
+### Theory Page — teoria użytkowa modeli
+
+Strona `Theory` pokazuje najważniejsze pojęcia potrzebne do korzystania z aplikacji:
+
+- regresja i metryki RMSE/MAE/R²,
+- klasyfikacja i metryki Accuracy/F1,
+- przeuczenie modelu,
+- ważność cech,
+- modele jakości i opóźnień,
+- strategia harmonogramowania,
+- STO,
+- priorytet zlecenia.
+
+Każdy moduł ma krótki zapis matematyczny, opis prostym językiem, praktyczną interpretację i wykres pokazujący intuicję działania.
+
+### Visual Lab — wizualizacje i raporty
+
+Widok `Visual` został rozbudowany w kierunku laboratorium eksploracji danych. Użytkownik może wybierać kolumny X/Y/Z i przełączać typy wykresów, m.in.:
+
+- `Dashboard`,
+- `Diagnostics`,
+- `Pair Explorer`,
+- `3D Scatter`,
+- `3D Surface`,
+- `Bubble Chart`,
+- `Heatmap Density`,
+- `Outlier Map`,
+- `Step View`,
+- `Column Ranking`,
+- klasyczne wykresy `Scatter`, `Line`, `Histogram`, `Boxplot`,
+- macierze korelacji i podobieństwa.
+
+Po prawej stronie widoczny jest raport, który podsumowuje dane, statystyki wybranych kolumn, obserwacje odstające i korelację.
+
+### Results Studio — viewer i raport danych
+
+Strona `Results` została przebudowana jako początek prostego, nowoczesnego viewera danych. Zamiast niedokończonych przycisków regresji i klasyfikacji widok skupia się na pracy z tabelą:
+
+- globalny filtr tekstowy,
+- sortowanie po wybranej kolumnie,
+- wybór kierunku sortowania,
+- limit liczby wierszy,
+- profil wybranej kolumny,
+- raport braków danych,
+- eksport widocznego widoku do CSV,
+- karty podsumowania liczby wierszy, kolumn, braków i duplikatów.
 
 ## Aktualna struktura repozytorium
 
@@ -51,7 +114,9 @@ TOOLS/
 │       │   ├── dataset_ops.py
 │       │   ├── evaluation.py
 │       │   ├── features.py
+│       │   ├── learning_content.py
 │       │   ├── models.py
+│       │   ├── result_viewer_service.py
 │       │   ├── scheduling.py
 │       │   ├── services.py
 │       │   ├── sto_models.py
@@ -94,9 +159,12 @@ TOOLS/
 │       ├── test_features.py
 │       ├── test_features_extended.py
 │       ├── test_io_and_split_extended.py
+│       ├── test_learning_content.py
 │       ├── test_model_pack_flows.py
+│       ├── test_model_pack_security.py
 │       ├── test_models.py
 │       ├── test_models_extended.py
+│       ├── test_result_viewer_service.py
 │       ├── test_scheduling.py
 │       ├── test_scheduling_extended.py
 │       ├── test_services_extra.py
@@ -113,11 +181,6 @@ TOOLS/
 └── uv.lock
 ```
 
-
-
-## Segment 3 — uruchomienie projektu przez `uv`
-
-
 ## Jak uruchomić projekt
 
 ### Wersja z `uv`
@@ -129,21 +192,29 @@ git clone git@github.com:Kitori777/AOA.git
 cd AOA
 ```
 
-#### 2. Zainstaluj zależności i uruchom aplikację
+#### 2. Zainstaluj zależności
+
 ```bash
 uv sync --dev
-uv run aoa-cli
 ```
 
-#### 3. Uruchom testy
+#### 3. Uruchom aplikację desktopową
+
+```bash
+uv run python -m AOA.app
+```
+
+#### 4. Uruchom CLI
+
+```bash
+uv run aoa-cli --help
+```
+
+#### 5. Uruchom testy
+
 ```bash
 uv run pytest
 ```
-
----
-
-## Segment 4 — uruchomienie projektu bez `uv`
-
 
 ### Wersja bez `uv`
 
@@ -153,100 +224,79 @@ uv run pytest
 git clone git@github.com:Kitori777/AOA.git
 cd AOA
 ```
+
 #### 2. Utwórz i aktywuj środowisko wirtualne
+
 ```bash
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 ```
+
 #### 3. Zainstaluj projekt
+
 ```bash
 pip install -e .
 ```
+
 #### 4. Uruchom aplikację
+
 ```bash
 python -m AOA.app
 ```
+
 #### 5. Uruchom testy
+
 ```bash
 pytest
 ```
 
-
----
-
 ## Aktualny stan projektu
 
-Na obecnym etapie projekt posiada stabilny fundament techniczny i obejmuje już nie tylko aplikację desktopową, ale również równoległy interfejs terminalowy. Aplikacja została uporządkowana architektonicznie, a jej główne moduły działają w sposób spójny, testowalny i możliwy do rozwijania w kolejnych wersjach.
+Projekt posiada działający fundament techniczny i obejmuje aplikację desktopową, interfejs terminalowy, warstwę testów oraz pierwsze moduły edukacyjno-analityczne. Główna zasada architektury pozostaje bez zmian: logika aplikacji znajduje się w `core`, a GUI jest warstwą prezentacji i obsługi użytkownika.
 
 ### Zrealizowane elementy
 
 - wydzielenie warstwy `core`,
-- oddzielenie logiki aplikacyjnej od warstwy GUI,
-- dodanie warstwy `cli`, umożliwiającej obsługę aplikacji z poziomu terminala,
+- oddzielenie logiki aplikacyjnej od GUI,
+- dodanie warstwy `cli`,
 - modularna struktura projektu oparta o układ `src/`,
-- obsługa generowania danych testowych,
-- obsługa wczytywania danych z plików CSV,
+- generowanie danych testowych,
+- wczytywanie danych CSV/TXT/TSV,
+- obsługa dowolnych danych tabelarycznych w widokach `Visual` i `Results`,
 - przygotowanie cech do modeli ML,
 - trenowanie wielu modeli jednocześnie,
-- automatyczny zapis modeli do osobnych plików z unikalnymi nazwami,
-- obsługa modeli klasycznych:
+- automatyczny zapis modeli do osobnych plików,
+- klasyczne modele ML:
   - Random Forest dla jakości,
   - Gradient Boosting dla opóźnień,
   - Random Forest dla strategii harmonogramowania,
-- dodanie eksperymentalnego backendu `TabPFN` dla wybranych modeli ML,
-- obsługa heurystycznych modeli STO:
+- eksperymentalny backend `TabPFN`,
+- metryki jakości uczenia modeli ML,
+- heurystyczne modele STO:
   - `MT`,
   - `MO`,
   - `MZO`,
   - `GENETIC`,
-- analiza sumy dodatnich opóźnień dla różnych kolejności zleceń,
+- zapis i późniejsze używanie modeli STO,
+- interaktywna instrukcja na stronie `Readme`,
+- teoria użytkowa na stronie `Theory`,
+- rozbudowane wizualizacje i raporty na stronie `Visual`,
+- przebudowany viewer danych na stronie `Results`,
 - podstawowe operacje analityczne i ewaluacyjne,
-- wizualizacje danych i modeli,
-- podgląd danych w interfejsie aplikacji,
-- obsługa pełnych przepływów pracy zarówno w GUI, jak i w CLI,
-- obsługa komend terminalowych do:
-  - generowania danych,
-  - treningu modeli,
-  - rozwiązywania zapisanym modelem,
-  - uruchamiania analiz STO,
-  - pracy w trybie `workflow`,
-  - pracy w trybie `interactive`,
-- dokumentacja użytkownika i dokumentacja teoretyczna,
-- testy jednostkowe i testy przepływów dla warstwy `core`,
-- dodanie testów dla warstwy `cli`,
+- obsługa pełnych przepływów pracy w GUI i CLI,
 - logowanie błędów do katalogu `logs`,
+- testy jednostkowe i testy przepływów,
 - plik `CHANGELOG.md`,
 - przygotowanie projektu do wersjonowania oraz release’ów.
 
-### Aktualny charakter projektu
+## Plan na kolejne aktualizacje
 
-Projekt jest obecnie działającą aplikacją analityczno-edukacyjną, która pozwala:
-
-- trenować modele na danych przykładowych lub własnych,
-- generować własne zestawy danych z kontrolą parametrów wejściowych,
-- analizować dane w interfejsie graficznym,
-- obsługiwać najważniejsze funkcje również z poziomu terminala,
-- porównywać różne podejścia do harmonogramowania,
-- uruchamiać analizy STO dla ręcznie podanych zleceń,
-- korzystać zarówno z klasycznych modeli `scikit-learn`, jak i z backendu `TabPFN`,
-- generować podstawowe wizualizacje,
-- przeglądać wyniki regresji i klasyfikacji,
-- zapisywać wyniki, raporty oraz modele do plików,
-- wykonywać pełne scenariusze pracy bez uruchamiania GUI.
-
-Obecna wersja projektu stanowi działającą bazę do dalszej rozbudowy zarówno pod kątem funkcjonalnym, jak i architektonicznym. Projekt rozwija się już nie tylko jako aplikacja desktopowa, ale również jako narzędzie możliwe do wykorzystania w pracy terminalowej, testach automatycznych i dalszej automatyzacji procesów analitycznych.
-
-## Plan na kolejny update
-
-- rozbudowa liczby dostępnych modeli,
-- dodanie bardziej zaawansowanych wykresów / rozwinięcie istniejących,
-- optymalizacja kodu,
-- dashboardy finalnie,
-
-
-## Plany na updaty 
-- integracja z dodatkowymi źródłami danych lub modułami wspomagania użytkownika dla części teoretycznej,
-- przebudowa struktury main oraz readme z aplikacji,
-- kompletny overhaul struktury wizualnej, wprowadzenie początkowych dashboard oraz lepsza dla użytkownika strukura,
-- więcej modeli oraz ciekawych wizualizacji,
-- helpdesk z agentem/AIKA
+- dalszy rozwój `Visual Lab` w kierunku bardziej interaktywnych wykresów,
+- mocniejsze dashboardy i karty diagnostyczne,
+- dalszy rozwój `Results Studio` w stronę pełnego narzędzia do pracy z plikami CSV,
+- dodanie bardziej zaawansowanych filtrów kolumnowych,
+- eksport raportów do osobnych plików,
+- lepsze porównywanie wyników wielu modeli,
+- rozwój helpdesku / asystenta użytkownika,
+- dalsza optymalizacja kodu i wydajności GUI,
+- rozbudowa dokumentacji i przykładów użycia.

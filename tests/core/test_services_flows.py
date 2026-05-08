@@ -60,9 +60,7 @@ def solution_input_df():
         ("deadline_min", "-1"),
     ],
 )
-def test_parse_generation_config_rejects_non_positive_values(
-    valid_generation_config, field, value
-):
+def test_parse_generation_config_rejects_non_positive_values(valid_generation_config, field, value):
     config = valid_generation_config.copy()
     config[field] = value
 
@@ -71,9 +69,7 @@ def test_parse_generation_config_rejects_non_positive_values(
 
 
 @pytest.mark.parametrize("test_size", ["0", "-0.1"])
-def test_parse_generation_config_rejects_non_positive_test_size(
-    valid_generation_config, test_size
-):
+def test_parse_generation_config_rejects_non_positive_test_size(valid_generation_config, test_size):
     config = valid_generation_config.copy()
     config["test_size"] = test_size
 
@@ -190,9 +186,7 @@ def test_solve_models_flow_predicts_quality_delay_saves_csv_and_sorts_priority(
     assert any("Rozwiązanie gotowe" in message for message in result["messages"])
 
 
-def test_solve_models_flow_handles_only_quality_model(
-    tmp_path, monkeypatch, solution_input_df
-):
+def test_solve_models_flow_handles_only_quality_model(tmp_path, monkeypatch, solution_input_df):
     data_path = tmp_path / "input.csv"
     solution_input_df.to_csv(data_path, index=False)
 

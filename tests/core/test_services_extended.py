@@ -131,7 +131,9 @@ def test_load_training_data_returns_full_train_test(monkeypatch):
     df_test = pd.DataFrame({"a": range(8, 10)})
 
     monkeypatch.setattr(services, "load_csv", lambda path: df_full)
-    monkeypatch.setattr(services, "split_train_test", lambda df, train_ratio=0.8: (df_train, df_test))
+    monkeypatch.setattr(
+        services, "split_train_test", lambda df, train_ratio=0.8: (df_train, df_test)
+    )
 
     result = services.load_training_data("dummy.csv", train_ratio=0.8)
 
@@ -154,11 +156,19 @@ def test_train_models_flow_rejects_missing_selected_models():
 
 def test_train_models_flow_saves_model_pack(monkeypatch, tmp_path):
     df_train = pd.DataFrame({"a": [1, 2, 3]})
-    fake_pack = {"quality": object(), "delay": None, "schedule": None, "scaler": object(), "selected_models": ["Quality"]}
+    fake_pack = {
+        "quality": object(),
+        "delay": None,
+        "schedule": None,
+        "scaler": object(),
+        "selected_models": ["Quality"],
+    }
     target_path = tmp_path / "pack.pkl"
 
     monkeypatch.setattr(services, "train_selected_models", lambda **kwargs: fake_pack)
-    monkeypatch.setattr(services, "build_model_filename", lambda selected_models, metadata: target_path)
+    monkeypatch.setattr(
+        services, "build_model_filename", lambda selected_models, metadata: target_path
+    )
 
     saved = {}
 
@@ -200,6 +210,7 @@ def test_build_model_filename_contains_sorted_model_names_and_metadata(monkeypat
                 @staticmethod
                 def strftime(fmt):
                     return "20260409_140000"
+
             return X()
 
     monkeypatch.setattr(services, "MODELS_DIR", tmp_path)
@@ -228,6 +239,6 @@ def test_sanitize_filename_replaces_invalid_chars():
     name = 'model a<b>:c"/d\\e|f?g*h.pkl'
     cleaned = services.sanitize_filename(name)
 
-    for bad in ['<', '>', ':', '"', '/', '\\', '|', '?', '*', ' ']:
+    for bad in ["<", ">", ":", '"', "/", "\\", "|", "?", "*", " "]:
         assert bad not in cleaned
     assert cleaned.endswith(".pkl")

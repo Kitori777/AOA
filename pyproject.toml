@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aoa"
-version = "0.4.0"
+version = "0.5.0"
 description = "Production Optimization / AOA"
 readme = "README.md"
 requires-python = ">=3.11,<3.15"
@@ -31,6 +31,11 @@ aoa-cli = "AOA.cli:main"
 [dependency-groups]
 dev = [
     "pytest>=8.3,<9.1",
+    "pytest-cov>=6.0,<7.0",
+    "ruff>=0.11,<0.14",
+    "mypy>=1.11,<1.16",
+    "pre-commit>=4.0,<5.0",
+
 ]
 
 [tool.pytest.ini_options]
@@ -41,3 +46,40 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.coverage.run]
+source = ["src/AOA"]
+branch = true
+
+[tool.coverage.report]
+skip_empty = true
+show_missing = true
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+[tool.mypy]
+python_version = "3.11"
+files = ["src", "tests"]
+pretty = true
+show_error_codes = true
+warn_unused_ignores = true
+check_untyped_defs = true
+no_implicit_optional = true
+ignore_missing_imports = true
+exclude = [
+    "^data/",
+    "^models/"
+]
+

@@ -36,14 +36,18 @@ def test_main_returns_1_for_unknown_command(capsys):
 
 
 def test_main_returns_130_on_keyboard_interrupt(monkeypatch):
-    monkeypatch.setattr(cli, "command_generate", lambda args: (_ for _ in ()).throw(KeyboardInterrupt()))
+    monkeypatch.setattr(
+        cli, "command_generate", lambda args: (_ for _ in ()).throw(KeyboardInterrupt())
+    )
 
     code = cli.main(["generate"])
     assert code == 130
 
 
 def test_main_returns_1_and_logs_on_exception(monkeypatch, capsys):
-    monkeypatch.setattr(cli, "command_generate", lambda args: (_ for _ in ()).throw(RuntimeError("boom")))
+    monkeypatch.setattr(
+        cli, "command_generate", lambda args: (_ for _ in ()).throw(RuntimeError("boom"))
+    )
     monkeypatch.setattr(cli, "write_exception_log", lambda *_args, **_kwargs: "fake_log_path.txt")
 
     code = cli.main(["generate"])

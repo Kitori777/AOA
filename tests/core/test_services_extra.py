@@ -48,10 +48,12 @@ def test_build_main_page_status_with_data():
 
 
 def test_build_dataframe_preview_text_contains_title_and_shape():
-    df = pd.DataFrame({
-        "cena": [100, 200],
-        "odpad": [0.1, 0.2],
-    })
+    df = pd.DataFrame(
+        {
+            "cena": [100, 200],
+            "odpad": [0.1, 0.2],
+        }
+    )
 
     text = build_dataframe_preview_text(df, title="Podgląd testowy", max_rows=5)
 
@@ -61,11 +63,13 @@ def test_build_dataframe_preview_text_contains_title_and_shape():
 
 
 def test_prepare_results_analysis_regression_returns_dataframe_and_text():
-    df = pd.DataFrame({
-        "feature1": [1, 2, 3, 4, 5],
-        "feature2": [2, 3, 4, 5, 6],
-        "target": [10, 20, 30, 40, 50],
-    })
+    df = pd.DataFrame(
+        {
+            "feature1": [1, 2, 3, 4, 5],
+            "feature2": [2, 3, 4, 5, 6],
+            "target": [10, 20, 30, 40, 50],
+        }
+    )
 
     result = prepare_results_analysis(
         df=df,
@@ -81,10 +85,12 @@ def test_prepare_results_analysis_regression_returns_dataframe_and_text():
 
 
 def test_prepare_results_analysis_invalid_mode_raises():
-    df = pd.DataFrame({
-        "feature1": [1, 2, 3],
-        "target": [10, 20, 30],
-    })
+    df = pd.DataFrame(
+        {
+            "feature1": [1, 2, 3],
+            "target": [10, 20, 30],
+        }
+    )
 
     with pytest.raises(ValueError):
         prepare_results_analysis(

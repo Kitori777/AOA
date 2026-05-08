@@ -1,5 +1,91 @@
 # CHANGELOG
 
+## [0.5.0] - 2026-05-08
+
+### Added
+
+* Dodano interaktywną stronę `ReadmePage`, która prowadzi użytkownika krok po kroku przez pracę w aplikacji:
+  * wybór trybu pracy,
+  * przygotowanie albo wczytanie danych,
+  * trenowanie modeli ML,
+  * korzystanie z modeli STO,
+  * rozwiązywanie danych zapisanym modelem,
+  * analizę wyników i wizualizacji.
+* Dodano nowy moduł `core/learning_content.py`, który przechowuje treści instruktażowe i teoretyczne poza warstwą GUI.
+* Dodano rozbudowaną stronę `TheoryPage` z krótką teorią użytkową dla modeli i metryk:
+  * RMSE, MAE i R² dla regresji,
+  * Accuracy i F1 dla klasyfikacji,
+  * przeuczenie modelu,
+  * ważność cech,
+  * modele jakości i opóźnień,
+  * rekomendacje harmonogramu,
+  * modele STO,
+  * ranking priorytetów.
+* Dodano generowanie prostych wykresów edukacyjnych dla modułów teoretycznych, aby użytkownik szybciej rozumiał zachowanie modeli.
+* Dodano tryb `Visual Lab` do bardziej interaktywnej eksploracji danych.
+* Dodano nowe typy wizualizacji danych:
+  * `Dashboard`,
+  * `Diagnostics`,
+  * `Pair Explorer`,
+  * `3D Scatter`,
+  * `3D Surface`,
+  * `Bubble Chart`,
+  * `Heatmap Density`,
+  * `Outlier Map`,
+  * `Step View`,
+  * `Column Ranking`.
+* Dodano raport tekstowy przy wizualizacjach, pokazujący m.in. liczbę rekordów, kolumn, braki danych, statystyki X/Y/Z, obserwacje odstające i korelację.
+* Dodano obsługę dowolnych danych tabelarycznych w widokach analitycznych, nie tylko danych produkcyjnych.
+* Dodano wczytywanie plików `.csv`, `.txt` oraz `.tsv` z automatycznym przygotowaniem danych do podglądu i wizualizacji.
+* Dodano nowy moduł `core/result_viewer_service.py` do filtrowania, sortowania, limitowania, profilowania i eksportowania widocznego widoku danych.
+* Dodano przebudowaną stronę `ResultsPage` jako `Results Studio` / prosty viewer danych:
+  * globalny filtr tekstowy,
+  * sortowanie po kolumnach,
+  * wybór kierunku sortowania,
+  * limit liczby wierszy,
+  * profil wybranej kolumny,
+  * raport braków danych,
+  * eksport widocznego widoku do CSV,
+  * karty podsumowania zbioru.
+* Dodano testy jednostkowe dla nowych treści edukacyjnych i serwisu wyników:
+  * `tests/core/test_learning_content.py`,
+  * `tests/core/test_result_viewer_service.py`.
+
+### Changed
+
+* Przebudowano `ReadmePage` z prostego czytnika dokumentacji na interaktywną instrukcję użytkownika.
+* Przebudowano `TheoryPage`, aby skupiała się na najważniejszych rzeczach potrzebnych do użytkowania modeli, zamiast na długiej teorii oderwanej od aplikacji.
+* Przebudowano `VisualPage` w kierunku bardziej nowoczesnego panelu eksploracji danych z wyborem X/Y/Z, raportem po prawej stronie i większą liczbą widoków.
+* Przebudowano `ResultsPage`, usuwając z niej niedziałające elementy regresji i klasyfikacji oraz zastępując je funkcjami przeglądania i raportowania danych.
+* Rozszerzono `core/visualization_service.py`, aby obsługiwał nowe typy wykresów i raportów bez przenoszenia logiki do GUI.
+* Rozszerzono przepływ wczytywania danych wizualnych tak, aby aplikacja mogła pracować z bardziej ogólnymi plikami tabelarycznymi.
+* Zmieniono opis projektu w README, aby odzwierciedlał nowy charakter aplikacji jako narzędzia analityczno-edukacyjnego.
+* Zaktualizowano strukturę repozytorium w README o nowe moduły i testy.
+
+### Fixed
+
+* Naprawiono problem z ucinaniem treści na stronie `TheoryPage` przez zastosowanie większych przewijanych kart i lepszych długości zawijania tekstu.
+* Poprawiono panel boczny i sekcje przewijane, aby dłuższe treści nie znikały poza widocznym obszarem.
+* Poprawiono czytelność komunikatów i opisów w widokach edukacyjnych oraz analitycznych.
+* Usunięto elementy ręcznego wejścia STO z głównego widoku, ponieważ po wprowadzeniu pełnego workflow modeli STO były nieadekwatne.
+* Usunięto przyciski regresji i klasyfikacji z `ResultsPage`, ponieważ widok wyników ma obecnie pełnić rolę viewer/reporting studio, a nie uruchamiać niedokończone akcje ML.
+
+### Improved
+
+* Uporządkowano architekturę zmian: treści, raporty, profile danych i generowanie wykresów pozostają w warstwie `core`, a GUI odpowiada głównie za wyświetlanie i obsługę kliknięć.
+* Poprawiono użyteczność aplikacji dla osoby, która dopiero poznaje moduły ML/STO i potrzebuje wyjaśnienia „co kliknąć” oraz „co oznacza wynik”.
+* Poprawiono możliwość pracy z własnymi danymi użytkownika, także wtedy, gdy nie są to dane produkcyjne z domyślnego generatora.
+* Zwiększono liczbę dostępnych wizualizacji i sposobów patrzenia na dane.
+* Poprawiono czytelność raportów danych oraz interpretacji wykresów.
+* Ułatwiono dalszą rozbudowę aplikacji w kierunku dashboardów, interaktywnych analiz i widoków podobnych do nowoczesnych narzędzi webowych.
+
+### Documentation
+
+* Zaktualizowano README o opis wersji `0.5.0`, nowe możliwości stron `Readme`, `Theory`, `Visual` i `Results` oraz zaktualizowaną strukturę projektu.
+* Zaktualizowano CHANGELOG o pełny opis zmian w wersji `0.5.0`.
+* Dopisano informację, że aplikacja obsługuje teraz nie tylko dane produkcyjne, ale również dowolne dane tabelaryczne w plikach CSV/TXT/TSV.
+* Dopisano informację o nowych modułach `learning_content.py` i `result_viewer_service.py` oraz odpowiadających im testach.
+
 ## [0.4.0] - 2026-04-10
 
 ### Added

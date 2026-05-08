@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import random
+from collections.abc import Callable
 from dataclasses import dataclass
 from itertools import permutations
-import random
 
 import pandas as pd
 
@@ -26,7 +27,7 @@ def parse_jobs(job_ids_text: str, processing_text: str, deadlines_text: str) -> 
         raise ValueError("Liczba zleceń, czasów i terminów musi być taka sama.")
 
     jobs: list[Job] = []
-    for job_id, p_raw, d_raw in zip(job_ids, processing_values, deadline_values):
+    for job_id, p_raw, d_raw in zip(job_ids, processing_values, deadline_values, strict=False):
         try:
             processing_time = float(p_raw)
             deadline = float(d_raw)
@@ -220,7 +221,17 @@ def _format_steps_table(steps: list[dict]) -> str:
     if not steps:
         return "brak kroków"
 
-    headers = ["Lp", "Zlecenie", "Czas", "Termin", "Start", "Koniec", "Opóźnienie", "T+", "STO nar."]
+    headers = [
+        "Lp",
+        "Zlecenie",
+        "Czas",
+        "Termin",
+        "Start",
+        "Koniec",
+        "Opóźnienie",
+        "T+",
+        "STO nar.",
+    ]
     rows = []
 
     for step in steps:
@@ -228,13 +239,13 @@ def _format_steps_table(steps: list[dict]) -> str:
             [
                 str(step["lp"]),
                 str(step["job_id"]),
-                f'{step["processing_time"]:.3f}',
-                f'{step["deadline"]:.3f}',
-                f'{step["start_time"]:.3f}',
-                f'{step["completion_time"]:.3f}',
-                f'{step["lateness"]:.3f}',
-                f'{step["tardiness_positive"]:.3f}',
-                f'{step["sto_running"]:.3f}',
+                f"{step['processing_time']:.3f}",
+                f"{step['deadline']:.3f}",
+                f"{step['start_time']:.3f}",
+                f"{step['completion_time']:.3f}",
+                f"{step['lateness']:.3f}",
+                f"{step['tardiness_positive']:.3f}",
+                f"{step['sto_running']:.3f}",
             ]
         )
 
@@ -261,7 +272,7 @@ def run_selected_sto_models(jobs: list[Job], selected_methods: list[str]) -> lis
     if not selected_methods:
         raise ValueError("Wybierz przynajmniej jeden model STO.")
 
-    method_map = {
+    method_map: dict[str, Callable[[list[Job]], list[Job]]] = {
         "MT": sequence_mt,
         "MO": sequence_mo,
         "MZO": sequence_mzo,

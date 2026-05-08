@@ -21,11 +21,7 @@ def prepare_similarity_matrix_data(df: pd.DataFrame):
 
     for i in range(n):
         for j in range(n):
-            sim[i, j] = jaccard_score(
-                bin_df.iloc[:, i],
-                bin_df.iloc[:, j],
-                average="macro"
-            )
+            sim[i, j] = jaccard_score(bin_df.iloc[:, i], bin_df.iloc[:, j], average="macro")
 
     return {
         "matrix": sim,

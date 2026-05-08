@@ -1,11 +1,10 @@
 import customtkinter as ctk
 
-from AOA.gui.pages.readme_page import ReadmePage
 from AOA.gui.pages.main_page import MainPage
-from AOA.gui.pages.visual_page import VisualPage
+from AOA.gui.pages.readme_page import ReadmePage
 from AOA.gui.pages.results_page import ResultsPage
 from AOA.gui.pages.theory_page import TheoryPage
-
+from AOA.gui.pages.visual_page import VisualPage
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
@@ -36,11 +35,7 @@ class App(ctk.CTk):
         self.pages[name].tkraise()
 
     def build_sidebar(self):
-        ctk.CTkLabel(
-            self.sidebar,
-            text="MENU",
-            font=("Arial", 18, "bold")
-        ).pack(pady=20)
+        ctk.CTkLabel(self.sidebar, text="MENU", font=("Arial", 18, "bold")).pack(pady=20)
 
         page_names = [
             "ReadmePage",
@@ -52,7 +47,5 @@ class App(ctk.CTk):
 
         for name in page_names:
             ctk.CTkButton(
-                self.sidebar,
-                text=name.replace("Page", ""),
-                command=lambda n=name: self.show(n)
+                self.sidebar, text=name.replace("Page", ""), command=lambda n=name: self.show(n)
             ).pack(fill="x", pady=5, padx=10)

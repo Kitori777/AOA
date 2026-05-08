@@ -17,6 +17,26 @@ def generate_production_data(
     production_time_range=(1.0, 48.0),
     deadline_buffer_range=(1.0, 72.0),
 ):
+    """Generate synthetic production data and a reproducible train/test split.
+
+    Args:
+        n: Number of rows to generate.
+        n_machines: Number of machines used in lateness simulation.
+        test_size: Fraction of data reserved for the test subset.
+        seed: Random seed used for generation and shuffling.
+        ksztalty: Optional allowed shapes.
+        materialy: Optional allowed materials.
+        price_range: Inclusive-like numeric range used for price sampling.
+        waste_range: Numeric range used for waste sampling.
+        production_time_range: Numeric range used for production time sampling.
+        deadline_buffer_range: Numeric range used for deadline buffer sampling.
+
+    Returns:
+        Tuple `(full_df, train_df, test_df)`.
+
+    Raises:
+        ValueError: If selected shapes or materials contain unsupported values.
+    """
     np.random.seed(seed)
 
     available_ksztalty = list(KSZTALT_DIMENSIONS.keys())
@@ -44,17 +64,19 @@ def generate_production_data(
     # Termin zawsze musi być większy od czasu produkcji
     termin_h = czas_produkcji_h + deadline_buffer_h
 
-    df = pd.DataFrame({
-        "cena": np.random.uniform(price_range[0], price_range[1], n),
-        "odpad": np.random.uniform(waste_range[0], waste_range[1], n),
-        "termin_h": np.round(termin_h, 3),
-        "czas_produkcji_h": np.round(czas_produkcji_h, 3),
-        "ksztalt": ksztalt_col,
-        "material": material_col,
-        "x": x_col,
-        "y": y_col,
-        "z": z_col,
-    })
+    df = pd.DataFrame(
+        {
+            "cena": np.random.uniform(price_range[0], price_range[1], n),
+            "odpad": np.random.uniform(waste_range[0], waste_range[1], n),
+            "termin_h": np.round(termin_h, 3),
+            "czas_produkcji_h": np.round(czas_produkcji_h, 3),
+            "ksztalt": ksztalt_col,
+            "material": material_col,
+            "x": x_col,
+            "y": y_col,
+            "z": z_col,
+        }
+    )
 
     df = df.sample(frac=1, random_state=seed).reset_index(drop=True)
 
@@ -78,6 +100,7 @@ def generate_production_data(
 
 
 def ksztaty_or_materialy_valid(values, allowed, field_name):
+    """Check whether every provided value belongs to the allowed set."""
     if not values:
         return False
     return all(v in allowed for v in values)

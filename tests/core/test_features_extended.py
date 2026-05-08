@@ -1,5 +1,4 @@
 import pandas as pd
-import pytest
 
 from AOA.core.features import prepare_features
 

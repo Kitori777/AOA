@@ -5,12 +5,7 @@ def prepare_line_chart_data(df: pd.DataFrame, x_col: str, y_col: str, window: in
     if x_col not in df.columns or y_col not in df.columns:
         raise ValueError("Wybrane kolumny nie istnieją w danych")
 
-    df_line = (
-        df[[x_col, y_col]]
-        .dropna()
-        .sort_values(by=x_col)
-        .reset_index(drop=True)
-    )
+    df_line = df[[x_col, y_col]].dropna().sort_values(by=x_col).reset_index(drop=True)
 
     if df_line.empty:
         raise ValueError("Brak danych do wykresu liniowego")

@@ -32,7 +32,10 @@ def test_fill_missing_values_fills_numeric_with_mean_and_text_with_ffill_or_unkn
     [
         (
             "MinMax Normalizacja",
-            lambda out: out["a"].min() >= 0 and out["a"].max() <= 1 and out["b"].min() >= 0 and out["b"].max() <= 1,
+            lambda out: out["a"].min() >= 0
+            and out["a"].max() <= 1
+            and out["b"].min() >= 0
+            and out["b"].max() <= 1,
         ),
         (
             "Standaryzacja",
@@ -44,7 +47,10 @@ def test_fill_missing_values_fills_numeric_with_mean_and_text_with_ffill_or_unkn
         ),
         (
             "Skalowanie 0-1",
-            lambda out: out["a"].min() >= 0 and out["a"].max() <= 1 and out["b"].min() >= 0 and out["b"].max() <= 1,
+            lambda out: out["a"].min() >= 0
+            and out["a"].max() <= 1
+            and out["b"].min() >= 0
+            and out["b"].max() <= 1,
         ),
     ],
 )

@@ -48,7 +48,4 @@ Thumbs.db
 .uv/
 
 # Optional local data/models artifacts
-data/*.csv
 models/*.pkl
-
-przyklad.txt

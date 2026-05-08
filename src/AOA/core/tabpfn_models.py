@@ -25,8 +25,7 @@ class TabPFNNotAvailableError(RuntimeError):
 def ensure_tabpfn_available() -> None:
     if not TABPFN_AVAILABLE:
         raise TabPFNNotAvailableError(
-            "TabPFN nie jest zainstalowany. "
-            f"Błąd importu: {TABPFN_IMPORT_ERROR}"
+            f"TabPFN nie jest zainstalowany. Błąd importu: {TABPFN_IMPORT_ERROR}"
         )
 
 
@@ -53,10 +52,7 @@ def _build_tabpfn_regressor():
         except Exception as e:
             errors.append(f"{kwargs} -> {type(e).__name__}: {e}")
 
-    raise RuntimeError(
-        "Nie udało się utworzyć TabPFNRegressor.\n"
-        + "\n".join(errors)
-    )
+    raise RuntimeError("Nie udało się utworzyć TabPFNRegressor.\n" + "\n".join(errors))
 
 
 def _build_tabpfn_classifier():
@@ -78,10 +74,7 @@ def _build_tabpfn_classifier():
         except Exception as e:
             errors.append(f"{kwargs} -> {type(e).__name__}: {e}")
 
-    raise RuntimeError(
-        "Nie udało się utworzyć TabPFNClassifier.\n"
-        + "\n".join(errors)
-    )
+    raise RuntimeError("Nie udało się utworzyć TabPFNClassifier.\n" + "\n".join(errors))
 
 
 def train_tabpfn_regressor(

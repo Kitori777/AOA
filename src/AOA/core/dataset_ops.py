@@ -2,6 +2,19 @@ import pandas as pd
 
 
 def split_train_test(df: pd.DataFrame, train_ratio: float = 0.8):
+    """Split a DataFrame into train and test subsets preserving row order.
+
+    Args:
+        df: Input DataFrame with rows to split.
+        train_ratio: Fraction of rows assigned to the training subset.
+
+    Returns:
+        Tuple of `(df_train, df_test)`.
+
+    Raises:
+        ValueError: If the input DataFrame is empty, the ratio is invalid, or
+            the resulting split would create an empty subset.
+    """
     if df is None or df.empty:
         raise ValueError("Brak danych do podziału")
 

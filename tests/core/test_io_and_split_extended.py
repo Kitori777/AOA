@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import pandas as pd
 import pytest
 
@@ -10,7 +8,7 @@ from AOA.core.dataset_ops import split_train_test
 def test_load_csv_raises_for_missing_file(tmp_path):
     missing = tmp_path / "missing.csv"
 
-    with pytest.raises(Exception):
+    with pytest.raises(FileNotFoundError):
         load_csv(missing)
 
 

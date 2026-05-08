@@ -1,6 +1,8 @@
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 from AOA import cli
 
 
@@ -201,8 +203,5 @@ def test_command_workflow_rejects_invalid_models():
         skip_solve=False,
     )
 
-    try:
+    with pytest.raises(ValueError, match="Nieprawidłowe modele"):
         cli.command_workflow(args)
-        assert False, "Expected ValueError for invalid model"
-    except ValueError as e:
-        assert "Nieprawidłowe modele" in str(e)
