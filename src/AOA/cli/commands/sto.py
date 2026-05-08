@@ -18,7 +18,12 @@ from ..helpers import (
 
 def command_sto_run(args: argparse.Namespace) -> int:
     methods = validate_models(parse_csv_list(args.methods), AVAILABLE_STO_MODELS, "metody STO")
-    result = analyze_sto_models(job_ids_text=args.jobs, processing_text=args.times, deadlines_text=args.deadlines, selected_methods=methods)
+    result = analyze_sto_models(
+        job_ids_text=args.jobs,
+        processing_text=args.times,
+        deadlines_text=args.deadlines,
+        selected_methods=methods,
+    )
     print_messages(result.get("messages"))
     hr("RAPORT STO")
     logger.info("%s", result["report"])

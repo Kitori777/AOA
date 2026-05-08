@@ -1,3 +1,4 @@
+# mypy: disable-error-code=attr-defined
 from tkinter import messagebox
 
 import customtkinter as ctk
@@ -13,7 +14,9 @@ class MainPageProgressPanelMixin:
     def _build_preview_section(self, parent):
         frame = ctk.CTkFrame(parent)
         frame.pack(fill="both", expand=True, padx=10, pady=8)
-        ctk.CTkLabel(frame, text="Podgląd danych", font=("Arial", 18, "bold")).pack(anchor="w", padx=15, pady=(12, 8))
+        ctk.CTkLabel(frame, text="Podgląd danych", font=("Arial", 18, "bold")).pack(
+            anchor="w", padx=15, pady=(12, 8)
+        )
         self.preview_box = ctk.CTkTextbox(frame, height=220)
         self.preview_box.pack(fill="both", expand=True, padx=15, pady=(0, 15))
         self.preview_box.configure(state="disabled")
@@ -21,7 +24,9 @@ class MainPageProgressPanelMixin:
     def _build_log_section(self, parent):
         frame = ctk.CTkFrame(parent)
         frame.pack(fill="both", expand=True, padx=10, pady=(8, 10))
-        ctk.CTkLabel(frame, text="Log", font=("Arial", 18, "bold")).pack(anchor="w", padx=15, pady=(12, 8))
+        ctk.CTkLabel(frame, text="Log", font=("Arial", 18, "bold")).pack(
+            anchor="w", padx=15, pady=(12, 8)
+        )
         self.logbox = ctk.CTkTextbox(frame, height=220)
         self.logbox.pack(fill="both", expand=True, padx=15, pady=(0, 15))
         self.logbox.configure(state="disabled")
@@ -29,7 +34,9 @@ class MainPageProgressPanelMixin:
     def _build_summary_section(self, parent):
         frame = ctk.CTkFrame(parent)
         frame.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 8))
-        ctk.CTkLabel(frame, text="Podsumowanie wyboru", font=("Arial", 18, "bold")).pack(anchor="w", padx=15, pady=(12, 8))
+        ctk.CTkLabel(frame, text="Podsumowanie wyboru", font=("Arial", 18, "bold")).pack(
+            anchor="w", padx=15, pady=(12, 8)
+        )
         self.summary_box = ctk.CTkTextbox(frame, height=320)
         self.summary_box.pack(fill="x", padx=15, pady=(0, 15))
         self.summary_box.configure(state="disabled")
@@ -37,14 +44,18 @@ class MainPageProgressPanelMixin:
     def _build_status_section(self, parent):
         frame = ctk.CTkFrame(parent)
         frame.grid(row=1, column=0, sticky="ew", padx=10, pady=8)
-        ctk.CTkLabel(frame, text="Szybki status", font=("Arial", 18, "bold")).pack(anchor="w", padx=15, pady=(12, 8))
+        ctk.CTkLabel(frame, text="Szybki status", font=("Arial", 18, "bold")).pack(
+            anchor="w", padx=15, pady=(12, 8)
+        )
         self.status_label = ctk.CTkLabel(frame, text="", font=("Arial", 13), justify="left")
         self.status_label.pack(anchor="w", padx=15, pady=(0, 12))
 
     def _build_right_hint_section(self, parent):
         frame = ctk.CTkFrame(parent)
         frame.grid(row=2, column=0, sticky="nsew", padx=10, pady=8)
-        ctk.CTkLabel(frame, text="Panel boczny", font=("Arial", 18, "bold")).pack(anchor="w", padx=15, pady=(12, 8))
+        ctk.CTkLabel(frame, text="Panel boczny", font=("Arial", 18, "bold")).pack(
+            anchor="w", padx=15, pady=(12, 8)
+        )
         hint = (
             "STO działa teraz też dwustopniowo:\n"
             "1) zapisujesz model STO,\n"
@@ -53,7 +64,9 @@ class MainPageProgressPanelMixin:
             "Dla TabPFN na CPU najlepiej testować mniejsze zbiory,\n"
             "np. 300–1000 rekordów."
         )
-        ctk.CTkLabel(frame, text=hint, justify="left", wraplength=280, font=("Arial", 12)).pack(anchor="w", padx=15, pady=(0, 15))
+        ctk.CTkLabel(frame, text=hint, justify="left", wraplength=280, font=("Arial", 12)).pack(
+            anchor="w", padx=15, pady=(0, 15)
+        )
 
     def render_summary(self):
         summary = build_main_page_summary(self._ui_config())
@@ -66,7 +79,9 @@ class MainPageProgressPanelMixin:
         self.status_label.configure(text=build_main_page_status(self.df_train, self.df_test))
 
     def render_preview(self):
-        text = build_dataframe_preview_text(self.df_full, title="Podgląd pełnego zbioru", max_rows=15)
+        text = build_dataframe_preview_text(
+            self.df_full, title="Podgląd pełnego zbioru", max_rows=15
+        )
         self.preview_box.configure(state="normal")
         self.preview_box.delete("1.0", "end")
         self.preview_box.insert("end", text)

@@ -5,10 +5,12 @@ from AOA.core.dataset_ops import split_train_test
 
 
 def test_split_train_test_returns_two_non_empty_dataframes():
-    df = pd.DataFrame({
-        "a": range(10),
-        "b": range(10, 20),
-    })
+    df = pd.DataFrame(
+        {
+            "a": range(10),
+            "b": range(10, 20),
+        }
+    )
 
     train_df, test_df = split_train_test(df, train_ratio=0.8)
 

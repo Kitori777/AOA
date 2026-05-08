@@ -75,19 +75,14 @@ def build_figure_from_request(df, chart_type, x_col=None, y_col=None):
             xticklabels=payload["labels"],
             yticklabels=payload["labels"],
             cmap="viridis",
-            ax=ax
+            ax=ax,
         )
         ax.set_title(payload["title"])
         return fig
 
     if chart_type == "DecisionTree":
         payload = prepare_decision_tree_data(df)
-        plot_tree(
-            payload["model"],
-            feature_names=payload["feature_names"],
-            filled=True,
-            ax=ax
-        )
+        plot_tree(payload["model"], feature_names=payload["feature_names"], filled=True, ax=ax)
         return fig
 
     raise ValueError(f"Nieobsługiwany typ wykresu: {chart_type}")

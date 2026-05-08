@@ -25,17 +25,28 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     configure_logging(verbose=getattr(args, "verbose", False), quiet=getattr(args, "quiet", False))
     try:
-        if args.command == "generate": return command_generate(args)
-        if args.command == "train": return command_train(args)
-        if args.command == "solve": return command_solve(args)
-        if args.command == "sto-run": return command_sto_run(args)
-        if args.command == "sto-train": return command_sto_train(args)
-        if args.command == "sto-solve": return command_sto_solve(args)
-        if args.command == "preview": return command_preview(args)
-        if args.command == "summary": return command_summary(args)
-        if args.command == "status": return command_status(args)
-        if args.command == "workflow": return command_workflow(args)
-        if args.command == "interactive": return command_interactive(args)
+        if args.command == "generate":
+            return command_generate(args)
+        if args.command == "train":
+            return command_train(args)
+        if args.command == "solve":
+            return command_solve(args)
+        if args.command == "sto-run":
+            return command_sto_run(args)
+        if args.command == "sto-train":
+            return command_sto_train(args)
+        if args.command == "sto-solve":
+            return command_sto_solve(args)
+        if args.command == "preview":
+            return command_preview(args)
+        if args.command == "summary":
+            return command_summary(args)
+        if args.command == "status":
+            return command_status(args)
+        if args.command == "workflow":
+            return command_workflow(args)
+        if args.command == "interactive":
+            return command_interactive(args)
         parser.print_help()
         return 1
     except KeyboardInterrupt:

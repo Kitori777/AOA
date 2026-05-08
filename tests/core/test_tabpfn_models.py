@@ -8,7 +8,9 @@ from AOA.core import tabpfn_models
 def test_ensure_tabpfn_available_raises_when_dependency_is_missing(monkeypatch):
     monkeypatch.setattr(tabpfn_models, "TABPFN_AVAILABLE", False)
 
-    with pytest.raises(tabpfn_models.TabPFNNotAvailableError, match="TabPFN nie jest zainstalowany"):
+    with pytest.raises(
+        tabpfn_models.TabPFNNotAvailableError, match="TabPFN nie jest zainstalowany"
+    ):
         tabpfn_models.ensure_tabpfn_available()
 
 

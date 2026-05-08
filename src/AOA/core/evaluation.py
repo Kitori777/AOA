@@ -46,10 +46,7 @@ def transform_numeric_columns(df: pd.DataFrame, transformation: str) -> pd.DataF
 
     elif transformation == "Skalowanie 0-1":
         for col in numeric_cols:
-            df[col] = (
-                (df[col] - df[col].min()) /
-                (df[col].max() - df[col].min() + 1e-6)
-            )
+            df[col] = (df[col] - df[col].min()) / (df[col].max() - df[col].min() + 1e-6)
 
     return df
 

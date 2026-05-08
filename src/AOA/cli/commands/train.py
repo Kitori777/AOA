@@ -25,7 +25,9 @@ def command_train(args: argparse.Namespace) -> int:
 
     ml_models = [m for m in selected_models if m in AVAILABLE_ML_MODELS]
     sto_models = [m for m in selected_models if m in AVAILABLE_STO_MODELS]
-    invalid_models = [m for m in selected_models if m not in AVAILABLE_ML_MODELS | AVAILABLE_STO_MODELS]
+    invalid_models = [
+        m for m in selected_models if m not in AVAILABLE_ML_MODELS | AVAILABLE_STO_MODELS
+    ]
     if invalid_models:
         raise ValueError(
             f"Nieprawidłowe modele: {', '.join(invalid_models)}. "
@@ -48,7 +50,13 @@ def command_train(args: argparse.Namespace) -> int:
         hr("TRENING ML")
         logger.info("Modele ML: %s", ", ".join(ml_models))
         logger.info("Backend: %s", args.backend)
-        result = train_models_flow(df_train=df_train, selected_models=ml_models, metadata=metadata, progress_callback=progress_callback, backend=args.backend)
+        result = train_models_flow(
+            df_train=df_train,
+            selected_models=ml_models,
+            metadata=metadata,
+            progress_callback=progress_callback,
+            backend=args.backend,
+        )
         print_messages(result.get("messages"))
         print_key_value("MODEL_ML", result["model_path"])
 

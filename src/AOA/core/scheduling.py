@@ -1,5 +1,3 @@
-
-
 def optimize_schedule(df, time_col="czas_produkcji_h", alpha=1.0, beta=2.0):
     """Pick the best simple scheduling strategy for the provided jobs.
 
@@ -44,6 +42,7 @@ def optimize_schedule(df, time_col="czas_produkcji_h", alpha=1.0, beta=2.0):
             best_df["lateness_h"] = lateness
             best_df["strategy"] = name
 
+    assert best_df is not None
     best_df["total_time"] = best_df["t_end"].max()
     best_df["total_lateness"] = best_df["lateness_h"].sum()
     return best_df

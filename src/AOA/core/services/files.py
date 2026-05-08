@@ -23,8 +23,12 @@ def build_model_filename(selected_models, metadata, backend="classic"):
     backend_part = sanitize_filename(backend.lower()) if backend else "classic"
     n_part = f"{metadata.get('n', 'x')}r"
     mach_part = f"{metadata.get('n_machines', 'x')}m"
-    kszt_part = "-".join(metadata.get("ksztalty", [])) if metadata.get("ksztalty", []) else "allshapes"
-    mat_part = "-".join(metadata.get("materialy", [])) if metadata.get("materialy", []) else "allmaterials"
+    kszt_part = (
+        "-".join(metadata.get("ksztalty", [])) if metadata.get("ksztalty", []) else "allshapes"
+    )
+    mat_part = (
+        "-".join(metadata.get("materialy", [])) if metadata.get("materialy", []) else "allmaterials"
+    )
     filename = f"model_{backend_part}_{models_part}_{n_part}_{mach_part}_{kszt_part}_{mat_part}_{stamp}.pkl"
     return MODELS_DIR / sanitize_filename(filename)
 

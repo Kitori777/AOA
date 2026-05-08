@@ -15,11 +15,7 @@ class VisualPage(ctk.CTkFrame):
         self.df_vis = None
         self.canvas = None
 
-        ctk.CTkLabel(
-            self,
-            text="Wizualizacje danych",
-            font=("Arial", 20, "bold")
-        ).pack(pady=10)
+        ctk.CTkLabel(self, text="Wizualizacje danych", font=("Arial", 20, "bold")).pack(pady=10)
 
         control = ctk.CTkFrame(self)
         control.pack(fill="x", padx=20, pady=10)
@@ -28,7 +24,9 @@ class VisualPage(ctk.CTkFrame):
         self.y_var = ctk.StringVar()
         self.plot_type = ctk.StringVar(value="Scatter")
 
-        ctk.CTkButton(control, text="📂 Wczytaj CSV", command=self.load_file).grid(row=0, column=0, padx=10)
+        ctk.CTkButton(control, text="📂 Wczytaj CSV", command=self.load_file).grid(
+            row=0, column=0, padx=10
+        )
 
         self.x_menu = ctk.CTkOptionMenu(control, values=[], variable=self.x_var)
         self.x_menu.grid(row=0, column=1, padx=10)
@@ -39,10 +37,16 @@ class VisualPage(ctk.CTkFrame):
         self.plot_menu = ctk.CTkOptionMenu(
             control,
             values=[
-                "Scatter", "Line", "Histogram", "Boxplot",
-                "Gantt", "DecisionTree", "CorrelationMatrix", "SimilarityMatrix"
+                "Scatter",
+                "Line",
+                "Histogram",
+                "Boxplot",
+                "Gantt",
+                "DecisionTree",
+                "CorrelationMatrix",
+                "SimilarityMatrix",
             ],
-            variable=self.plot_type
+            variable=self.plot_type,
         )
         self.plot_menu.grid(row=0, column=3, padx=10)
 
@@ -53,9 +57,7 @@ class VisualPage(ctk.CTkFrame):
 
     def load_file(self):
         path = filedialog.askopenfilename(
-            title="Wybierz plik CSV",
-            initialdir=str(DATA_DIR),
-            filetypes=[("CSV", "*.csv")]
+            title="Wybierz plik CSV", initialdir=str(DATA_DIR), filetypes=[("CSV", "*.csv")]
         )
         if not path:
             return
@@ -83,7 +85,7 @@ class VisualPage(ctk.CTkFrame):
                 df=self.df_vis,
                 chart_type=self.plot_type.get(),
                 x_col=self.x_var.get(),
-                y_col=self.y_var.get()
+                y_col=self.y_var.get(),
             )
             self._draw_canvas(fig)
 

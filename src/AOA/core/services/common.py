@@ -19,7 +19,7 @@ def _parse_positive_int(value, field_name: str) -> int:
     try:
         number = int(value)
     except (TypeError, ValueError):
-        raise ValueError(MUST_BE_INT.format(field=field_name))
+        raise ValueError(MUST_BE_INT.format(field=field_name)) from None
 
     if number <= 0:
         raise ValueError(MUST_BE_POSITIVE)
@@ -30,7 +30,7 @@ def _parse_positive_float(value, field_name: str) -> float:
     try:
         number = float(value)
     except (TypeError, ValueError):
-        raise ValueError(MUST_BE_FLOAT.format(field=field_name))
+        raise ValueError(MUST_BE_FLOAT.format(field=field_name)) from None
 
     if number <= 0:
         raise ValueError(MUST_BE_POSITIVE)

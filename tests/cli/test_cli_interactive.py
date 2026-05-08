@@ -4,7 +4,20 @@ from AOA import cli
 
 
 def test_interactive_generate(monkeypatch):
-    answers = iter(["800", "1", "0.2", "42", "1", "48", "1", "72", "kwadrat,trojkat,trapez", "bawelna,mikrofibra"])
+    answers = iter(
+        [
+            "800",
+            "1",
+            "0.2",
+            "42",
+            "1",
+            "48",
+            "1",
+            "72",
+            "kwadrat,trojkat,trapez",
+            "bawelna,mikrofibra",
+        ]
+    )
 
     monkeypatch.setattr("builtins.input", lambda prompt="": next(answers))
     called = {"ok": False}
@@ -86,20 +99,22 @@ def test_interactive_sto_run(monkeypatch):
 
 
 def test_interactive_summary(monkeypatch):
-    answers = iter([
-        "Quality,Delay",
-        "tabpfn",
-        "800",
-        "1",
-        "0.2",
-        "42",
-        "1",
-        "48",
-        "1",
-        "72",
-        "kwadrat,trojkat,trapez",
-        "bawelna,mikrofibra,poliester,wiskoza",
-    ])
+    answers = iter(
+        [
+            "Quality,Delay",
+            "tabpfn",
+            "800",
+            "1",
+            "0.2",
+            "42",
+            "1",
+            "48",
+            "1",
+            "72",
+            "kwadrat,trojkat,trapez",
+            "bawelna,mikrofibra,poliester,wiskoza",
+        ]
+    )
     monkeypatch.setattr("builtins.input", lambda prompt="": next(answers))
 
     called = {"ok": False}
@@ -138,21 +153,23 @@ def test_interactive_status(monkeypatch):
 
 
 def test_interactive_workflow(monkeypatch):
-    answers = iter([
-        "800",
-        "1",
-        "0.2",
-        "42",
-        "1",
-        "48",
-        "1",
-        "72",
-        "kwadrat,trojkat,trapez",
-        "bawelna,mikrofibra,poliester,wiskoza",
-        "Quality",
-        "classic",
-        "nie",
-    ])
+    answers = iter(
+        [
+            "800",
+            "1",
+            "0.2",
+            "42",
+            "1",
+            "48",
+            "1",
+            "72",
+            "kwadrat,trojkat,trapez",
+            "bawelna,mikrofibra,poliester,wiskoza",
+            "Quality",
+            "classic",
+            "nie",
+        ]
+    )
     monkeypatch.setattr("builtins.input", lambda prompt="": next(answers))
 
     called = {"ok": False}

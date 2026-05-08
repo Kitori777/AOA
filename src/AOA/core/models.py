@@ -254,8 +254,19 @@ def train_selected_models(df_train, selected_models, progress_callback=None, bac
 
 
 SAFE_BUILTINS = {
-    "dict", "list", "tuple", "set", "frozenset", "str", "int", "float", "bool", "bytes",
-    "bytearray", "complex", "slice",
+    "dict",
+    "list",
+    "tuple",
+    "set",
+    "frozenset",
+    "str",
+    "int",
+    "float",
+    "bool",
+    "bytes",
+    "bytearray",
+    "complex",
+    "slice",
 }
 SAFE_MODULE_PREFIXES = (
     "collections",
@@ -272,9 +283,9 @@ def _is_safe_module(module: str) -> bool:
         return True
 
     return any(
-        module == prefix or module.startswith(prefix + ".")
-        for prefix in SAFE_MODULE_PREFIXES
+        module == prefix or module.startswith(prefix + ".") for prefix in SAFE_MODULE_PREFIXES
     )
+
 
 class RestrictedModelUnpickler(pickle.Unpickler):
     def find_class(self, module, name):
@@ -282,9 +293,8 @@ class RestrictedModelUnpickler(pickle.Unpickler):
             return super().find_class(module, name)
         if _is_safe_module(module):
             return super().find_class(module, name)
-        raise pickle.UnpicklingError(
-            f"Loading model packs from module '{module}' is not allowed."
-        )
+        raise pickle.UnpicklingError(f"Loading model packs from module '{module}' is not allowed.")
+
 
 def _validate_model_pack_path(path) -> Path:
     resolved = Path(path)
@@ -301,7 +311,6 @@ def save_model_pack(model_pack, path):
 
 
 def load_model_pack(path):
-
     """Load a pickled model pack from disk using a restricted unpickler."""
     path = _validate_model_pack_path(path)
 

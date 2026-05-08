@@ -90,7 +90,11 @@ def solve_models_flow(model_path, data_path):
     if backend != "tabpfn" and scaler is not None:
         try:
             transformed = scaler.transform(X)
-            X_for_pred = pd.DataFrame(transformed, columns=X.columns, index=X.index) if hasattr(X, "columns") else transformed
+            X_for_pred = (
+                pd.DataFrame(transformed, columns=X.columns, index=X.index)
+                if hasattr(X, "columns")
+                else transformed
+            )
         except Exception:
             X_for_pred = X
 
@@ -100,11 +104,17 @@ def solve_models_flow(model_path, data_path):
     if delay_model is not None:
         result_df["pred_delay"] = delay_model.predict(X_for_pred)
     if quality_model is not None and delay_model is not None:
-        result_df["priority"] = result_df["pred_quality"] * 0.7 + (1.0 / (1.0 + result_df["pred_delay"])) * 0.3
+        result_df["priority"] = (
+            result_df["pred_quality"] * 0.7 + (1.0 / (1.0 + result_df["pred_delay"])) * 0.3
+        )
         result_df = result_df.sort_values("priority", ascending=False).reset_index(drop=True)
     if schedule_model is not None:
         result_df["recommended_machine"] = simulate_schedule(schedule_model, result_df)
 
     result_path = build_result_filename(Path(model_path).stem, Path(data_path).stem, suffix=".csv")
     save_csv(result_df, result_path)
-    return {"df": result_df, "result_path": result_path, "messages": [f"✔ Rozwiązanie gotowe: {result_path}"]}
+    return {
+        "df": result_df,
+        "result_path": result_path,
+        "messages": [f"✔ Rozwiązanie gotowe: {result_path}"],
+    }

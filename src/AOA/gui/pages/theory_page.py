@@ -10,11 +10,7 @@ class TheoryPage(ctk.CTkFrame):
     def __init__(self, parent):
         super().__init__(parent)
 
-        ctk.CTkLabel(
-            self,
-            text="Teoria projektu",
-            font=("Arial", 24, "bold")
-        ).pack(pady=(15, 5))
+        ctk.CTkLabel(self, text="Teoria projektu", font=("Arial", 24, "bold")).pack(pady=(15, 5))
 
         container = ctk.CTkFrame(self)
         container.pack(fill="both", expand=True, padx=20, pady=20)
@@ -32,7 +28,7 @@ class TheoryPage(ctk.CTkFrame):
             relief="flat",
             padx=18,
             pady=18,
-            yscrollcommand=self.v_scroll.set
+            yscrollcommand=self.v_scroll.set,
         )
         self.box.pack(fill=BOTH, expand=True)
 
@@ -42,42 +38,13 @@ class TheoryPage(ctk.CTkFrame):
         self._load_content()
 
     def _configure_tags(self):
+        self.box.tag_configure("h1", font=("Segoe UI", 22, "bold"), spacing1=10, spacing3=14)
+        self.box.tag_configure("h2", font=("Segoe UI", 18, "bold"), spacing1=12, spacing3=10)
+        self.box.tag_configure("h3", font=("Segoe UI", 15, "bold"), spacing1=10, spacing3=8)
+        self.box.tag_configure("h4", font=("Segoe UI", 13, "bold"), spacing1=8, spacing3=6)
+        self.box.tag_configure("paragraph", font=("Segoe UI", 12), spacing1=2, spacing3=8)
         self.box.tag_configure(
-            "h1",
-            font=("Segoe UI", 22, "bold"),
-            spacing1=10,
-            spacing3=14
-        )
-        self.box.tag_configure(
-            "h2",
-            font=("Segoe UI", 18, "bold"),
-            spacing1=12,
-            spacing3=10
-        )
-        self.box.tag_configure(
-            "h3",
-            font=("Segoe UI", 15, "bold"),
-            spacing1=10,
-            spacing3=8
-        )
-        self.box.tag_configure(
-            "h4",
-            font=("Segoe UI", 13, "bold"),
-            spacing1=8,
-            spacing3=6
-        )
-        self.box.tag_configure(
-            "paragraph",
-            font=("Segoe UI", 12),
-            spacing1=2,
-            spacing3=8
-        )
-        self.box.tag_configure(
-            "bullet",
-            font=("Segoe UI", 12),
-            lmargin1=25,
-            lmargin2=45,
-            spacing3=4
+            "bullet", font=("Segoe UI", 12), lmargin1=25, lmargin2=45, spacing3=4
         )
         self.box.tag_configure(
             "separator",
@@ -85,17 +52,11 @@ class TheoryPage(ctk.CTkFrame):
             foreground="#9aa0a6",
             justify="center",
             spacing1=8,
-            spacing3=8
+            spacing3=8,
         )
+        self.box.tag_configure("bold", font=("Segoe UI", 12, "bold"))
         self.box.tag_configure(
-            "bold",
-            font=("Segoe UI", 12, "bold")
-        )
-        self.box.tag_configure(
-            "code",
-            font=("Consolas", 11),
-            background="#2b2b2b",
-            foreground="#7dd3fc"
+            "code", font=("Consolas", 11), background="#2b2b2b", foreground="#7dd3fc"
         )
 
     def _load_content(self):

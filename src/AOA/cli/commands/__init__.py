@@ -6,7 +6,14 @@ from .train import command_train
 from .workflow import command_workflow
 
 __all__ = [
-    'command_generate', 'command_train', 'command_solve', 'command_sto_run',
-    'command_sto_train', 'command_sto_solve', 'command_preview', 'command_summary',
-    'command_status', 'command_workflow'
+    "command_generate",
+    "command_train",
+    "command_solve",
+    "command_sto_run",
+    "command_sto_train",
+    "command_sto_solve",
+    "command_preview",
+    "command_summary",
+    "command_status",
+    "command_workflow",
 ]

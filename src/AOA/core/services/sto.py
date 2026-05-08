@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pandas as pd
+
 from AOA.core.data_io import load_csv, save_csv
 from AOA.core.models import load_model_pack
 from AOA.core.sto_models import (
@@ -18,16 +20,23 @@ from .files import build_result_filename
 def analyze_sto_models(job_ids_text, processing_text, deadlines_text, selected_methods):
     jobs = parse_jobs(job_ids_text, processing_text, deadlines_text)
     results = run_selected_sto_models(jobs, selected_methods)
-    report = build_sto_report(results)
+    report = build_sto_report(jobs, results)
 
     saved_paths = []
     best_result = None
     best_path = None
     if results:
+        jobs_df = pd.DataFrame(
+            {
+                "sto_job_id": [job.job_id for job in jobs],
+                "czas_produkcji_h": [job.processing_time for job in jobs],
+                "termin_h": [job.deadline for job in jobs],
+            }
+        )
         best_result = min(results, key=lambda x: x["sto"])
-        best_jobs_df = apply_sto_result_to_dataframe(jobs, best_result)
+        best_jobs_df = apply_sto_result_to_dataframe(jobs_df, best_result)
         for result in results:
-            result_df = apply_sto_result_to_dataframe(jobs, result)
+            result_df = apply_sto_result_to_dataframe(jobs_df, result)
             out_path = build_result_filename(f"sto_{result['method']}", "manual", suffix=".csv")
             save_csv(result_df, out_path)
             saved_paths.append({"method": result["method"], "sto": result["sto"], "path": out_path})
@@ -65,16 +74,25 @@ def solve_sto_with_saved_model(model_path, data_path):
         raise ValueError("Zapisany model STO nie zawiera żadnych metod.")
 
     results = run_selected_sto_models(jobs, selected_methods)
-    report = build_sto_report(results)
+    report = build_sto_report(jobs, results)
     saved_paths = []
     best_result = None
     best_path = None
     if results:
+        jobs_df = pd.DataFrame(
+            {
+                "sto_job_id": [job.job_id for job in jobs],
+                "czas_produkcji_h": [job.processing_time for job in jobs],
+                "termin_h": [job.deadline for job in jobs],
+            }
+        )
         best_result = min(results, key=lambda x: x["sto"])
-        best_jobs_df = apply_sto_result_to_dataframe(jobs, best_result)
+        best_jobs_df = apply_sto_result_to_dataframe(jobs_df, best_result)
         for result in results:
-            result_df = apply_sto_result_to_dataframe(jobs, result)
-            out_path = build_result_filename(f"sto_{result['method']}", Path(data_path).stem, suffix=".csv")
+            result_df = apply_sto_result_to_dataframe(jobs_df, result)
+            out_path = build_result_filename(
+                f"sto_{result['method']}", Path(data_path).stem, suffix=".csv"
+            )
             save_csv(result_df, out_path)
             saved_paths.append({"method": result["method"], "sto": result["sto"], "path": out_path})
         best_path = build_result_filename("sto_best", Path(data_path).stem, suffix=".csv")

@@ -130,7 +130,7 @@ def test_emit_progress_supports_single_argument_callback():
 
 def test_emit_progress_does_not_swallow_internal_type_error():
     def callback(model_name, percent, detail):
-        return 1 + "x"
+        return 1 + "x"  # type: ignore[operator]
 
     with pytest.raises(TypeError):
         _emit_progress(callback, "Quality", 12.5, "step")

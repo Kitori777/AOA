@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from typing import Any
 
 from AOA.core.data_io import load_csv
 from AOA.core.services import (
@@ -19,11 +20,26 @@ from AOA.core.services import (
 from AOA.utils.error_utils import write_exception_log
 from AOA.utils.logging_utils import configure_logging
 
-from .helpers import *
-from .parser import build_examples_text, build_parser
+from .helpers import (
+    AVAILABLE_ML_MODELS,
+    AVAILABLE_STO_MODELS,
+    DEFAULT_MATERIALS,
+    DEFAULT_SHAPES,
+    eprint,
+    hr,
+    logger,
+    parse_csv_list,
+    print_key_value,
+    print_messages,
+    progress_callback,
+    resolve_existing_file,
+    validate_models,
+)
+from .parser import build_examples_text as build_examples_text
+from .parser import build_parser
 
 
-def command_generate(args: argparse.Namespace) -> int:
+def command_generate(args: Any) -> int:
     result = generate_and_store_datasets(
         n=args.n,
         n_machines=args.machines,
@@ -33,7 +49,6 @@ def command_generate(args: argparse.Namespace) -> int:
         materialy=parse_csv_list(args.materials),
         production_time_range=(args.prod_min, args.prod_max),
         deadline_buffer_range=(args.deadline_min, args.deadline_max),
-
     )
     hr("GENEROWANIE")
     print_messages(result.get("messages"))
@@ -43,7 +58,7 @@ def command_generate(args: argparse.Namespace) -> int:
     return 0
 
 
-def command_train(args: argparse.Namespace) -> int:
+def command_train(args: Any) -> int:
     data_path = resolve_existing_file(args.data, "pliku danych")
     selected_models = parse_csv_list(args.models)
     if not selected_models:
@@ -51,7 +66,9 @@ def command_train(args: argparse.Namespace) -> int:
 
     ml_models = [m for m in selected_models if m in AVAILABLE_ML_MODELS]
     sto_models = [m for m in selected_models if m in AVAILABLE_STO_MODELS]
-    invalid_models = [m for m in selected_models if m not in AVAILABLE_ML_MODELS | AVAILABLE_STO_MODELS]
+    invalid_models = [
+        m for m in selected_models if m not in AVAILABLE_ML_MODELS | AVAILABLE_STO_MODELS
+    ]
 
     if invalid_models:
         raise ValueError(
@@ -84,7 +101,6 @@ def command_train(args: argparse.Namespace) -> int:
         print_messages(result.get("messages"))
         print_key_value("MODEL_ML", result["model_path"])
 
-
     if sto_models:
         hr("ZAPIS STO")
         logger.info("Metody STO: %s", ", ".join(sto_models))
@@ -96,7 +112,7 @@ def command_train(args: argparse.Namespace) -> int:
     return 0
 
 
-def command_solve(args: argparse.Namespace) -> int:
+def command_solve(args: Any) -> int:
     model_path = resolve_existing_file(args.model, "pliku modelu")
     data_path = resolve_existing_file(args.data, "pliku danych")
     hr("ROZWIĄZYWANIE ML")
@@ -109,7 +125,7 @@ def command_solve(args: argparse.Namespace) -> int:
     return 0
 
 
-def command_sto_run(args: argparse.Namespace) -> int:
+def command_sto_run(args: Any) -> int:
     methods = validate_models(parse_csv_list(args.methods), AVAILABLE_STO_MODELS, "metody STO")
 
     result = analyze_sto_models(
@@ -134,7 +150,7 @@ def command_sto_run(args: argparse.Namespace) -> int:
     return 0
 
 
-def command_sto_train(args: argparse.Namespace) -> int:
+def command_sto_train(args: Any) -> int:
     methods = validate_models(parse_csv_list(args.methods), AVAILABLE_STO_MODELS, "metody STO")
     result = train_sto_models_flow(methods)
     hr("ZAPIS STO")
@@ -143,7 +159,7 @@ def command_sto_train(args: argparse.Namespace) -> int:
     return 0
 
 
-def command_sto_solve(args: argparse.Namespace) -> int:
+def command_sto_solve(args: Any) -> int:
     model_path = resolve_existing_file(args.model, "pliku modelu STO")
     data_path = resolve_existing_file(args.data, "pliku danych STO")
     result = solve_sto_with_saved_model(model_path=str(model_path), data_path=str(data_path))
@@ -164,7 +180,7 @@ def command_sto_solve(args: argparse.Namespace) -> int:
     return 0
 
 
-def command_preview(args: argparse.Namespace) -> int:
+def command_preview(args: Any) -> int:
     data_path = resolve_existing_file(args.data, "pliku danych")
     df = load_csv(data_path)
     logger.info(
@@ -178,8 +194,7 @@ def command_preview(args: argparse.Namespace) -> int:
     return 0
 
 
-def command_summary(args: argparse.Namespace) -> int:
-
+def command_summary(args: Any) -> int:
     selected_models = parse_csv_list(args.models)
     ml_models, sto_models = split_selected_models(selected_models)
     invalid = [m for m in selected_models if m not in AVAILABLE_ML_MODELS | AVAILABLE_STO_MODELS]
@@ -206,10 +221,8 @@ def command_summary(args: argparse.Namespace) -> int:
     return 0
 
 
-
-def command_status(args: argparse.Namespace) -> int:
+def command_status(args: Any) -> int:
     if not args.data:
-
         hr("STATUS")
         logger.info("%s", build_main_page_status(None, None))
         return 0
@@ -222,8 +235,7 @@ def command_status(args: argparse.Namespace) -> int:
     return 0
 
 
-
-def command_workflow(args: argparse.Namespace) -> int:
+def command_workflow(args: Any) -> int:
     selected_models = parse_csv_list(args.models)
 
     if not selected_models:
@@ -231,7 +243,9 @@ def command_workflow(args: argparse.Namespace) -> int:
 
     ml_models = [m for m in selected_models if m in AVAILABLE_ML_MODELS]
     sto_models = [m for m in selected_models if m in AVAILABLE_STO_MODELS]
-    invalid_models = [m for m in selected_models if m not in AVAILABLE_ML_MODELS | AVAILABLE_STO_MODELS]
+    invalid_models = [
+        m for m in selected_models if m not in AVAILABLE_ML_MODELS | AVAILABLE_STO_MODELS
+    ]
     if invalid_models:
         raise ValueError(f"Nieprawidłowe modele: {', '.join(invalid_models)}")
 
@@ -298,7 +312,6 @@ def ask(prompt: str, default: str = "") -> str:
 
 
 def interactive_generate():
-
     return command_generate(
         argparse.Namespace(
             n=int(ask("Liczba rekordów", "800")),
@@ -398,7 +411,7 @@ def interactive_workflow():
     )
 
 
-def command_interactive(args: argparse.Namespace) -> int:
+def command_interactive(args: Any) -> int:
     while True:
         hr("TRYB INTERAKTYWNY")
         logger.info("1. Generate")

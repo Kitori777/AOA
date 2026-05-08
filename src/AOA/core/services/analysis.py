@@ -72,7 +72,9 @@ def prepare_results_analysis(
             {
                 "model": "Schedule",
                 "metrics": calculate_classification_metrics(
-                    df[["recommended_machine", "machine_id"]].rename(columns={"recommended_machine": "feature"}),
+                    df[["recommended_machine", "machine_id"]].rename(
+                        columns={"recommended_machine": "feature"}
+                    ),
                     "machine_id",
                 ),
             }

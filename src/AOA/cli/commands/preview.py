@@ -22,15 +22,16 @@ from ..helpers import (
 
 
 def command_preview(args: argparse.Namespace) -> int:
-
     data_path = resolve_existing_file(args.data, "pliku danych")
     df = load_csv(data_path)
-    logger.info("%s", build_dataframe_preview_text(df, title=f"Podgląd: {data_path.name}", max_rows=args.rows))
+    logger.info(
+        "%s",
+        build_dataframe_preview_text(df, title=f"Podgląd: {data_path.name}", max_rows=args.rows),
+    )
     return 0
 
 
 def command_summary(args: argparse.Namespace) -> int:
-
     selected_models = parse_csv_list(args.models)
     ml_models, sto_models = split_selected_models(selected_models)
     invalid = [m for m in selected_models if m not in AVAILABLE_ML_MODELS | AVAILABLE_STO_MODELS]
@@ -51,6 +52,7 @@ def command_summary(args: argparse.Namespace) -> int:
         "backend": args.backend,
     }
     from ..helpers import hr
+
     hr("PODSUMOWANIE KONFIGURACJI")
     logger.info("%s", build_main_page_summary(config))
     return 0
@@ -58,6 +60,7 @@ def command_summary(args: argparse.Namespace) -> int:
 
 def command_status(args: argparse.Namespace) -> int:
     from ..helpers import hr
+
     if not args.data:
         hr("STATUS")
         logger.info("%s", build_main_page_status(None, None))

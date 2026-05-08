@@ -35,11 +35,7 @@ class App(ctk.CTk):
         self.pages[name].tkraise()
 
     def build_sidebar(self):
-        ctk.CTkLabel(
-            self.sidebar,
-            text="MENU",
-            font=("Arial", 18, "bold")
-        ).pack(pady=20)
+        ctk.CTkLabel(self.sidebar, text="MENU", font=("Arial", 18, "bold")).pack(pady=20)
 
         page_names = [
             "ReadmePage",
@@ -51,7 +47,5 @@ class App(ctk.CTk):
 
         for name in page_names:
             ctk.CTkButton(
-                self.sidebar,
-                text=name.replace("Page", ""),
-                command=lambda n=name: self.show(n)
+                self.sidebar, text=name.replace("Page", ""), command=lambda n=name: self.show(n)
             ).pack(fill="x", pady=5, padx=10)

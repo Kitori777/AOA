@@ -64,17 +64,19 @@ def generate_production_data(
     # Termin zawsze musi być większy od czasu produkcji
     termin_h = czas_produkcji_h + deadline_buffer_h
 
-    df = pd.DataFrame({
-        "cena": np.random.uniform(price_range[0], price_range[1], n),
-        "odpad": np.random.uniform(waste_range[0], waste_range[1], n),
-        "termin_h": np.round(termin_h, 3),
-        "czas_produkcji_h": np.round(czas_produkcji_h, 3),
-        "ksztalt": ksztalt_col,
-        "material": material_col,
-        "x": x_col,
-        "y": y_col,
-        "z": z_col,
-    })
+    df = pd.DataFrame(
+        {
+            "cena": np.random.uniform(price_range[0], price_range[1], n),
+            "odpad": np.random.uniform(waste_range[0], waste_range[1], n),
+            "termin_h": np.round(termin_h, 3),
+            "czas_produkcji_h": np.round(czas_produkcji_h, 3),
+            "ksztalt": ksztalt_col,
+            "material": material_col,
+            "x": x_col,
+            "y": y_col,
+            "z": z_col,
+        }
+    )
 
     df = df.sample(frac=1, random_state=seed).reset_index(drop=True)
 

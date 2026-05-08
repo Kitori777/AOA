@@ -30,8 +30,7 @@ def validate_models(selected: Iterable[str], allowed: set[str], label: str) -> l
     invalid = [item for item in selected if item not in allowed]
     if invalid:
         raise ValueError(
-            f"Nieprawidłowe {label}: {', '.join(invalid)}. "
-            f"Dozwolone: {', '.join(sorted(allowed))}"
+            f"Nieprawidłowe {label}: {', '.join(invalid)}. Dozwolone: {', '.join(sorted(allowed))}"
         )
     return selected
 
@@ -44,7 +43,6 @@ def print_messages(messages: list[str] | None):
 
 
 def print_key_value(title: str, value):
-
     logger.info("%s: %s", title, value)
 
 
@@ -54,7 +52,6 @@ def hr(title: str):
 
 
 def progress_callback(model_name: str, percent: float, detail: str = ""):
-
     suffix = f" | {detail}" if detail else ""
     logger.info("[POSTĘP] %s: %.1f%%%s", model_name, percent, suffix)
 

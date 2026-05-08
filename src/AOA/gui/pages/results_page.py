@@ -10,11 +10,7 @@ class ResultsPage(ctk.CTkFrame):
     def __init__(self, parent):
         super().__init__(parent)
 
-        ctk.CTkLabel(
-            self,
-            text="Wyniki / Dane do ML",
-            font=("Arial", 20, "bold")
-        ).pack(pady=10)
+        ctk.CTkLabel(self, text="Wyniki / Dane do ML", font=("Arial", 20, "bold")).pack(pady=10)
 
         self.df_loaded = None
         self.column_vars = {}
@@ -24,7 +20,9 @@ class ResultsPage(ctk.CTkFrame):
         control = ctk.CTkFrame(self)
         control.pack(fill="x", padx=20, pady=10)
 
-        ctk.CTkButton(control, text="📂 Wczytaj plik CSV", command=self.load_file).grid(row=0, column=0, padx=5)
+        ctk.CTkButton(control, text="📂 Wczytaj plik CSV", command=self.load_file).grid(
+            row=0, column=0, padx=5
+        )
         ctk.CTkLabel(control, text="Przekształcenie:").grid(row=0, column=1, padx=5)
 
         self.transformation_menu = ctk.CTkOptionMenu(
@@ -36,15 +34,19 @@ class ResultsPage(ctk.CTkFrame):
                 "Logarytm",
                 "Skalowanie 0-1",
             ],
-            variable=self.transformation_var
+            variable=self.transformation_var,
         )
         self.transformation_menu.grid(row=0, column=2, padx=5)
 
         self.target_menu = ctk.CTkOptionMenu(control, values=[], variable=self.target_var)
         self.target_menu.grid(row=0, column=3, padx=5)
 
-        ctk.CTkButton(control, text="Regresja", command=lambda: self.show_data("regresja")).grid(row=0, column=4, padx=5)
-        ctk.CTkButton(control, text="Klasyfikacja", command=lambda: self.show_data("klasyfikacja")).grid(row=0, column=5, padx=5)
+        ctk.CTkButton(control, text="Regresja", command=lambda: self.show_data("regresja")).grid(
+            row=0, column=4, padx=5
+        )
+        ctk.CTkButton(
+            control, text="Klasyfikacja", command=lambda: self.show_data("klasyfikacja")
+        ).grid(row=0, column=5, padx=5)
 
         self.cols_frame = ctk.CTkScrollableFrame(self, height=120)
         self.cols_frame.pack(fill="x", padx=20, pady=10)
@@ -63,7 +65,7 @@ class ResultsPage(ctk.CTkFrame):
             font=("Courier", 10),
             wrap="none",
             yscrollcommand=self.v_scroll.set,
-            xscrollcommand=self.h_scroll.set
+            xscrollcommand=self.h_scroll.set,
         )
         self.box.pack(fill=BOTH, expand=True)
 
@@ -72,9 +74,7 @@ class ResultsPage(ctk.CTkFrame):
 
     def load_file(self):
         path = filedialog.askopenfilename(
-            title="Wybierz plik CSV",
-            initialdir=str(DATA_DIR),
-            filetypes=[("CSV files", "*.csv")]
+            title="Wybierz plik CSV", initialdir=str(DATA_DIR), filetypes=[("CSV files", "*.csv")]
         )
         if not path:
             return
@@ -120,7 +120,7 @@ class ResultsPage(ctk.CTkFrame):
                 selected_cols=selected_cols,
                 transformation=self.transformation_var.get(),
                 target=self.target_var.get(),
-                mode=mode
+                mode=mode,
             )
 
             self.box.configure(state="normal")

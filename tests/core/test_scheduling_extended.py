@@ -21,7 +21,9 @@ def _df():
 def test_optimize_schedule_returns_best_strategy_with_required_columns():
     result = optimize_schedule(_df())
 
-    assert {"t_start", "t_end", "lateness_h", "strategy", "total_time", "total_lateness"}.issubset(result.columns)
+    assert {"t_start", "t_end", "lateness_h", "strategy", "total_time", "total_lateness"}.issubset(
+        result.columns
+    )
     assert result["strategy"].iloc[0] in {"EDF", "SPT", "LPT", "Slack"}
 
 
@@ -29,7 +31,9 @@ def test_simulate_schedule_preserves_input_order_and_adds_time_columns():
     df = _df()
     result = simulate_schedule(df)
 
-    pd.testing.assert_series_equal(result["czas_produkcji_h"], df["czas_produkcji_h"], check_names=False)
+    pd.testing.assert_series_equal(
+        result["czas_produkcji_h"], df["czas_produkcji_h"], check_names=False
+    )
     assert result["t_start"].tolist() == [0.0, 5.0, 6.0]
     assert result["t_end"].tolist() == [5.0, 6.0, 8.0]
     assert result["lateness_h"].tolist() == [0.0, 4.0, 4.0]
@@ -38,7 +42,14 @@ def test_simulate_schedule_preserves_input_order_and_adds_time_columns():
 def test_extract_schedule_features_returns_expected_keys():
     features = extract_schedule_features(_df())
 
-    assert set(features) == {"n_jobs", "mean_time", "std_time", "max_time", "mean_deadline", "load_ratio"}
+    assert set(features) == {
+        "n_jobs",
+        "mean_time",
+        "std_time",
+        "max_time",
+        "mean_deadline",
+        "load_ratio",
+    }
     assert features["n_jobs"] == 3
 
 

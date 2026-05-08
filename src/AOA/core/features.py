@@ -31,9 +31,18 @@ def prepare_features(df: pd.DataFrame, scaler_obj=None):
     df.loc[df["ksztalt"] == "trapez", "pole"] = 0.5 * (df["x"] + df["y"]) * df["y"]
 
     X = df[
-        FEATURES + [
-            "x", "y", "z", "pole", "ksztalt_q", "material_q",
-            "odpad_norm", "czas_na_deadline", "koszt_czasu", "presja"
+        FEATURES
+        + [
+            "x",
+            "y",
+            "z",
+            "pole",
+            "ksztalt_q",
+            "material_q",
+            "odpad_norm",
+            "czas_na_deadline",
+            "koszt_czasu",
+            "presja",
         ]
     ]
 

@@ -4,10 +4,12 @@ from AOA.core.data_io import load_csv, save_csv
 
 
 def test_save_csv_creates_file(tmp_path):
-    df = pd.DataFrame({
-        "cena": [100, 200],
-        "odpad": [0.1, 0.2],
-    })
+    df = pd.DataFrame(
+        {
+            "cena": [100, 200],
+            "odpad": [0.1, 0.2],
+        }
+    )
 
     file_path = tmp_path / "test_data.csv"
 
@@ -17,10 +19,12 @@ def test_save_csv_creates_file(tmp_path):
 
 
 def test_load_csv_returns_dataframe(tmp_path):
-    df = pd.DataFrame({
-        "cena": [100, 200],
-        "odpad": [0.1, 0.2],
-    })
+    df = pd.DataFrame(
+        {
+            "cena": [100, 200],
+            "odpad": [0.1, 0.2],
+        }
+    )
 
     file_path = tmp_path / "test_data.csv"
     df.to_csv(file_path, index=False)
@@ -33,11 +37,13 @@ def test_load_csv_returns_dataframe(tmp_path):
 
 
 def test_save_and_load_csv_preserve_shape(tmp_path):
-    df = pd.DataFrame({
-        "cena": [100, 200, 300],
-        "odpad": [0.1, 0.2, 0.3],
-        "termin_dni": [5, 10, 15],
-    })
+    df = pd.DataFrame(
+        {
+            "cena": [100, 200, 300],
+            "odpad": [0.1, 0.2, 0.3],
+            "termin_dni": [5, 10, 15],
+        }
+    )
 
     file_path = tmp_path / "roundtrip.csv"
 
