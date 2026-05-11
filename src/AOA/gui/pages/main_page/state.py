@@ -123,6 +123,7 @@ class MainPageStateMixin:
                     metadata=self.last_generation_metadata,
                     progress_callback=self._on_train_progress,
                     backend=backend,
+                    df_test=self.df_test,
                 )
                 for line in result["messages"]:
                     self._safe_log(line)

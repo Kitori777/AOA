@@ -1,7 +1,12 @@
-from __future__ import annotations
+# ruff: noqa: F401, I001
+"""Public CLI facade.
 
-import argparse
-from typing import Any
+The command implementations live in ``AOA.cli.commands``. This module keeps the
+historical ``AOA.cli`` import path and the console entry point while avoiding a
+second copy of the command logic.
+"""
+
+from typing import Any, cast
 
 from AOA.core.data_io import load_csv
 from AOA.core.services import (
@@ -20,6 +25,12 @@ from AOA.core.services import (
 from AOA.utils.error_utils import write_exception_log
 from AOA.utils.logging_utils import configure_logging
 
+from .commands import generate as _generate
+from .commands import preview as _preview
+from .commands import solve as _solve
+from .commands import sto as _sto
+from .commands import train as _train
+from .commands import workflow as _workflow
 from .helpers import (
     AVAILABLE_ML_MODELS,
     AVAILABLE_STO_MODELS,
@@ -35,422 +46,146 @@ from .helpers import (
     resolve_existing_file,
     validate_models,
 )
-from .parser import build_examples_text as build_examples_text
-from .parser import build_parser
+from . import interactive as _interactive
+from .parser import build_examples_text, build_parser
 
 
-def command_generate(args: Any) -> int:
-    result = generate_and_store_datasets(
-        n=args.n,
-        n_machines=args.machines,
-        test_size=args.test_size,
-        seed=args.seed,
-        ksztalty=parse_csv_list(args.shapes),
-        materialy=parse_csv_list(args.materials),
-        production_time_range=(args.prod_min, args.prod_max),
-        deadline_buffer_range=(args.deadline_min, args.deadline_max),
-    )
-    hr("GENEROWANIE")
-    print_messages(result.get("messages"))
-    print_key_value("FULL", result["full_path"])
-    print_key_value("TRAIN", result["train_path"])
-    print_key_value("TEST", result["test_path"])
-    return 0
+def _sync_command_modules() -> None:
+    for module in (_generate, _preview, _solve, _sto, _train, _workflow, _interactive):
+        module_any = cast(Any, module)
+        if hasattr(module, "parse_csv_list"):
+            module_any.parse_csv_list = parse_csv_list
+        if hasattr(module, "resolve_existing_file"):
+            module_any.resolve_existing_file = resolve_existing_file
+        if hasattr(module, "print_messages"):
+            module_any.print_messages = print_messages
+        if hasattr(module, "print_key_value"):
+            module_any.print_key_value = print_key_value
+        if hasattr(module, "hr"):
+            module_any.hr = hr
+        if hasattr(module, "progress_callback"):
+            module_any.progress_callback = progress_callback
+    _generate.generate_and_store_datasets = generate_and_store_datasets
+    _train.load_training_data = load_training_data
+    _train.train_models_flow = train_models_flow
+    _train.train_sto_models_flow = train_sto_models_flow
+    _solve.solve_models_flow = solve_models_flow
+    _preview.load_csv = load_csv
+    _preview.load_training_data = load_training_data
+    _preview.build_dataframe_preview_text = build_dataframe_preview_text
+    _preview.build_main_page_status = build_main_page_status
+    _sto.analyze_sto_models = analyze_sto_models
+    _sto.train_sto_models_flow = train_sto_models_flow
+    _sto.solve_sto_with_saved_model = solve_sto_with_saved_model
+    _workflow.generate_and_store_datasets = generate_and_store_datasets
+    _workflow.train_models_flow = train_models_flow
+    _workflow.train_sto_models_flow = train_sto_models_flow
+    _workflow.solve_models_flow = solve_models_flow
+    _interactive.command_generate = command_generate
+    _interactive.command_train = command_train
+    _interactive.command_solve = command_solve
+    _interactive.command_sto_run = command_sto_run
+    _interactive.command_summary = command_summary
+    _interactive.command_status = command_status
+    _interactive.command_workflow = command_workflow
 
 
-def command_train(args: Any) -> int:
-    data_path = resolve_existing_file(args.data, "pliku danych")
-    selected_models = parse_csv_list(args.models)
-    if not selected_models:
-        raise ValueError("Nie podano żadnych modeli.")
-
-    ml_models = [m for m in selected_models if m in AVAILABLE_ML_MODELS]
-    sto_models = [m for m in selected_models if m in AVAILABLE_STO_MODELS]
-    invalid_models = [
-        m for m in selected_models if m not in AVAILABLE_ML_MODELS | AVAILABLE_STO_MODELS
-    ]
-
-    if invalid_models:
-        raise ValueError(
-            f"Nieprawidłowe modele: {', '.join(invalid_models)}. "
-            f"ML: {', '.join(sorted(AVAILABLE_ML_MODELS))}. "
-            f"STO: {', '.join(sorted(AVAILABLE_STO_MODELS))}."
-        )
-
-    loaded = load_training_data(path=str(data_path), train_ratio=args.train_ratio)
-    hr("WCZYTANIE DANYCH")
-    print_messages(loaded.get("messages"))
-
-    if ml_models:
-        hr("TRENING ML")
-        logger.info("Modele ML: %s", ", ".join(ml_models))
-        logger.info("Backend: %s", args.backend)
-
-        result = train_models_flow(
-            df_train=loaded["train_df"],
-            selected_models=ml_models,
-            metadata={
-                "n": args.n_meta if args.n_meta is not None else len(loaded["full_df"]),
-                "n_machines": args.machines_meta if args.machines_meta is not None else "x",
-                "ksztalty": parse_csv_list(args.shapes_meta),
-                "materialy": parse_csv_list(args.materials_meta),
-            },
-            progress_callback=progress_callback,
-            backend=args.backend,
-        )
-        print_messages(result.get("messages"))
-        print_key_value("MODEL_ML", result["model_path"])
-
-    if sto_models:
-        hr("ZAPIS STO")
-        logger.info("Metody STO: %s", ", ".join(sto_models))
-        result = train_sto_models_flow(sto_models)
-
-        print_messages(result.get("messages"))
-        print_key_value("MODEL_STO", result["model_path"])
-
-    return 0
+def command_generate(args):
+    _sync_command_modules()
+    return _generate.command_generate(args)
 
 
-def command_solve(args: Any) -> int:
-    model_path = resolve_existing_file(args.model, "pliku modelu")
-    data_path = resolve_existing_file(args.data, "pliku danych")
-    hr("ROZWIĄZYWANIE ML")
-    print_key_value("MODEL", model_path)
-    print_key_value("DATA", data_path)
-    result = solve_models_flow(model_path=str(model_path), data_path=str(data_path))
-    print_messages(result.get("messages"))
-    print_key_value("WYNIK", result["result_path"])
-
-    return 0
+def command_train(args):
+    _sync_command_modules()
+    return _train.command_train(args)
 
 
-def command_sto_run(args: Any) -> int:
-    methods = validate_models(parse_csv_list(args.methods), AVAILABLE_STO_MODELS, "metody STO")
-
-    result = analyze_sto_models(
-        job_ids_text=args.jobs,
-        processing_text=args.times,
-        deadlines_text=args.deadlines,
-        selected_methods=methods,
-    )
-    print_messages(result.get("messages"))
-    hr("RAPORT STO")
-    logger.info("%s", result["report"])
-
-    if result.get("saved_paths"):
-        hr("ZAPISANE PLIKI")
-        for item in result["saved_paths"]:
-            logger.info("%s: %s | STO=%.3f", item["method"], item["path"], item["sto"])
-
-    if result.get("best_path"):
-        logger.info("")
-        logger.info("BEST: %s", result["best_path"])
-
-    return 0
+def command_solve(args):
+    _sync_command_modules()
+    return _solve.command_solve(args)
 
 
-def command_sto_train(args: Any) -> int:
-    methods = validate_models(parse_csv_list(args.methods), AVAILABLE_STO_MODELS, "metody STO")
-    result = train_sto_models_flow(methods)
-    hr("ZAPIS STO")
-    print_messages(result.get("messages"))
-    print_key_value("MODEL_STO", result["model_path"])
-    return 0
+def command_sto_run(args):
+    _sync_command_modules()
+    return _sto.command_sto_run(args)
 
 
-def command_sto_solve(args: Any) -> int:
-    model_path = resolve_existing_file(args.model, "pliku modelu STO")
-    data_path = resolve_existing_file(args.data, "pliku danych STO")
-    result = solve_sto_with_saved_model(model_path=str(model_path), data_path=str(data_path))
-
-    print_messages(result.get("messages"))
-    hr("RAPORT STO")
-    logger.info("%s", result["report"])
-
-    if result.get("saved_paths"):
-        hr("ZAPISANE PLIKI")
-        for item in result["saved_paths"]:
-            logger.info("%s: %s | STO=%.3f", item["method"], item["path"], item["sto"])
-
-    if result.get("best_path"):
-        logger.info("")
-        logger.info("BEST: %s", result["best_path"])
-
-    return 0
+def command_sto_train(args):
+    _sync_command_modules()
+    return _sto.command_sto_train(args)
 
 
-def command_preview(args: Any) -> int:
-    data_path = resolve_existing_file(args.data, "pliku danych")
-    df = load_csv(data_path)
-    logger.info(
-        "%s",
-        build_dataframe_preview_text(
-            df,
-            title=f"Podgląd: {data_path.name}",
-            max_rows=args.rows,
-        ),
-    )
-    return 0
+def command_sto_solve(args):
+    _sync_command_modules()
+    return _sto.command_sto_solve(args)
 
 
-def command_summary(args: Any) -> int:
-    selected_models = parse_csv_list(args.models)
-    ml_models, sto_models = split_selected_models(selected_models)
-    invalid = [m for m in selected_models if m not in AVAILABLE_ML_MODELS | AVAILABLE_STO_MODELS]
-    if invalid:
-        raise ValueError(f"Nieprawidłowe modele: {', '.join(invalid)}")
-
-    config = {
-        "selected_models": ml_models + sto_models,
-        "selected_ksztalty": parse_csv_list(args.shapes),
-        "selected_materialy": parse_csv_list(args.materials),
-        "n": args.n,
-        "n_machines": args.machines,
-        "test_size": args.test_size,
-        "seed": args.seed,
-        "prod_min": args.prod_min,
-        "prod_max": args.prod_max,
-        "deadline_min": args.deadline_min,
-        "deadline_max": args.deadline_max,
-        "backend": args.backend,
-    }
-
-    hr("PODSUMOWANIE KONFIGURACJI")
-    logger.info("%s", build_main_page_summary(config))
-    return 0
+def command_preview(args):
+    _sync_command_modules()
+    return _preview.command_preview(args)
 
 
-def command_status(args: Any) -> int:
-    if not args.data:
-        hr("STATUS")
-        logger.info("%s", build_main_page_status(None, None))
-        return 0
-
-    data_path = resolve_existing_file(args.data, "pliku danych")
-    loaded = load_training_data(path=str(data_path), train_ratio=args.train_ratio)
-    hr("STATUS")
-    logger.info("%s", build_main_page_status(loaded["train_df"], loaded["test_df"]))
-    print_key_value("ŹRÓDŁO", data_path)
-    return 0
+def command_summary(args):
+    return _preview.command_summary(args)
 
 
-def command_workflow(args: Any) -> int:
-    selected_models = parse_csv_list(args.models)
-
-    if not selected_models:
-        raise ValueError("Nie podano modeli do workflow.")
-
-    ml_models = [m for m in selected_models if m in AVAILABLE_ML_MODELS]
-    sto_models = [m for m in selected_models if m in AVAILABLE_STO_MODELS]
-    invalid_models = [
-        m for m in selected_models if m not in AVAILABLE_ML_MODELS | AVAILABLE_STO_MODELS
-    ]
-    if invalid_models:
-        raise ValueError(f"Nieprawidłowe modele: {', '.join(invalid_models)}")
-
-    hr("WORKFLOW | GENEROWANIE")
-    gen_result = generate_and_store_datasets(
-        n=args.n,
-        n_machines=args.machines,
-        test_size=args.test_size,
-        seed=args.seed,
-        ksztalty=parse_csv_list(args.shapes),
-        materialy=parse_csv_list(args.materials),
-        production_time_range=(args.prod_min, args.prod_max),
-        deadline_buffer_range=(args.deadline_min, args.deadline_max),
-    )
-    print_messages(gen_result.get("messages"))
-
-    ml_model_path = None
-
-    if ml_models:
-        hr("WORKFLOW | TRENING ML")
-        train_result = train_models_flow(
-            df_train=gen_result["train_df"],
-            selected_models=ml_models,
-            metadata={
-                "n": args.n,
-                "n_machines": args.machines,
-                "ksztalty": parse_csv_list(args.shapes),
-                "materialy": parse_csv_list(args.materials),
-            },
-            progress_callback=progress_callback,
-            backend=args.backend,
-        )
-        print_messages(train_result.get("messages"))
-        ml_model_path = train_result["model_path"]
-
-    if sto_models:
-        hr("WORKFLOW | ZAPIS STO")
-        sto_result = train_sto_models_flow(sto_models)
-        print_messages(sto_result.get("messages"))
-
-    if ml_models and not args.skip_solve and ml_model_path is not None:
-        hr("WORKFLOW | ROZWIĄZYWANIE TESTU")
-        solve_result = solve_models_flow(
-            model_path=str(ml_model_path),
-            data_path=str(gen_result["test_path"]),
-        )
-        print_messages(solve_result.get("messages"))
-        print_key_value("WYNIK_TEST", solve_result["result_path"])
-
-    hr("WORKFLOW | KONIEC")
-    print_key_value("FULL", gen_result["full_path"])
-    print_key_value("TRAIN", gen_result["train_path"])
-    print_key_value("TEST", gen_result["test_path"])
-    if ml_model_path is not None:
-        print_key_value("MODEL_ML", ml_model_path)
-
-    return 0
+def command_status(args):
+    _sync_command_modules()
+    return _preview.command_status(args)
 
 
-def ask(prompt: str, default: str = "") -> str:
-    suffix = f" [{default}]" if default else ""
-    value = input(f"{prompt}{suffix}: ").strip()
-    return value if value else default
+def command_workflow(args):
+    _sync_command_modules()
+    return _workflow.command_workflow(args)
+
+
+ask = _interactive.ask
 
 
 def interactive_generate():
-    return command_generate(
-        argparse.Namespace(
-            n=int(ask("Liczba rekordów", "800")),
-            machines=int(ask("Liczba maszyn", "1")),
-            test_size=float(ask("Test size", "0.2")),
-            seed=int(ask("Seed", "42")),
-            prod_min=float(ask("Czas prod. min", "1")),
-            prod_max=float(ask("Czas prod. max", "48")),
-            deadline_min=float(ask("Bufor terminu min", "1")),
-            deadline_max=float(ask("Bufor terminu max", "72")),
-            shapes=ask("Kształty", ",".join(DEFAULT_SHAPES)),
-            materials=ask("Materiały", ",".join(DEFAULT_MATERIALS)),
-        )
-    )
+    _sync_command_modules()
+    return _interactive.interactive_generate()
 
 
 def interactive_train():
-    return command_train(
-        argparse.Namespace(
-            data=ask("Ścieżka do CSV z danymi"),
-            models=ask("Modele", "Quality"),
-            backend=ask("Backend ML", "classic"),
-            train_ratio=float(ask("Train ratio", "0.8")),
-            n_meta=None,
-            machines_meta=None,
-            shapes_meta="",
-            materials_meta="",
-        )
-    )
+    _sync_command_modules()
+    return _interactive.interactive_train()
 
 
 def interactive_solve():
-    return command_solve(
-        argparse.Namespace(
-            model=ask("Ścieżka do modelu .pkl"),
-            data=ask("Ścieżka do danych CSV"),
-        )
-    )
+    _sync_command_modules()
+    return _interactive.interactive_solve()
 
 
 def interactive_sto_run():
-    return command_sto_run(
-        argparse.Namespace(
-            jobs=ask("Zlecenia", "Z1,Z2,Z3"),
-            times=ask("Czasy", "10,20,100"),
-            deadlines=ask("Terminy", "150,30,110"),
-            methods=ask("Metody", "MT,MO,MZO"),
-        )
-    )
+    _sync_command_modules()
+    return _interactive.interactive_sto_run()
 
 
 def interactive_summary():
-    return command_summary(
-        argparse.Namespace(
-            models=ask("Modele", "Quality,Delay"),
-            backend=ask("Backend", "classic"),
-            n=int(ask("Liczba rekordów", "800")),
-            machines=int(ask("Liczba maszyn", "1")),
-            test_size=float(ask("Test size", "0.2")),
-            seed=int(ask("Seed", "42")),
-            prod_min=float(ask("Czas prod. min", "1")),
-            prod_max=float(ask("Czas prod. max", "48")),
-            deadline_min=float(ask("Bufor terminu min", "1")),
-            deadline_max=float(ask("Bufor terminu max", "72")),
-            shapes=ask("Kształty", ",".join(DEFAULT_SHAPES)),
-            materials=ask("Materiały", ",".join(DEFAULT_MATERIALS)),
-        )
-    )
+    _sync_command_modules()
+    return _interactive.interactive_summary()
 
 
 def interactive_status():
-    return command_status(
-        argparse.Namespace(
-            data=ask("Ścieżka do CSV (puste = brak danych)", ""),
-            train_ratio=float(ask("Train ratio", "0.8")),
-        )
-    )
+    _sync_command_modules()
+    return _interactive.interactive_status()
 
 
 def interactive_workflow():
-    return command_workflow(
-        argparse.Namespace(
-            n=int(ask("Liczba rekordów", "800")),
-            machines=int(ask("Liczba maszyn", "1")),
-            test_size=float(ask("Test size", "0.2")),
-            seed=int(ask("Seed", "42")),
-            prod_min=float(ask("Czas prod. min", "1")),
-            prod_max=float(ask("Czas prod. max", "48")),
-            deadline_min=float(ask("Bufor terminu min", "1")),
-            deadline_max=float(ask("Bufor terminu max", "72")),
-            shapes=ask("Kształty", ",".join(DEFAULT_SHAPES)),
-            materials=ask("Materiały", ",".join(DEFAULT_MATERIALS)),
-            models=ask("Modele", "Quality"),
-            backend=ask("Backend", "classic"),
-            skip_solve=ask("Pominąć solve? tak/nie", "nie").lower() in {"tak", "t", "yes", "y"},
-        )
-    )
+    _sync_command_modules()
+    return _interactive.interactive_workflow()
 
 
-def command_interactive(args: Any) -> int:
-    while True:
-        hr("TRYB INTERAKTYWNY")
-        logger.info("1. Generate")
-        logger.info("2. Train")
-        logger.info("3. Solve")
-        logger.info("4. STO run")
-        logger.info("5. Summary")
-        logger.info("6. Status")
-        logger.info("7. Workflow")
-        logger.info("0. Wyjście")
-
-        choice = input("Wybierz opcję: ").strip()
-
-        if choice == "1":
-            interactive_generate()
-        elif choice == "2":
-            interactive_train()
-        elif choice == "3":
-            interactive_solve()
-        elif choice == "4":
-            interactive_sto_run()
-        elif choice == "5":
-            interactive_summary()
-        elif choice == "6":
-            interactive_status()
-        elif choice == "7":
-            interactive_workflow()
-        elif choice == "0":
-            logger.info("Koniec.")
-            return 0
-        else:
-            logger.warning("Nieprawidłowy wybór.")
+def command_interactive(args):
+    _sync_command_modules()
+    return _interactive.command_interactive(args)
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     configure_logging(verbose=getattr(args, "verbose", False), quiet=getattr(args, "quiet", False))
-
     try:
         if args.command == "generate":
             return command_generate(args)
@@ -474,16 +209,16 @@ def main(argv: list[str] | None = None) -> int:
             return command_workflow(args)
         if args.command == "interactive":
             return command_interactive(args)
-
         parser.print_help()
         return 1
-
     except KeyboardInterrupt:
         eprint("Przerwano przez użytkownika.")
         return 130
-
     except Exception as e:
         log_path = write_exception_log("cli.main", e)
         eprint(f"❌ Błąd: {type(e).__name__}: {e}")
         eprint(f"Szczegóły zapisano w: {log_path}")
         return 1
+
+
+__all__ = [name for name in globals() if not name.startswith("_")]

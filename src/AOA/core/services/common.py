@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from AOA.core.mh_models import MH_MODEL_NAMES as STO_MODEL_NAMES
+from AOA.core.ml_models import ML_MODEL_NAMES
 from AOA.messages import (
     DEADLINE_MIN_GT_MAX,
     MUST_BE_FLOAT,
@@ -10,9 +12,6 @@ from AOA.messages import (
     PROD_MIN_GT_MAX,
     TEST_SIZE_TOO_LARGE,
 )
-
-ML_MODEL_NAMES = {"Quality", "Delay", "Schedule"}
-STO_MODEL_NAMES = {"MT", "MO", "MZO", "GENETIC"}
 
 
 def _parse_positive_int(value, field_name: str) -> int:

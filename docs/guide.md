@@ -285,14 +285,18 @@ Zmniejszenie wpływu wartości skrajnych przy użyciu funkcji `log1p`.
 #### Skalowanie 0–1
 Proste przeskalowanie każdej kolumny do przedziału 0–1.
 
-### 4. Analiza danych
+### 4. Viewer i raport danych
 
-Po wybraniu kolumn i transformacji użytkownik może uruchomić:
+Od wersji 0.5.0 zakładka **Results** działa jako viewer/reporting studio. Nie ma już osobnych przycisków regresji i klasyfikacji. Użytkownik może teraz:
 
-- analizę regresyjną,
-- analizę klasyfikacyjną.
+- filtrować dane tekstowo,
+- sortować po wybranej kolumnie,
+- ograniczyć liczbę widocznych wierszy,
+- sprawdzić profil kolumny,
+- zobaczyć raport braków danych i duplikatów,
+- wyeksportować aktualnie widoczny widok do CSV.
 
-Wyniki oraz wybrane dane są prezentowane w polu tekstowym.
+Metryki modeli ML są pokazywane po treningu w CLI/GUI jako porównanie `train` oraz `test`, aby odróżnić dopasowanie na danych uczących od jakości na danych niewidzianych.
 
 ═════════════════════════════════════════════════════
 
@@ -332,3 +336,16 @@ pliki CSV w katalogu projektu lub w folderze `data/`
 **Dokumentacja:**  
 `docs/guide.md`  
 `docs/theory.md`
+
+
+## Rozszerzone modele ML i heurystyki STO
+
+W bieżącej wersji panel wyboru modeli został rozszerzony tak, aby użytkownik mógł porównywać różne podejścia dla podobnych celów. W trybie `classic` dostępnych jest 12 wariantów ML:
+
+- `Quality`, `Quality_ET`, `Quality_GB`, `Quality_HGB` — cztery modele regresyjne dla jakości, patrzące odpowiednio na stabilność lasu, większą losowość ExtraTrees, poprawianie błędów przez boosting oraz szybki boosting histogramowy.
+- `Delay`, `Delay_RF`, `Delay_ET`, `Delay_HGB` — cztery modele regresyjne dla opóźnień, skupione na ryzyku przekroczenia terminu i dużych błędach.
+- `Schedule`, `Schedule_ET`, `Schedule_GB`, `Schedule_LOG` — cztery klasyfikatory strategii harmonogramowania, od modeli drzewiastych po prosty baseline liniowy.
+
+Modele heurystyczne STO zostały rozszerzone do zestawu 12 metod: `MT`, `MO`, `MZO`, `GENETIC`, `SLACK`, `CR`, `EDD_SPT`, `SPT_EDD`, `LPT_EDD`, `NEH`, `LOCAL_SEARCH`, `RANDOM_RESTART`. Każda metoda ma opis, na co patrzy: termin, czas obróbki, zapas, krytyczność, wariant wstawiania lub lokalne poprawki kolejności.
+
+Architektura została przygotowana modułowo: definicje modeli ML znajdują się w `src/AOA/core/ml_models/`, a definicje heurystyk w `src/AOA/core/mh_models/`. Dzięki temu można później dopisywać kolejne warianty bez przeciążania głównych plików aplikacji.

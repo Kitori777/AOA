@@ -7,6 +7,8 @@ from itertools import permutations
 
 import pandas as pd
 
+from AOA.core.mh_models import MH_MODEL_NAMES
+
 
 @dataclass(frozen=True)
 class Job:
@@ -135,6 +137,73 @@ def sequence_mo(jobs: list[Job]) -> list[Job]:
 
 def sequence_mzo(jobs: list[Job]) -> list[Job]:
     return sorted(jobs, key=lambda job: (-job.processing_time, job.deadline, job.job_id))
+
+
+def sequence_slack(jobs: list[Job]) -> list[Job]:
+    return sorted(
+        jobs,
+        key=lambda job: (job.deadline - job.processing_time, job.deadline, job.job_id),
+    )
+
+
+def sequence_cr(jobs: list[Job]) -> list[Job]:
+    return sorted(
+        jobs,
+        key=lambda job: (job.deadline / max(job.processing_time, 1e-9), job.deadline, job.job_id),
+    )
+
+
+def sequence_edd_spt(jobs: list[Job]) -> list[Job]:
+    return sorted(jobs, key=lambda job: (job.deadline, job.processing_time, job.job_id))
+
+
+def sequence_spt_edd(jobs: list[Job]) -> list[Job]:
+    return sorted(jobs, key=lambda job: (job.processing_time, job.deadline, job.job_id))
+
+
+def sequence_lpt_edd(jobs: list[Job]) -> list[Job]:
+    return sorted(jobs, key=lambda job: (-job.processing_time, job.deadline, job.job_id))
+
+
+def sequence_neh(jobs: list[Job]) -> list[Job]:
+    ordered = sorted(jobs, key=lambda job: (-job.processing_time, job.deadline, job.job_id))
+    sequence: list[Job] = []
+    for job in ordered:
+        candidates = []
+        for position in range(len(sequence) + 1):
+            candidate = sequence[:position] + [job] + sequence[position:]
+            candidates.append(candidate)
+        sequence = min(candidates, key=lambda candidate: evaluate_sequence(candidate)["sto"])
+    return sequence
+
+
+def sequence_local_search(jobs: list[Job]) -> list[Job]:
+    best = sequence_mt(jobs)
+    improved = True
+    while improved:
+        improved = False
+        for index in range(len(best) - 1):
+            candidate = best[:]
+            candidate[index], candidate[index + 1] = candidate[index + 1], candidate[index]
+            if evaluate_sequence(candidate)["sto"] < evaluate_sequence(best)["sto"]:
+                best = candidate
+                improved = True
+    return best
+
+
+def sequence_random_restart(jobs: list[Job], restarts: int = 80, seed: int = 123) -> list[Job]:
+    rng = random.Random(seed)
+    best = min(
+        [sequence_mt(jobs), sequence_mo(jobs), sequence_mzo(jobs), sequence_slack(jobs)],
+        key=lambda candidate: evaluate_sequence(candidate)["sto"],
+    )
+    for _ in range(restarts):
+        candidate = list(jobs)
+        rng.shuffle(candidate)
+        candidate = sequence_local_search(candidate)
+        if evaluate_sequence(candidate)["sto"] < evaluate_sequence(best)["sto"]:
+            best = candidate
+    return best
 
 
 def _best_by_full_search(jobs: list[Job]) -> list[Job]:
@@ -277,11 +346,19 @@ def run_selected_sto_models(jobs: list[Job], selected_methods: list[str]) -> lis
         "MO": sequence_mo,
         "MZO": sequence_mzo,
         "GENETIC": sequence_genetic,
+        "SLACK": sequence_slack,
+        "CR": sequence_cr,
+        "EDD_SPT": sequence_edd_spt,
+        "SPT_EDD": sequence_spt_edd,
+        "LPT_EDD": sequence_lpt_edd,
+        "NEH": sequence_neh,
+        "LOCAL_SEARCH": sequence_local_search,
+        "RANDOM_RESTART": sequence_random_restart,
     }
 
     results: list[dict] = []
     for method in selected_methods:
-        if method not in method_map:
+        if method not in MH_MODEL_NAMES or method not in method_map:
             raise ValueError(f"Nieznana metoda STO: {method}")
 
         sequence = method_map[method](jobs)

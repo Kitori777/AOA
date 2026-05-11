@@ -127,3 +127,16 @@ Pozwala ona:
 - wspierać wybór kolejności realizacji zleceń.
 
 W obecnej wersji projekt ma charakter edukacyjno-analityczny, ale jego architektura może zostać w przyszłości rozwinięta o bardziej zaawansowane modele, dodatkowe źródła danych oraz integrację z rzeczywistymi procesami produkcyjnymi.
+
+
+## Rozszerzone modele ML i heurystyki STO
+
+W bieżącej wersji panel wyboru modeli został rozszerzony tak, aby użytkownik mógł porównywać różne podejścia dla podobnych celów. W trybie `classic` dostępnych jest 12 wariantów ML:
+
+- `Quality`, `Quality_ET`, `Quality_GB`, `Quality_HGB` — cztery modele regresyjne dla jakości, patrzące odpowiednio na stabilność lasu, większą losowość ExtraTrees, poprawianie błędów przez boosting oraz szybki boosting histogramowy.
+- `Delay`, `Delay_RF`, `Delay_ET`, `Delay_HGB` — cztery modele regresyjne dla opóźnień, skupione na ryzyku przekroczenia terminu i dużych błędach.
+- `Schedule`, `Schedule_ET`, `Schedule_GB`, `Schedule_LOG` — cztery klasyfikatory strategii harmonogramowania, od modeli drzewiastych po prosty baseline liniowy.
+
+Modele heurystyczne STO zostały rozszerzone do zestawu 12 metod: `MT`, `MO`, `MZO`, `GENETIC`, `SLACK`, `CR`, `EDD_SPT`, `SPT_EDD`, `LPT_EDD`, `NEH`, `LOCAL_SEARCH`, `RANDOM_RESTART`. Każda metoda ma opis, na co patrzy: termin, czas obróbki, zapas, krytyczność, wariant wstawiania lub lokalne poprawki kolejności.
+
+Architektura została przygotowana modułowo: definicje modeli ML znajdują się w `src/AOA/core/ml_models/`, a definicje heurystyk w `src/AOA/core/mh_models/`. Dzięki temu można później dopisywać kolejne warianty bez przeciążania głównych plików aplikacji.

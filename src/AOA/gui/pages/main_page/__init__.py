@@ -1,5 +1,8 @@
 import customtkinter as ctk
 
+from AOA.core.mh_models import get_mh_model_specs
+from AOA.core.ml_models import get_ml_model_specs
+
 from .config_form import MainPageConfigFormMixin
 from .progress_panel import MainPageProgressPanelMixin
 from .results_panel import MainPageResultsPanelMixin
@@ -22,14 +25,17 @@ class MainPage(
         self.last_generation_metadata = {}
         self._last_progress_per_model = {}
 
+        self.ml_model_specs = get_ml_model_specs()
+        self.mh_model_specs = get_mh_model_specs()
         self.model_vars = {
-            "Quality": ctk.BooleanVar(value=True),
-            "Delay": ctk.BooleanVar(value=False),
-            "Schedule": ctk.BooleanVar(value=False),
-            "MT": ctk.BooleanVar(value=True),
-            "MO": ctk.BooleanVar(value=True),
-            "MZO": ctk.BooleanVar(value=True),
-            "GENETIC": ctk.BooleanVar(value=True),
+            **{
+                spec.name: ctk.BooleanVar(value=spec.name == "Quality")
+                for spec in self.ml_model_specs
+            },
+            **{
+                spec.name: ctk.BooleanVar(value=spec.name in {"MT", "MO", "MZO", "GENETIC"})
+                for spec in self.mh_model_specs
+            },
         }
         self.ksztalt_vars = {
             "kwadrat": ctk.BooleanVar(value=True),

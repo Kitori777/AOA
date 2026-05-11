@@ -50,10 +50,22 @@ class MainPageConfigFormMixin:
         ctk.CTkLabel(ml_frame, text="Modele ML", font=("Arial", 15, "bold")).pack(
             anchor="w", padx=10, pady=(10, 6)
         )
-        for name in ("Quality", "Delay", "Schedule"):
+        for spec in self.ml_model_specs:
+            row = ctk.CTkFrame(ml_frame, fg_color="transparent")
+            row.pack(fill="x", padx=8, pady=3)
             ctk.CTkCheckBox(
-                ml_frame, text=name, variable=self.model_vars[name], command=self.render_summary
-            ).pack(anchor="w", padx=10, pady=4)
+                row,
+                text=spec.label,
+                variable=self.model_vars[spec.name],
+                command=self.render_summary,
+            ).pack(anchor="w", padx=2, pady=(2, 0))
+            ctk.CTkLabel(
+                row,
+                text=f"patrzy na: {spec.focus}",
+                font=("Arial", 10),
+                text_color="#a7b0ba",
+                justify="left",
+            ).pack(anchor="w", padx=38, pady=(0, 2))
 
         ctk.CTkLabel(ml_frame, text="Backend ML", font=("Arial", 14, "bold")).pack(
             anchor="w", padx=10, pady=(10, 4)
@@ -67,7 +79,7 @@ class MainPageConfigFormMixin:
         self.backend_menu.pack(anchor="w", padx=10, pady=(0, 4))
         ctk.CTkLabel(
             ml_frame,
-            text="classic = obecne modele | tabpfn = tryb eksperymentalny",
+            text="classic = 12 wariantów ML | tabpfn = tryb eksperymentalny dla bazowych Quality/Delay/Schedule",
             font=("Arial", 11),
             justify="left",
         ).pack(anchor="w", padx=10, pady=(0, 10))
@@ -77,10 +89,22 @@ class MainPageConfigFormMixin:
         ctk.CTkLabel(sto_frame, text="Modele heurystyczne STO", font=("Arial", 15, "bold")).pack(
             anchor="w", padx=10, pady=(10, 6)
         )
-        for name in ("MT", "MO", "MZO", "GENETIC"):
+        for spec in self.mh_model_specs:
+            row = ctk.CTkFrame(sto_frame, fg_color="transparent")
+            row.pack(fill="x", padx=8, pady=3)
             ctk.CTkCheckBox(
-                sto_frame, text=name, variable=self.model_vars[name], command=self.render_summary
-            ).pack(anchor="w", padx=10, pady=4)
+                row,
+                text=spec.label,
+                variable=self.model_vars[spec.name],
+                command=self.render_summary,
+            ).pack(anchor="w", padx=2, pady=(2, 0))
+            ctk.CTkLabel(
+                row,
+                text=f"patrzy na: {spec.focus}",
+                font=("Arial", 10),
+                text_color="#a7b0ba",
+                justify="left",
+            ).pack(anchor="w", padx=38, pady=(0, 2))
 
     def _build_generation_section(self, parent):
         frame = ctk.CTkFrame(parent)

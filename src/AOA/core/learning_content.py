@@ -72,7 +72,7 @@ GUIDE_STEPS: tuple[GuideStep, ...] = (
             "Kliknij Uruchom / zapisz wybrane modele.",
             "Sprawdź log i metryki RMSE, MAE, R², Accuracy/F1.",
         ),
-        "Quality i Delay są regresją, a Schedule klasyfikacją. Po treningu aplikacja raportuje, jak dobrze model odtworzył zależności z danych.",
+        "Quality i Delay są regresją, a Schedule klasyfikacją. W trybie classic dostępnych jest 12 wariantów modeli: osobne podejścia dla jakości, opóźnień i strategii. Po treningu aplikacja raportuje, jak dobrze model odtworzył zależności z danych.",
         (
             "RMSE/MAE im niżej, tym lepiej.",
             "R² im bliżej 1, tym lepiej.",
@@ -83,11 +83,11 @@ GUIDE_STEPS: tuple[GuideStep, ...] = (
         "4. Modele STO",
         "STO porównuje kolejności zleceń i wybiera wariant z mniejszym opóźnieniem.",
         (
-            "Zaznacz MT, MO, MZO lub GENETIC.",
+            "Zaznacz MT, MO, MZO, GENETIC albo inne heurystyki: Slack, Critical Ratio, NEH, Local Search.",
             "Zapisz model STO.",
             "Później uruchom zapisany model na CSV.",
         ),
-        "STO nie uczy się jak model ML. Liczy sumę dodatnich opóźnień dla różnych kolejności.",
+        "STO nie uczy się jak model ML. Liczy sumę dodatnich opóźnień dla różnych kolejności i pozwala porównać klasyczne reguły, warianty mieszane oraz proste metody przeszukiwania.",
         ("STO = 0 oznacza brak spóźnień.", "Niższe STO oznacza lepszą kolejność."),
     ),
     GuideStep(
@@ -125,7 +125,7 @@ THEORY_MODULES: tuple[TheoryModule, ...] = (
         "overview",
         "Mapa modeli",
         "dane → cechy → model → metryki → decyzja",
-        "Model zamienia dane na decyzję użytkową: jakość, opóźnienie, strategię albo kolejność.",
+        "Model zamienia dane na decyzję użytkową: jakość, opóźnienie, strategię albo kolejność. W aplikacji dostępne są różne rodziny modeli, żeby porównać stabilny las, boosting, ExtraTrees, model liniowy oraz heurystyki STO.",
         (
             "Najpierw sprawdzaj dane.",
             "Po treningu czytaj metryki.",
@@ -180,7 +180,7 @@ THEORY_MODULES: tuple[TheoryModule, ...] = (
         "quality",
         "Quality — jakość",
         "ŷ_quality = średnia predykcji wielu drzew",
-        "Random Forest uśrednia decyzje wielu drzew, żeby przewidzieć jakość.",
+        "Modele jakości porównują kilka sposobów patrzenia na dane: Random Forest stabilizuje wynik, ExtraTrees zwiększa losowość, a boosting poprawia kolejne błędy.",
         (
             "Sprawdzaj RMSE/MAE.",
             "Wykres predykcja kontra rzeczywistość pomaga wykryć błąd.",
@@ -191,7 +191,7 @@ THEORY_MODULES: tuple[TheoryModule, ...] = (
         "delay",
         "Delay — opóźnienie",
         "ŷ_delay = F₀(x) + η·h₁(x) + η·h₂(x) + ...",
-        "Gradient Boosting poprawia błędy krok po kroku i przewiduje ryzyko opóźnienia.",
+        "Modele opóźnień porównują boosting, lasy losowe, ExtraTrees i wariant histogramowy, żeby lepiej uchwycić ryzyko przekroczenia terminu.",
         (
             "RMSE jest ważne, bo mocno karze duże pomyłki.",
             "Duże błędy opóźnienia są kosztowne.",
@@ -202,7 +202,7 @@ THEORY_MODULES: tuple[TheoryModule, ...] = (
         "schedule",
         "Schedule — strategia",
         "strategia = argmax P(klasa | cechy)",
-        "Model wybiera strategię z największym prawdopodobieństwem.",
+        "Modele Schedule porównują klasyfikatory drzewiaste, boosting oraz lekki model liniowy, czyli sprawdzają różne sposoby wyboru strategii z największym prawdopodobieństwem.",
         (
             "To rekomendacja, nie gwarancja.",
             "Przy klasach nierównych F1 jest ważniejsze.",

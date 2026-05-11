@@ -7,8 +7,9 @@ import pandas as pd
 from AOA.core.data_io import load_csv, save_csv
 from AOA.core.evaluation import calculate_model_training_metrics, format_training_metrics
 from AOA.core.features import prepare_features
+from AOA.core.ml_models import get_ml_task
 from AOA.core.models import load_model_pack, save_model_pack, train_selected_models
-from AOA.core.scheduling import simulate_schedule
+from AOA.core.scheduling import extract_schedule_features, simulate_schedule
 
 from .files import build_model_filename, build_result_filename, build_sto_model_filename
 
@@ -19,6 +20,7 @@ def train_models_flow(
     metadata=None,
     progress_callback=None,
     backend="classic",
+    df_test=None,
 ):
     if df_train is None or df_train.empty:
         raise ValueError("Brak danych treningowych.")
@@ -42,7 +44,9 @@ def train_models_flow(
     save_model_pack(pack, model_path)
     backend_label = "TabPFN" if backend == "tabpfn" else "Classic"
 
-    metric_lines = format_training_metrics(calculate_model_training_metrics(pack, df_train))
+    metric_lines = format_training_metrics(
+        calculate_model_training_metrics(pack, df_train, df_test=df_test)
+    )
     messages = [
         f"✔ Modele zapisane do: {model_path}",
         f"✔ Trening zakończony | backend: {backend_label}",
@@ -103,17 +107,42 @@ def solve_models_flow(model_path, data_path):
             X_for_pred = X
 
     result_df = df.copy()
-    if quality_model is not None:
-        result_df["pred_quality"] = quality_model.predict(X_for_pred)
-    if delay_model is not None:
-        result_df["pred_delay"] = delay_model.predict(X_for_pred)
-    if quality_model is not None and delay_model is not None:
+    variant_models = model_pack.get("ml_models") or {}
+    if not variant_models:
+        if quality_model is not None:
+            variant_models["Quality"] = quality_model
+        if delay_model is not None:
+            variant_models["Delay"] = delay_model
+        if schedule_model is not None:
+            variant_models["Schedule"] = schedule_model
+
+    for model_name, model in variant_models.items():
+        task = get_ml_task(model_name)
+        safe_name = model_name.lower()
+        if task == "quality":
+            predictions = model.predict(X_for_pred)
+            if model_name == "Quality" or "pred_quality" not in result_df.columns:
+                result_df["pred_quality"] = predictions
+            result_df[f"pred_{safe_name}"] = predictions
+        elif task == "delay":
+            predictions = model.predict(X_for_pred)
+            if model_name == "Delay" or "pred_delay" not in result_df.columns:
+                result_df["pred_delay"] = predictions
+            result_df[f"pred_{safe_name}"] = predictions
+        elif task == "schedule":
+            if model_name == "Schedule" or "recommended_machine" not in result_df.columns:
+                result_df["recommended_machine"] = simulate_schedule(model, result_df)
+            try:
+                schedule_features = pd.DataFrame([extract_schedule_features(result_df)])
+                result_df[f"recommended_{safe_name}"] = model.predict(schedule_features)[0]
+            except Exception:
+                result_df[f"recommended_{safe_name}"] = "n/a"
+
+    if "pred_quality" in result_df.columns and "pred_delay" in result_df.columns:
         result_df["priority"] = (
             result_df["pred_quality"] * 0.7 + (1.0 / (1.0 + result_df["pred_delay"])) * 0.3
         )
         result_df = result_df.sort_values("priority", ascending=False).reset_index(drop=True)
-    if schedule_model is not None:
-        result_df["recommended_machine"] = simulate_schedule(schedule_model, result_df)
 
     result_path = build_result_filename(Path(model_path).stem, Path(data_path).stem, suffix=".csv")
     save_csv(result_df, result_path)

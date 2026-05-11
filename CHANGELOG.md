@@ -1,5 +1,42 @@
 # CHANGELOG
 
+## [0.5.1] - 2026-05-11
+
+### Fixed
+
+* Naprawiono przepływ metryk ML: `df_test` nie jest już martwym polem używanym tylko do statusu, lecz trafia do oceny modeli w CLI, GUI i warstwie usług.
+* Metryki modeli ML są liczone i prezentowane osobno dla zbioru `train` oraz `test`.
+* Dodano `gap R²`, aby użytkownik widział różnicę między dopasowaniem treningowym a wynikiem na holdoucie.
+* Zmieniono komunikat oceny modeli tak, aby nie sugerował, że wysokie R² in-sample oznacza dobrą generalizację.
+* Poprawiono strukturę `data/`: śledzone są tylko jawne dane przykładowe w `data/sample/`, a lokalnie generowane CSV nie powinny trafiać do commita.
+* Zaktualizowano README i `docs/guide.md`, aby opisywały aktualną strukturę repozytorium i aktualny UI po zmianach z 0.5.0.
+
+### Changed
+
+* Rozbito `AOA.core.services` na realne moduły robocze; `services/__init__.py` jest teraz lekką fasadą importów, a nie drugą kopią logiki.
+* Rozbito rejestry modeli `ml_models` i `mh_models` na osobne pliki `specs.py` oraz moduły budujące modele.
+* Usunięto martwy plik `src/AOA/cli.py`, który był przesłaniany przez pakiet `src/AOA/cli/`.
+* Uporządkowano ścieżki treningu i rozwiązywania modeli tak, aby nowe warianty ML działały przez jeden wspólny mechanizm.
+
+### Added
+
+* Dodano 12 wariantów modeli uczenia maszynowego: 4 jakości, 4 opóźnienia i 4 harmonogramowania.
+* Dodano testy dla każdego wariantu ML, sprawdzające czy model jest w rejestrze, czy da się go wybrać i wytrenować oraz czy trafia do właściwego slotu w paczce modelu.
+* Dodano testy sprawdzające, czy każdy model ML ma kartę w `TheoryPage` i pełną animację krokową.
+* Dodano testy zabezpieczające przepływ `train/test` w metrykach oraz przekazywanie `df_test` przez `train_models_flow`.
+
+### Improved
+
+* Poprawiono `TheoryPage`: większy obszar animacji, czytelniejszy prawy panel, zwijany pasek boczny i bardziej kompaktowe przykładowe dane.
+* Rozwinięto animacje modeli do 12 kroków, aby użytkownik mógł zrozumieć, co dzieje się z danymi w kolejnych etapach uczenia i predykcji.
+* Poprawiono opisy modeli ML i heurystycznych, żeby lepiej tłumaczyły cel, zachowanie algorytmu i interpretację wyniku.
+
+### Tests
+
+* `uv run ruff check .`
+* `uv run mypy src tests`
+* `uv run pytest -q` → `214 passed`
+
 ## [0.5.0] - 2026-05-08
 
 ### Added
