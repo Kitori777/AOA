@@ -37,6 +37,7 @@ def command_train(args: argparse.Namespace) -> int:
 
     loaded = load_training_data(path=str(data_path), train_ratio=args.train_ratio)
     df_train = loaded["train_df"]
+    df_test = loaded.get("test_df")
     hr("WCZYTANIE DANYCH")
     print_messages(loaded.get("messages"))
 
@@ -56,6 +57,7 @@ def command_train(args: argparse.Namespace) -> int:
             metadata=metadata,
             progress_callback=progress_callback,
             backend=args.backend,
+            df_test=df_test,
         )
         print_messages(result.get("messages"))
         print_key_value("MODEL_ML", result["model_path"])

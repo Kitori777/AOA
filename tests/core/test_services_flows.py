@@ -4,6 +4,7 @@ import pytest
 
 from AOA.core import services
 from AOA.core.models import save_model_pack
+from AOA.core.services import training as training_services
 
 
 class DummyModel:
@@ -168,7 +169,7 @@ def test_solve_models_flow_predicts_quality_delay_saves_csv_and_sorts_priority(
     result_file = tmp_path / "wynik.csv"
 
     monkeypatch.setattr(
-        services,
+        training_services,
         "build_result_filename",
         lambda model_name, source_name, suffix=".csv": result_file,
     )
@@ -206,7 +207,7 @@ def test_solve_models_flow_handles_only_quality_model(tmp_path, monkeypatch, sol
     result_file = tmp_path / "wynik.csv"
 
     monkeypatch.setattr(
-        services,
+        training_services,
         "build_result_filename",
         lambda model_name, source_name, suffix=".csv": result_file,
     )

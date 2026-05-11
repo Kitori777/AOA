@@ -59,6 +59,7 @@ def command_workflow(args: argparse.Namespace) -> int:
             },
             progress_callback=progress_callback,
             backend=args.backend,
+            df_test=gen_result.get("test_df"),
         )
         print_messages(train_result.get("messages"))
         ml_model_path = train_result["model_path"]

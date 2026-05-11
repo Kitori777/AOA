@@ -4,6 +4,9 @@ import pandas as pd
 import pytest
 
 from AOA.core import services
+from AOA.core.services import files as files_services
+from AOA.core.services import io_ops as io_services
+from AOA.core.services import training as training_services
 
 
 def _raw_config(**overrides):
@@ -80,9 +83,9 @@ def test_generate_and_store_datasets_saves_three_csv_files(monkeypatch, tmp_path
     df_train = pd.DataFrame({"a": [1, 2]})
     df_test = pd.DataFrame({"a": [3]})
 
-    monkeypatch.setattr(services, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(io_services, "DATA_DIR", tmp_path)
     monkeypatch.setattr(
-        services,
+        io_services,
         "generate_production_data",
         lambda **kwargs: (df_full, df_train, df_test),
     )
@@ -93,7 +96,7 @@ def test_generate_and_store_datasets_saves_three_csv_files(monkeypatch, tmp_path
         saved.append((df.copy(), Path(path)))
         Path(path).write_text(df.to_csv(index=False), encoding="utf-8")
 
-    monkeypatch.setattr(services, "save_csv", fake_save_csv)
+    monkeypatch.setattr(io_services, "save_csv", fake_save_csv)
 
     result = services.generate_and_store_datasets()
 
@@ -108,7 +111,7 @@ def test_generate_and_store_datasets_saves_three_csv_files(monkeypatch, tmp_path
 
 def test_load_and_prepare_visual_file_returns_defaults(monkeypatch):
     df = pd.DataFrame({"x": [1, 2], "y": [3, 4], "z": [5, 6]})
-    monkeypatch.setattr(services, "load_csv", lambda path: df)
+    monkeypatch.setattr(io_services, "load_csv", lambda path: df)
 
     result = services.load_and_prepare_visual_file("dummy.csv")
 
@@ -119,7 +122,7 @@ def test_load_and_prepare_visual_file_returns_defaults(monkeypatch):
 
 
 def test_load_and_prepare_visual_file_raises_for_empty_columns(monkeypatch):
-    monkeypatch.setattr(services, "load_csv", lambda path: pd.DataFrame())
+    monkeypatch.setattr(io_services, "load_csv", lambda path: pd.DataFrame())
 
     with pytest.raises(ValueError, match="Plik CSV nie zawiera kolumn"):
         services.load_and_prepare_visual_file("dummy.csv")
@@ -130,9 +133,9 @@ def test_load_training_data_returns_full_train_test(monkeypatch):
     df_train = pd.DataFrame({"a": range(8)})
     df_test = pd.DataFrame({"a": range(8, 10)})
 
-    monkeypatch.setattr(services, "load_csv", lambda path: df_full)
+    monkeypatch.setattr(io_services, "load_csv", lambda path: df_full)
     monkeypatch.setattr(
-        services, "split_train_test", lambda df, train_ratio=0.8: (df_train, df_test)
+        io_services, "split_train_test", lambda df, train_ratio=0.8: (df_train, df_test)
     )
 
     result = services.load_training_data("dummy.csv", train_ratio=0.8)
@@ -165,9 +168,9 @@ def test_train_models_flow_saves_model_pack(monkeypatch, tmp_path):
     }
     target_path = tmp_path / "pack.pkl"
 
-    monkeypatch.setattr(services, "train_selected_models", lambda **kwargs: fake_pack)
+    monkeypatch.setattr(training_services, "train_selected_models", lambda **kwargs: fake_pack)
     monkeypatch.setattr(
-        services, "build_model_filename", lambda selected_models, metadata: target_path
+        training_services, "build_model_filename", lambda selected_models, metadata: target_path
     )
 
     saved = {}
@@ -176,7 +179,7 @@ def test_train_models_flow_saves_model_pack(monkeypatch, tmp_path):
         saved["pack"] = pack
         saved["path"] = path
 
-    monkeypatch.setattr(services, "save_model_pack", fake_save_model_pack)
+    monkeypatch.setattr(training_services, "save_model_pack", fake_save_model_pack)
 
     result = services.train_models_flow(df_train, ["Quality"], metadata={"n": 3})
 
@@ -195,8 +198,8 @@ def test_solve_models_flow_rejects_missing_paths():
 
 
 def test_solve_models_flow_rejects_empty_data(monkeypatch):
-    monkeypatch.setattr(services, "load_model_pack", lambda path: {})
-    monkeypatch.setattr(services, "load_csv", lambda path: pd.DataFrame())
+    monkeypatch.setattr(training_services, "load_model_pack", lambda path: {})
+    monkeypatch.setattr(training_services, "load_csv", lambda path: pd.DataFrame())
 
     with pytest.raises(ValueError, match="Plik danych jest pusty"):
         services.solve_models_flow("model.pkl", "data.csv")
@@ -213,8 +216,8 @@ def test_build_model_filename_contains_sorted_model_names_and_metadata(monkeypat
 
             return X()
 
-    monkeypatch.setattr(services, "MODELS_DIR", tmp_path)
-    monkeypatch.setattr(services, "datetime", FixedNow)
+    monkeypatch.setattr(files_services, "MODELS_DIR", tmp_path)
+    monkeypatch.setattr(files_services, "datetime", FixedNow)
 
     path = services.build_model_filename(
         ["Delay", "Quality"],

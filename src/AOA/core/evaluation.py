@@ -51,8 +51,23 @@ def transform_numeric_columns(df: pd.DataFrame, transformation: str) -> pd.DataF
     return df
 
 
+def _regression_metric_dict(y_true, y_pred) -> dict[str, float]:
+    return {
+        "R2": round(float(r2_score(y_true, y_pred)), 4),
+        "MAE": round(float(mean_absolute_error(y_true, y_pred)), 4),
+        "MSE": round(float(mean_squared_error(y_true, y_pred)), 4),
+        "RMSE": round(float(np.sqrt(mean_squared_error(y_true, y_pred))), 4),
+        "MAPE_%": round(float(np.mean(np.abs((y_true - y_pred) / (y_true + 1e-6))) * 100), 2),
+    }
+
+
 def calculate_regression_metrics(df: pd.DataFrame, target: str) -> dict:
-    """Train a simple regression baseline and return standard metrics."""
+    """Train a simple regression baseline and return in-sample metrics.
+
+    This function is used only by the exploratory Results/analysis view. The
+    production training flow uses ``calculate_model_training_metrics`` below,
+    which reports train and test metrics separately.
+    """
     numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
 
     if target not in numeric_cols:
@@ -69,17 +84,11 @@ def calculate_regression_metrics(df: pd.DataFrame, target: str) -> dict:
     model.fit(X, y)
     y_pred = model.predict(X)
 
-    return {
-        "R2": round(r2_score(y, y_pred), 4),
-        "MAE": round(mean_absolute_error(y, y_pred), 4),
-        "MSE": round(mean_squared_error(y, y_pred), 4),
-        "RMSE": round(np.sqrt(mean_squared_error(y, y_pred)), 4),
-        "MAPE_%": round(np.mean(np.abs((y - y_pred) / (y + 1e-6))) * 100, 2),
-    }
+    return _regression_metric_dict(y, y_pred)
 
 
 def calculate_classification_metrics(df: pd.DataFrame, target: str) -> dict:
-    """Train a simple classification baseline and return standard metrics."""
+    """Train a simple classification baseline and return in-sample metrics."""
     numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
     categorical_cols = df.select_dtypes(include=["object", "category"]).columns.tolist()
 
@@ -118,71 +127,139 @@ def append_metrics_row(df: pd.DataFrame, metrics: dict) -> pd.DataFrame:
     return df.fillna("")
 
 
-def calculate_model_training_metrics(
-    model_pack: dict, df_train: pd.DataFrame
-) -> dict[str, dict[str, float]]:
-    """Calculate compact in-sample metrics for real trained ML models.
-
-    This helper is defensive because tests and some GUI flows may use lightweight
-    placeholder objects in model packs. Metrics are displayed only when the
-    object behaves like a fitted estimator and the input contains all production
-    feature columns required by ``prepare_features``.
-    """
+def _safe_prepare_features(df: pd.DataFrame | None, scaler_obj=None):
     from AOA.core.features import prepare_features
 
-    if df_train is None or df_train.empty:
+    if df is None or df.empty:
+        return None
+    try:
+        return prepare_features(df, scaler_obj=scaler_obj)
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def _metrics_for_split(model, X, y) -> dict[str, float] | None:
+    if model is None or not hasattr(model, "predict"):
+        return None
+    try:
+        pred = model.predict(X)
+    except (AttributeError, TypeError, ValueError):
+        return None
+    return {
+        "R2": round(float(r2_score(y, pred)), 4),
+        "MAE": round(float(mean_absolute_error(y, pred)), 4),
+        "RMSE": round(float(np.sqrt(mean_squared_error(y, pred))), 4),
+    }
+
+
+def _combine_train_test_metrics(
+    train_metrics: dict[str, float] | None,
+    test_metrics: dict[str, float] | None,
+) -> dict[str, float]:
+    if not train_metrics:
+        return {}
+    combined: dict[str, float] = {}
+    for name, value in train_metrics.items():
+        combined[f"train_{name}"] = value
+    if test_metrics:
+        for name, value in test_metrics.items():
+            combined[f"test_{name}"] = value
+        if "R2" in train_metrics and "R2" in test_metrics:
+            combined["gap_R2"] = round(float(train_metrics["R2"] - test_metrics["R2"]), 4)
+    else:
+        combined["test_available"] = 0.0
+    return combined
+
+
+def calculate_model_training_metrics(
+    model_pack: dict,
+    df_train: pd.DataFrame,
+    df_test: pd.DataFrame | None = None,
+) -> dict[str, dict[str, float]]:
+    """Calculate train/test metrics for fitted production ML models.
+
+    ``df_train`` is still used to show learning fit, but whenever ``df_test`` is
+    available the function also reports holdout metrics. This prevents the GUI
+    and CLI from presenting in-sample R² as if it were real generalization
+    quality.
+    """
+    prepared_train = _safe_prepare_features(df_train)
+    if prepared_train is None:
         return {}
 
-    try:
-        X_train, y_quality, y_delay, _ = prepare_features(df_train)
-    except (KeyError, TypeError, ValueError):
-        return {}
+    X_train, y_quality_train, y_delay_train, fitted_scaler = prepared_train
+    scaler = model_pack.get("scaler") or fitted_scaler
+    prepared_test = (
+        _safe_prepare_features(df_test, scaler_obj=scaler) if df_test is not None else None
+    )
+
+    if prepared_test is None:
+        X_test = y_quality_test = y_delay_test = None
+    else:
+        X_test, y_quality_test, y_delay_test, _ = prepared_test
 
     results: dict[str, dict[str, float]] = {}
 
     quality_model = model_pack.get("quality")
-    if quality_model is not None and hasattr(quality_model, "predict"):
-        try:
-            pred = quality_model.predict(X_train)
-        except (AttributeError, TypeError, ValueError):
-            pred = None
-        if pred is not None:
-            results["Quality"] = {
-                "R2": round(float(r2_score(y_quality, pred)), 4),
-                "MAE": round(float(mean_absolute_error(y_quality, pred)), 4),
-                "RMSE": round(float(np.sqrt(mean_squared_error(y_quality, pred))), 4),
-            }
+    quality_train = _metrics_for_split(quality_model, X_train, y_quality_train)
+    quality_test = (
+        _metrics_for_split(quality_model, X_test, y_quality_test)
+        if X_test is not None and y_quality_test is not None
+        else None
+    )
+    combined = _combine_train_test_metrics(quality_train, quality_test)
+    if combined:
+        results["Quality"] = combined
 
     delay_model = model_pack.get("delay")
-    if delay_model is not None and hasattr(delay_model, "predict"):
-        try:
-            pred = delay_model.predict(X_train)
-        except (AttributeError, TypeError, ValueError):
-            pred = None
-        if pred is not None:
-            results["Delay"] = {
-                "R2": round(float(r2_score(y_delay, pred)), 4),
-                "MAE": round(float(mean_absolute_error(y_delay, pred)), 4),
-                "RMSE": round(float(np.sqrt(mean_squared_error(y_delay, pred))), 4),
-            }
+    delay_train = _metrics_for_split(delay_model, X_train, y_delay_train)
+    delay_test = (
+        _metrics_for_split(delay_model, X_test, y_delay_test)
+        if X_test is not None and y_delay_test is not None
+        else None
+    )
+    combined = _combine_train_test_metrics(delay_train, delay_test)
+    if combined:
+        results["Delay"] = combined
 
     if model_pack.get("schedule") is not None:
         results["Schedule"] = {"trained": 1.0}
     return results
 
 
+def _format_metric_value(value: float) -> str:
+    if isinstance(value, float):
+        return f"{value:.4f}".rstrip("0").rstrip(".")
+    return str(value)
+
+
 def format_training_metrics(metrics: dict[str, dict[str, float]]) -> list[str]:
-    """Format model metrics as log lines for the GUI and CLI."""
+    """Format train/test model metrics as log lines for the GUI and CLI."""
     if not metrics:
         return []
-    lines = ["📊 Ocena uczenia modelu:"]
+    lines = ["📊 Ocena modelu na train/test:"]
     for model_name, values in metrics.items():
         if model_name == "Schedule" and "trained" in values:
             lines.append(
                 "   Schedule: model klasyfikacyjny nauczony; oceniaj go później przez Accuracy/F1 na danych testowych."
             )
             continue
-        metric_text = " | ".join(f"{name}={value}" for name, value in values.items())
-        lines.append(f"   {model_name}: {metric_text}")
-    lines.append("   Jak czytać: RMSE/MAE im niżej tym lepiej, R² im bliżej 1 tym lepiej.")
+        train_text = (
+            f"train R²={_format_metric_value(values['train_R2'])} | "
+            f"MAE={_format_metric_value(values['train_MAE'])} | "
+            f"RMSE={_format_metric_value(values['train_RMSE'])}"
+        )
+        if values.get("test_available") == 0.0:
+            lines.append(f"   {model_name}: {train_text} | test: brak zbioru testowego")
+            continue
+        test_text = (
+            f"test R²={_format_metric_value(values['test_R2'])} | "
+            f"MAE={_format_metric_value(values['test_MAE'])} | "
+            f"RMSE={_format_metric_value(values['test_RMSE'])} | "
+            f"gap R²={_format_metric_value(values['gap_R2'])}"
+        )
+        lines.append(f"   {model_name}: {train_text} || {test_text}")
+    lines.append(
+        "   Jak czytać: test pokazuje jakość na danych niewidzianych; duży gap R² sygnalizuje możliwy overfitting."
+    )
     return lines

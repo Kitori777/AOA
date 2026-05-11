@@ -49,3 +49,8 @@ Thumbs.db
 
 # Optional local data/models artifacts
 models/*.pkl
+
+# Generated local data artifacts
+/data/*
+!/data/sample/
+!/data/sample/*.csv

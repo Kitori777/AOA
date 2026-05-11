@@ -11,6 +11,12 @@ from sklearn.ensemble import (
 )
 
 from AOA.core.features import prepare_features
+from AOA.core.ml_models import (
+    ML_MODEL_NAMES,
+    build_classifier,
+    build_regressor,
+    get_ml_task,
+)
 from AOA.core.scheduling import extract_schedule_features, generate_schedule_label
 from AOA.core.tabpfn_models import train_tabpfn_classifier, train_tabpfn_regressor
 from AOA.messages import (
@@ -179,22 +185,65 @@ def train_schedule_model(df, n_samples=200, progress_callback=None, backend="cla
     return model
 
 
+def _train_variant_regressor_with_progress(
+    model_name: str,
+    X_train,
+    y_target,
+    progress_callback=None,
+):
+    _emit_progress(progress_callback, model_name, 0.0, PROGRESS_START)
+    _emit_progress(progress_callback, model_name, 10.0, PROGRESS_PREPARING_DATA)
+    model = build_regressor(model_name)
+    _emit_progress(progress_callback, model_name, 35.0, "Dopasowanie estymatora")
+    model.fit(X_train, y_target)
+    _emit_progress(progress_callback, model_name, 100.0, PROGRESS_DONE)
+    return model
+
+
+def _train_variant_classifier_with_progress(
+    model_name: str,
+    X_train,
+    y_target,
+    progress_callback=None,
+):
+    _emit_progress(progress_callback, model_name, 0.0, PROGRESS_START)
+    _emit_progress(progress_callback, model_name, 10.0, PROGRESS_PREPARING_DATA)
+    model = build_classifier(model_name)
+    _emit_progress(progress_callback, model_name, 35.0, "Dopasowanie klasyfikatora")
+    model.fit(X_train, y_target)
+    _emit_progress(progress_callback, model_name, 100.0, PROGRESS_DONE)
+    return model
+
+
+def _build_schedule_training_frame(
+    df, n_samples=200, progress_callback=None, model_name="Schedule"
+):
+    X = []
+    y = []
+
+    for i in range(n_samples):
+        batch_size = np.random.randint(5, len(df))
+        batch = df.sample(n=batch_size, replace=False)
+        X.append(extract_schedule_features(batch))
+        y.append(generate_schedule_label(batch))
+        percent = ((i + 1) / n_samples) * 70.0
+        _emit_progress(
+            progress_callback,
+            model_name,
+            round(percent, 1),
+            PROGRESS_SAMPLE.format(index=i + 1, total=n_samples),
+        )
+
+    return pd.DataFrame(X), pd.Series(y)
+
+
 def train_selected_models(df_train, selected_models, progress_callback=None, backend="classic"):
     """Train selected production models and return them as a model pack.
 
-    Args:
-        df_train: Training DataFrame with production rows.
-        selected_models: Names of models to train, e.g. `Quality`, `Delay`,
-            `Schedule`.
-        progress_callback: Optional callback invoked as `(model, percent, detail)`.
-        backend: Supported backend name: `"classic"` or `"tabpfn"`.
-
-    Returns:
-        Dict with keys: `quality`, `delay`, `schedule`, `scaler`,
-        `selected_models`, `backend`.
-
-    Raises:
-        ValueError: If no models were selected or the backend name is unknown.
+    Classic mode now supports 12 model variants:
+    four quality regressors, four delay regressors and four schedule classifiers.
+    Legacy names (`Quality`, `Delay`, `Schedule`) are still kept as the main
+    model slots so older tests, saved flows and CLI calls remain compatible.
     """
     if not selected_models:
         raise ValueError(NO_MODELS_SELECTED)
@@ -202,51 +251,87 @@ def train_selected_models(df_train, selected_models, progress_callback=None, bac
     if backend not in {"classic", "tabpfn"}:
         raise ValueError(UNKNOWN_MODEL_BACKEND.format(backend=backend))
 
+    unknown_models = [name for name in selected_models if name not in ML_MODEL_NAMES]
+    if unknown_models:
+        raise ValueError(f"Nieznane modele ML: {', '.join(unknown_models)}")
+
     X_train, yq, yd, scaler = prepare_features(df_train)
 
     quality_model = None
     delay_model = None
     schedule_model = None
+    variant_models: dict[str, object] = {}
 
-    if "Quality" in selected_models:
-        if backend == "tabpfn":
+    if backend == "tabpfn":
+        if "Quality" in selected_models:
             quality_model = _train_tabpfn_quality_with_progress(
                 X_train,
                 yq,
                 progress_callback=progress_callback,
             )
-        else:
-            quality_model = _train_quality_with_progress(
-                X_train,
-                yq,
-                progress_callback=progress_callback,
-            )
-
-    if "Delay" in selected_models:
-        if backend == "tabpfn":
+            variant_models["Quality"] = quality_model
+        if "Delay" in selected_models:
             delay_model = _train_tabpfn_delay_with_progress(
                 X_train,
                 yd,
                 progress_callback=progress_callback,
             )
-        else:
-            delay_model = _train_delay_with_progress(
-                X_train,
-                yd,
+            variant_models["Delay"] = delay_model
+        if "Schedule" in selected_models:
+            schedule_model = train_schedule_model(
+                df_train,
                 progress_callback=progress_callback,
+                backend=backend,
             )
-
-    if "Schedule" in selected_models:
-        schedule_model = train_schedule_model(
-            df_train,
-            progress_callback=progress_callback,
-            backend=backend,
-        )
+            variant_models["Schedule"] = schedule_model
+    else:
+        schedule_training_cache = None
+        for model_name in selected_models:
+            task = get_ml_task(model_name)
+            if task == "quality":
+                model = _train_variant_regressor_with_progress(
+                    model_name,
+                    X_train,
+                    yq,
+                    progress_callback=progress_callback,
+                )
+                variant_models[model_name] = model
+                if model_name == "Quality" or quality_model is None:
+                    quality_model = model
+            elif task == "delay":
+                model = _train_variant_regressor_with_progress(
+                    model_name,
+                    X_train,
+                    yd,
+                    progress_callback=progress_callback,
+                )
+                variant_models[model_name] = model
+                if model_name == "Delay" or delay_model is None:
+                    delay_model = model
+            elif task == "schedule":
+                _emit_progress(progress_callback, model_name, 0.0, PROGRESS_START)
+                if schedule_training_cache is None:
+                    schedule_training_cache = _build_schedule_training_frame(
+                        df_train,
+                        progress_callback=progress_callback,
+                        model_name=model_name,
+                    )
+                X_schedule, y_schedule = schedule_training_cache
+                model = _train_variant_classifier_with_progress(
+                    model_name,
+                    X_schedule,
+                    y_schedule,
+                    progress_callback=progress_callback,
+                )
+                variant_models[model_name] = model
+                if model_name == "Schedule" or schedule_model is None:
+                    schedule_model = model
 
     return {
         "quality": quality_model,
         "delay": delay_model,
         "schedule": schedule_model,
+        "ml_models": variant_models,
         "scaler": scaler,
         "selected_models": selected_models,
         "backend": backend,

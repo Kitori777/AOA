@@ -4,7 +4,7 @@
 
 AOA to rozwijana aplikacja desktopowa i terminalowa napisana w Pythonie. Jej celem jest wspomaganie analizy danych, uczenia modeli, porównywania metod harmonogramowania oraz prezentowania wyników w formie czytelnych tabel, raportów i wykresów.
 
-Od wersji `0.5.0` projekt rozwija się nie tylko jako narzędzie produkcyjno-optymalizacyjne, ale również jako aplikacja analityczno-edukacyjna. Użytkownik może wczytać własne dane tabelaryczne, obejrzeć je w widoku podobnym do prostego CSV viewera, przygotować raport, uruchomić wizualizację oraz sprawdzić krótkie wyjaśnienia modeli i metryk.
+Od wersji `0.5.1` projekt rozwija się nie tylko jako narzędzie produkcyjno-optymalizacyjne, ale również jako aplikacja analityczno-edukacyjna. Użytkownik może wczytać własne dane tabelaryczne, obejrzeć je w widoku podobnym do prostego CSV viewera, przygotować raport, uruchomić wizualizację oraz sprawdzić krótkie wyjaśnienia modeli i metryk.
 
 Projekt zachowuje architekturę modułową:
 
@@ -31,6 +31,15 @@ Aplikacja umożliwia między innymi:
 - korzystanie ze strony `Theory`, która prostym językiem wyjaśnia zachowanie modeli, metryk i algorytmów,
 - zapis modeli, raportów i wyników do plików,
 - obsługę pełnych przepływów pracy zarówno z poziomu GUI, jak i z terminala.
+
+
+## Najważniejsze poprawki w wersji 0.5.1
+
+* Metryki ML pokazują teraz osobno wynik na zbiorze treningowym i testowym.
+* `df_test` jest realnie przekazywany do treningu i oceny modeli w CLI oraz GUI.
+* Dodano 12 wariantów modeli ML oraz testy dla każdego z nich.
+* `TheoryPage` ma większą, czytelniejszą animację oraz zwijany panel boczny.
+* Pakiety `services`, `ml_models` i `mh_models` są rozbite na mniejsze pliki, a `__init__.py` pełnią rolę lekkich fasad.
 
 ## Najważniejsze nowości w wersji 0.5.0
 
@@ -98,14 +107,32 @@ TOOLS/
 │   ├── guide.md
 │   └── theory.md
 ├── data/
+│   └── sample/
+│       ├── production.csv
+│       ├── train.csv
+│       └── test.csv
 ├── logs/
 ├── models/
 ├── src/
 │   └── AOA/
 │       ├── __init__.py
 │       ├── app.py
-│       ├── cli.py
 │       ├── config.py
+│       ├── messages.py
+│       ├── cli/
+│       │   ├── __init__.py
+│       │   ├── __main__.py
+│       │   ├── helpers.py
+│       │   ├── interactive.py
+│       │   ├── main.py
+│       │   ├── parser.py
+│       │   └── commands/
+│       │       ├── generate.py
+│       │       ├── preview.py
+│       │       ├── solve.py
+│       │       ├── sto.py
+│       │       ├── train.py
+│       │       └── workflow.py
 │       ├── core/
 │       │   ├── __init__.py
 │       │   ├── constants.py
@@ -118,26 +145,28 @@ TOOLS/
 │       │   ├── models.py
 │       │   ├── result_viewer_service.py
 │       │   ├── scheduling.py
-│       │   ├── services.py
 │       │   ├── sto_models.py
 │       │   ├── tabpfn_models.py
 │       │   ├── visualization_service.py
-│       │   └── diagrams/
+│       │   ├── diagrams/
+│       │   └── services/
 │       │       ├── __init__.py
-│       │       ├── correlation_matrix.py
-│       │       ├── decision_tree_diagram.py
-│       │       ├── gantt_chart.py
-│       │       ├── line_chart.py
-│       │       └── similarity_matrix.py
+│       │       ├── analysis.py
+│       │       ├── common.py
+│       │       ├── files.py
+│       │       ├── io_ops.py
+│       │       ├── sto.py
+│       │       ├── summary.py
+│       │       └── training.py
 │       ├── gui/
 │       │   ├── __init__.py
 │       │   ├── main_window.py
 │       │   └── pages/
 │       │       ├── __init__.py
-│       │       ├── main_page.py
+│       │       ├── main_page/
+│       │       ├── theory_page/
 │       │       ├── readme_page.py
 │       │       ├── results_page.py
-│       │       ├── theory_page.py
 │       │       └── visual_page.py
 │       └── utils/
 │           ├── __init__.py
@@ -146,40 +175,26 @@ TOOLS/
 │           └── threading_utils.py
 ├── tests/
 │   ├── cli/
-│   │   ├── test_cli_commands.py
-│   │   ├── test_cli_interactive.py
-│   │   ├── test_cli_main.py
-│   │   └── test_cli_workflow.py
 │   └── core/
-│       ├── test_data_generation.py
-│       ├── test_data_generation_extended.py
-│       ├── test_data_io.py
-│       ├── test_dataset_ops.py
-│       ├── test_evaluation.py
-│       ├── test_features.py
-│       ├── test_features_extended.py
-│       ├── test_io_and_split_extended.py
-│       ├── test_learning_content.py
-│       ├── test_model_pack_flows.py
-│       ├── test_model_pack_security.py
-│       ├── test_models.py
-│       ├── test_models_extended.py
-│       ├── test_result_viewer_service.py
-│       ├── test_scheduling.py
-│       ├── test_scheduling_extended.py
-│       ├── test_services_extra.py
-│       ├── test_services_flows.py
-│       ├── test_services_extended.py
-│       ├── test_sto_models.py
-│       ├── test_sto_models_extended.py
-│       ├── test_tabpfn_models.py
-│       ├── test_visualization_service.py
-│       └── test_visualization_service_extended.py
 ├── CHANGELOG.md
 ├── README.md
 ├── pyproject.toml
 └── uv.lock
 ```
+
+Dane przykładowe są trzymane wyłącznie w `data/sample/`. Pliki generowane lokalnie przez aplikację (`data/dane_*.csv`, `data/train_*.csv`, `data/test_*.csv`, wyniki solve/STO) są ignorowane przez `.gitignore`, żeby nie trafiały przypadkowo do commitów.
+
+## Rozszerzone modele ML i heurystyki STO
+
+W bieżącej wersji panel wyboru modeli został rozszerzony tak, aby użytkownik mógł porównywać różne podejścia dla podobnych celów. W trybie `classic` dostępnych jest 12 wariantów ML:
+
+- `Quality`, `Quality_ET`, `Quality_GB`, `Quality_HGB` — cztery modele regresyjne dla jakości, patrzące odpowiednio na stabilność lasu, większą losowość ExtraTrees, poprawianie błędów przez boosting oraz szybki boosting histogramowy.
+- `Delay`, `Delay_RF`, `Delay_ET`, `Delay_HGB` — cztery modele regresyjne dla opóźnień, skupione na ryzyku przekroczenia terminu i dużych błędach.
+- `Schedule`, `Schedule_ET`, `Schedule_GB`, `Schedule_LOG` — cztery klasyfikatory strategii harmonogramowania, od modeli drzewiastych po prosty baseline liniowy.
+
+Modele heurystyczne STO zostały rozszerzone do zestawu 12 metod: `MT`, `MO`, `MZO`, `GENETIC`, `SLACK`, `CR`, `EDD_SPT`, `SPT_EDD`, `LPT_EDD`, `NEH`, `LOCAL_SEARCH`, `RANDOM_RESTART`. Każda metoda ma opis, na co patrzy: termin, czas obróbki, zapas, krytyczność, wariant wstawiania lub lokalne poprawki kolejności.
+
+Architektura została przygotowana modułowo: definicje modeli ML znajdują się w `src/AOA/core/ml_models/`, a definicje heurystyk w `src/AOA/core/mh_models/`. Dzięki temu można później dopisywać kolejne warianty bez przeciążania głównych plików aplikacji.
 
 ## Jak uruchomić projekt
 

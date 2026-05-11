@@ -3,6 +3,7 @@ import pytest
 
 from AOA.core import services
 from AOA.core.models import load_model_pack, save_model_pack
+from AOA.core.services import training as training_services
 
 
 class PickleableDummyModel:
@@ -74,11 +75,11 @@ def test_train_models_flow_saves_pack_with_generated_filename(
     }
 
     monkeypatch.setattr(
-        services,
+        training_services,
         "build_model_filename",
         lambda *_args, **_kwargs: expected_path,
     )
-    monkeypatch.setattr(services, "train_selected_models", lambda **_kwargs: fake_pack)
+    monkeypatch.setattr(training_services, "train_selected_models", lambda **_kwargs: fake_pack)
 
     result = services.train_models_flow(
         training_df,
