@@ -1,9 +1,10 @@
+from argparse import Namespace
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
 from AOA import cli
+from AOA.cli.commands import workflow
 
 
 def norm(text: str) -> str:
@@ -12,7 +13,7 @@ def norm(text: str) -> str:
 
 def test_command_workflow_runs_generate_train_and_solve(monkeypatch, capsys):
     monkeypatch.setattr(
-        cli,
+        workflow,
         "generate_and_store_datasets",
         lambda **kwargs: {
             "full_df": ["full"],
@@ -26,7 +27,7 @@ def test_command_workflow_runs_generate_train_and_solve(monkeypatch, capsys):
     )
 
     monkeypatch.setattr(
-        cli,
+        workflow,
         "train_models_flow",
         lambda **kwargs: {
             "model_path": Path("models/model_ml.pkl"),
@@ -35,7 +36,7 @@ def test_command_workflow_runs_generate_train_and_solve(monkeypatch, capsys):
     )
 
     monkeypatch.setattr(
-        cli,
+        workflow,
         "solve_models_flow",
         lambda model_path, data_path: {
             "result_path": Path("data/result.csv"),
@@ -44,7 +45,7 @@ def test_command_workflow_runs_generate_train_and_solve(monkeypatch, capsys):
     )
 
     monkeypatch.setattr(
-        cli,
+        workflow,
         "train_sto_models_flow",
         lambda methods: {
             "model_path": Path("models/model_sto.pkl"),
@@ -52,7 +53,7 @@ def test_command_workflow_runs_generate_train_and_solve(monkeypatch, capsys):
         },
     )
 
-    args = SimpleNamespace(
+    args = Namespace(
         n=800,
         machines=1,
         test_size=0.2,
@@ -82,7 +83,7 @@ def test_command_workflow_runs_generate_train_and_solve(monkeypatch, capsys):
 
 def test_command_workflow_skips_solve(monkeypatch, capsys):
     monkeypatch.setattr(
-        cli,
+        workflow,
         "generate_and_store_datasets",
         lambda **kwargs: {
             "full_df": ["full"],
@@ -96,7 +97,7 @@ def test_command_workflow_skips_solve(monkeypatch, capsys):
     )
 
     monkeypatch.setattr(
-        cli,
+        workflow,
         "train_models_flow",
         lambda **kwargs: {
             "model_path": Path("models/model_ml.pkl"),
@@ -110,9 +111,9 @@ def test_command_workflow_skips_solve(monkeypatch, capsys):
         called["solve"] = True
         return {"result_path": Path("data/result.csv"), "messages": ["solved"]}
 
-    monkeypatch.setattr(cli, "solve_models_flow", fake_solve)
+    monkeypatch.setattr(workflow, "solve_models_flow", fake_solve)
 
-    args = SimpleNamespace(
+    args = Namespace(
         n=800,
         machines=1,
         test_size=0.2,
@@ -139,7 +140,7 @@ def test_command_workflow_skips_solve(monkeypatch, capsys):
 
 def test_command_workflow_with_only_sto(monkeypatch, capsys):
     monkeypatch.setattr(
-        cli,
+        workflow,
         "generate_and_store_datasets",
         lambda **kwargs: {
             "full_df": ["full"],
@@ -153,7 +154,7 @@ def test_command_workflow_with_only_sto(monkeypatch, capsys):
     )
 
     monkeypatch.setattr(
-        cli,
+        workflow,
         "train_sto_models_flow",
         lambda methods: {
             "model_path": Path("models/model_sto.pkl"),
@@ -161,7 +162,7 @@ def test_command_workflow_with_only_sto(monkeypatch, capsys):
         },
     )
 
-    args = SimpleNamespace(
+    args = Namespace(
         n=800,
         machines=1,
         test_size=0.2,
@@ -187,7 +188,7 @@ def test_command_workflow_with_only_sto(monkeypatch, capsys):
 
 
 def test_command_workflow_rejects_invalid_models():
-    args = SimpleNamespace(
+    args = Namespace(
         n=800,
         machines=1,
         test_size=0.2,

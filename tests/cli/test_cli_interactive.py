@@ -1,6 +1,7 @@
-from types import SimpleNamespace
+from argparse import Namespace
 
 from AOA import cli
+from AOA.cli import interactive
 
 
 def test_interactive_generate(monkeypatch):
@@ -30,7 +31,7 @@ def test_interactive_generate(monkeypatch):
         assert args.seed == 42
         return 0
 
-    monkeypatch.setattr(cli, "command_generate", fake_generate)
+    monkeypatch.setattr(interactive, "command_generate", fake_generate)
     code = cli.interactive_generate()
 
     assert code == 0
@@ -51,7 +52,7 @@ def test_interactive_train(monkeypatch):
         assert args.train_ratio == 0.8
         return 0
 
-    monkeypatch.setattr(cli, "command_train", fake_train)
+    monkeypatch.setattr(interactive, "command_train", fake_train)
     code = cli.interactive_train()
 
     assert code == 0
@@ -70,7 +71,7 @@ def test_interactive_solve(monkeypatch):
         assert args.data == "data/test.csv"
         return 0
 
-    monkeypatch.setattr(cli, "command_solve", fake_solve)
+    monkeypatch.setattr(interactive, "command_solve", fake_solve)
     code = cli.interactive_solve()
 
     assert code == 0
@@ -91,7 +92,7 @@ def test_interactive_sto_run(monkeypatch):
         assert args.methods == "MT,MO"
         return 0
 
-    monkeypatch.setattr(cli, "command_sto_run", fake_sto)
+    monkeypatch.setattr(interactive, "command_sto_run", fake_sto)
     code = cli.interactive_sto_run()
 
     assert code == 0
@@ -126,7 +127,7 @@ def test_interactive_summary(monkeypatch):
         assert args.n == 800
         return 0
 
-    monkeypatch.setattr(cli, "command_summary", fake_summary)
+    monkeypatch.setattr(interactive, "command_summary", fake_summary)
     code = cli.interactive_summary()
 
     assert code == 0
@@ -145,7 +146,7 @@ def test_interactive_status(monkeypatch):
         assert args.train_ratio == 0.8
         return 0
 
-    monkeypatch.setattr(cli, "command_status", fake_status)
+    monkeypatch.setattr(interactive, "command_status", fake_status)
     code = cli.interactive_status()
 
     assert code == 0
@@ -182,7 +183,7 @@ def test_interactive_workflow(monkeypatch):
         assert args.skip_solve is False
         return 0
 
-    monkeypatch.setattr(cli, "command_workflow", fake_workflow)
+    monkeypatch.setattr(interactive, "command_workflow", fake_workflow)
     code = cli.interactive_workflow()
 
     assert code == 0
@@ -193,7 +194,7 @@ def test_command_interactive_exit(monkeypatch, capsys):
     answers = iter(["0"])
     monkeypatch.setattr("builtins.input", lambda prompt="": next(answers))
 
-    code = cli.command_interactive(SimpleNamespace(quick=False))
+    code = cli.command_interactive(Namespace(quick=False))
     assert code == 0
 
     out = capsys.readouterr().out
@@ -205,7 +206,7 @@ def test_command_interactive_invalid_choice_then_exit(monkeypatch, capsys):
     answers = iter(["99", "0"])
     monkeypatch.setattr("builtins.input", lambda prompt="": next(answers))
 
-    code = cli.command_interactive(SimpleNamespace(quick=False))
+    code = cli.command_interactive(Namespace(quick=False))
     assert code == 0
 
     out = capsys.readouterr().out

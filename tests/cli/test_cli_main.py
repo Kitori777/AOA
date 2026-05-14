@@ -1,6 +1,10 @@
+import importlib
+
 import pytest
 
 from AOA import cli
+
+cli_main = importlib.import_module("AOA.cli.main")
 
 
 def test_main_help_exits_with_code_0(capsys):
@@ -37,7 +41,7 @@ def test_main_returns_1_for_unknown_command(capsys):
 
 def test_main_returns_130_on_keyboard_interrupt(monkeypatch):
     monkeypatch.setattr(
-        cli, "command_generate", lambda args: (_ for _ in ()).throw(KeyboardInterrupt())
+        cli_main, "command_generate", lambda args: (_ for _ in ()).throw(KeyboardInterrupt())
     )
 
     code = cli.main(["generate"])
@@ -46,9 +50,11 @@ def test_main_returns_130_on_keyboard_interrupt(monkeypatch):
 
 def test_main_returns_1_and_logs_on_exception(monkeypatch, capsys):
     monkeypatch.setattr(
-        cli, "command_generate", lambda args: (_ for _ in ()).throw(RuntimeError("boom"))
+        cli_main, "command_generate", lambda args: (_ for _ in ()).throw(RuntimeError("boom"))
     )
-    monkeypatch.setattr(cli, "write_exception_log", lambda *_args, **_kwargs: "fake_log_path.txt")
+    monkeypatch.setattr(
+        cli_main, "write_exception_log", lambda *_args, **_kwargs: "fake_log_path.txt"
+    )
 
     code = cli.main(["generate"])
     assert code == 1
