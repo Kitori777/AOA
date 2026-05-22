@@ -52,6 +52,8 @@ class App(ctk.CTk):
     def show(self, name: str) -> None:
         self.active_page = name
         self.pages[name].tkraise()
+        if name == "TheoryPage" and hasattr(self.pages[name], "animation"):
+            self.pages[name].animation.start_autoplay()
         self._refresh_sidebar_buttons()
 
     def build_sidebar(self) -> None:
@@ -108,6 +110,7 @@ class App(ctk.CTk):
             hover_color="#162b3d",
             border_width=1,
             border_color="#24384b",
+            command=self.show_help,
         ).pack(padx=14, pady=(6, 10), fill="x")
 
         collapse_text = "»" if not self.sidebar_expanded else "«  Zwiń pasek"
@@ -135,3 +138,6 @@ class App(ctk.CTk):
                 border_color="#1f8fff" if active else "#183149",
                 hover_color="#155ca6" if active else "#162b3d",
             )
+
+    def show_help(self) -> None:
+        self.show("ReadmePage")

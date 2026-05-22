@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from AOA.config import MODELS_DIR
 from AOA.core.data_io import load_csv, save_csv
 from AOA.core.evaluation import calculate_model_training_metrics, format_training_metrics
 from AOA.core.features import prepare_features
@@ -12,6 +13,75 @@ from AOA.core.models import load_model_pack, save_model_pack, train_selected_mod
 from AOA.core.scheduling import extract_schedule_features, simulate_schedule
 
 from .files import build_model_filename, build_result_filename, build_sto_model_filename
+
+SCHEDULE_TIMING_COLUMNS = ("t_start", "t_end", "lateness_h")
+TRAINING_MEMORY_MAX_ROWS = 50_000
+TRAINING_MEMORY_SCAN_LIMIT = 12
+
+
+def _selected_models_overlap(left, right) -> bool:
+    return bool(set(left or []) & set(right or []))
+
+
+def _merge_training_history(df_train, history_frames):
+    frames = [
+        frame for frame in history_frames if isinstance(frame, pd.DataFrame) and not frame.empty
+    ]
+    if not frames:
+        return df_train.copy(), 0
+
+    history = pd.concat(frames, ignore_index=True, sort=False)
+    history = history.drop_duplicates().tail(TRAINING_MEMORY_MAX_ROWS).reset_index(drop=True)
+    combined = pd.concat([history, df_train], ignore_index=True, sort=False)
+    combined = combined.drop_duplicates().tail(TRAINING_MEMORY_MAX_ROWS).reset_index(drop=True)
+    return combined, len(history)
+
+
+def _load_training_history(selected_models, backend):
+    history_frames: list[pd.DataFrame] = []
+    used_sources: list[str] = []
+    if not MODELS_DIR.exists():
+        return history_frames, used_sources
+
+    model_paths = sorted(
+        MODELS_DIR.glob("*.pkl"),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+    for path in model_paths:
+        if len(history_frames) >= TRAINING_MEMORY_SCAN_LIMIT:
+            break
+        try:
+            pack = load_model_pack(path)
+        except Exception:
+            continue
+        if pack.get("pack_kind") != "ml" or pack.get("backend", "classic") != backend:
+            continue
+        if not _selected_models_overlap(selected_models, pack.get("selected_models")):
+            continue
+        training_data = pack.get("training_data")
+        if isinstance(training_data, pd.DataFrame) and not training_data.empty:
+            history_frames.append(training_data)
+            used_sources.append(path.name)
+    return history_frames, used_sources
+
+
+def _predict_schedule_strategy(model, result_df):
+    try:
+        schedule_features = pd.DataFrame([extract_schedule_features(result_df)])
+        return model.predict(schedule_features)[0]
+    except Exception:
+        return "n/a"
+
+
+def _append_schedule_simulation(result_df):
+    if all(column in result_df.columns for column in SCHEDULE_TIMING_COLUMNS):
+        return result_df
+
+    scheduled_df = simulate_schedule(result_df)
+    for column in SCHEDULE_TIMING_COLUMNS:
+        result_df[column] = scheduled_df[column].values
+    return result_df
 
 
 def train_models_flow(
@@ -27,13 +97,24 @@ def train_models_flow(
     if not selected_models:
         raise ValueError("Nie wybrano żadnego modelu do trenowania.")
 
+    history_frames, history_sources = _load_training_history(selected_models, backend)
+    training_df, history_rows = _merge_training_history(df_train, history_frames)
+
     pack = train_selected_models(
-        df_train=df_train,
+        df_train=training_df,
         selected_models=selected_models,
         progress_callback=progress_callback,
         backend=backend,
     )
     pack["pack_kind"] = "ml"
+    pack["training_data"] = training_df.copy()
+    pack["training_memory"] = {
+        "current_rows": len(df_train),
+        "history_rows": history_rows,
+        "total_rows": len(training_df),
+        "sources": history_sources,
+        "max_rows": TRAINING_MEMORY_MAX_ROWS,
+    }
 
     metadata = metadata or {}
     try:
@@ -51,6 +132,14 @@ def train_models_flow(
         f"✔ Modele zapisane do: {model_path}",
         f"✔ Trening zakończony | backend: {backend_label}",
     ]
+    if history_rows:
+        messages.append(
+            f"âś” Uczenie z historiÄ…: {len(df_train)} nowych + {history_rows} z poprzednich zapisĂłw = {len(training_df)} rekordĂłw"
+        )
+    else:
+        messages.append(
+            f"âś” PamiÄ™Ä‡ treningowa gotowa: zapisano {len(training_df)} rekordĂłw do kolejnych uruchomieĹ„"
+        )
     messages.extend(metric_lines)
     return {
         "model_pack": pack,
@@ -87,24 +176,15 @@ def solve_models_flow(model_path, data_path):
     if df.empty:
         raise ValueError("Plik danych jest pusty.")
 
-    X, *_ = prepare_features(df)
     quality_model = model_pack.get("quality")
     delay_model = model_pack.get("delay")
     schedule_model = model_pack.get("schedule")
     scaler = model_pack.get("scaler")
     backend = model_pack.get("backend", "classic")
-    X_for_pred = X
-
     if backend != "tabpfn" and scaler is not None:
-        try:
-            transformed = scaler.transform(X)
-            X_for_pred = (
-                pd.DataFrame(transformed, columns=X.columns, index=X.index)
-                if hasattr(X, "columns")
-                else transformed
-            )
-        except Exception:
-            X_for_pred = X
+        X_for_pred, *_ = prepare_features(df, scaler_obj=scaler)
+    else:
+        X_for_pred, *_ = prepare_features(df)
 
     result_df = df.copy()
     variant_models = model_pack.get("ml_models") or {}
@@ -130,13 +210,11 @@ def solve_models_flow(model_path, data_path):
                 result_df["pred_delay"] = predictions
             result_df[f"pred_{safe_name}"] = predictions
         elif task == "schedule":
+            result_df = _append_schedule_simulation(result_df)
+            strategy = _predict_schedule_strategy(model, result_df)
+            result_df[f"recommended_{safe_name}"] = strategy
             if model_name == "Schedule" or "recommended_machine" not in result_df.columns:
-                result_df["recommended_machine"] = simulate_schedule(model, result_df)
-            try:
-                schedule_features = pd.DataFrame([extract_schedule_features(result_df)])
-                result_df[f"recommended_{safe_name}"] = model.predict(schedule_features)[0]
-            except Exception:
-                result_df[f"recommended_{safe_name}"] = "n/a"
+                result_df["recommended_machine"] = strategy
 
     if "pred_quality" in result_df.columns and "pred_delay" in result_df.columns:
         result_df["priority"] = (

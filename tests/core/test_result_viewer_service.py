@@ -22,6 +22,40 @@ def test_filter_sort_limit_dataframe_filters_and_sorts():
     assert result["name"].tolist() == ["alpha"]
 
 
+def test_filter_sort_limit_dataframe_supports_numeric_loader_options():
+    df = pd.DataFrame(
+        {
+            "name": ["a", "b", "c", "d"],
+            "score": [10, 50, 30, 70],
+            "cost": [2.5, 9.0, 5.0, 1.0],
+        }
+    )
+
+    result = filter_sort_limit_dataframe(
+        df,
+        numeric_column="score",
+        min_value=25,
+        max_value=70,
+        top_mode="largest",
+        limit=2,
+    )
+
+    assert result["name"].tolist() == ["d", "b"]
+
+
+def test_filter_sort_limit_dataframe_supports_smallest_values():
+    df = pd.DataFrame({"name": ["a", "b", "c"], "score": [10, 50, 30]})
+
+    result = filter_sort_limit_dataframe(
+        df,
+        numeric_column="score",
+        top_mode="smallest",
+        limit=2,
+    )
+
+    assert result["name"].tolist() == ["a", "c"]
+
+
 def test_build_column_profile_for_numeric_column():
     df = pd.DataFrame({"value": [1, 2, 3, 100]})
 

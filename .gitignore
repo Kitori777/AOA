@@ -17,6 +17,7 @@ logs/
 
 # Testing
 .pytest_cache/
+.pytest-tmp/
 .coverage
 .coverage.*
 htmlcov/

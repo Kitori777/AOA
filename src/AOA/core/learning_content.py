@@ -83,7 +83,7 @@ GUIDE_STEPS: tuple[GuideStep, ...] = (
         "4. Modele STO",
         "STO porównuje kolejności zleceń i wybiera wariant z mniejszym opóźnieniem.",
         (
-            "Zaznacz MT, MO, MZO, GENETIC albo inne heurystyki: Slack, Critical Ratio, NEH, Local Search.",
+            "Zaznacz MT, MO, MZO, MOPT albo inne heurystyki: Slack, Critical Ratio, NEH, Local Search.",
             "Zapisz model STO.",
             "Później uruchom zapisany model na CSV.",
         ),
@@ -115,6 +115,22 @@ GUIDE_STEPS: tuple[GuideStep, ...] = (
             "Dashboard daje szybki przegląd.",
             "Diagnostics pokazuje reszty i dopasowanie.",
             "CorrelationMatrix pomaga wykryć silne relacje.",
+        ),
+    ),
+    GuideStep(
+        "7. Results Studio i CSV loader",
+        "Przeglądasz wynikowy CSV, wybierasz liczbę widocznych rekordów i eksportujesz dokładnie ten widok, który jest potrzebny.",
+        (
+            "Przejdź do Results.",
+            "Wczytaj CSV z danymi albo wynikami solve.",
+            "Ustaw preset wierszy albo wpisz własną liczbę rekordów.",
+            "Użyj filtra, sortowania, zakresu min/max albo największych/najmniejszych wartości.",
+        ),
+        "Results Studio jest praktycznym czytnikiem CSV: pozwala szybko zawęzić dane, sprawdzić jakość pliku, profil kolumny i przygotować mniejszy wycinek do dalszej analizy.",
+        (
+            "Pole własnej liczby wierszy ma pierwszeństwo przed presetem.",
+            "Eksport CSV zapisuje tylko aktualnie widoczne rekordy.",
+            "Karty u góry pokazują pełny stan pliku i liczbę widocznych wierszy.",
         ),
     ),
 )

@@ -15,9 +15,12 @@ class ModelAnimationCard(ctk.CTkFrame):
             parent, corner_radius=14, fg_color=BG_CARD, border_width=1, border_color=BORDER
         )
         self.model: TheoryModel | None = None
+        self.example_values = {"mt": 0.60, "mo": 0.30, "mzo": 0.10, "gen": 0.20}
         self.step_index = 0
         self._after_id: str | None = None
+        self._resume_after_id: str | None = None
         self.is_playing = False
+        self.autoplay_enabled = True
         self.on_step_changed = on_step_changed
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=1)
@@ -28,19 +31,19 @@ class ModelAnimationCard(ctk.CTkFrame):
         self.title.grid(row=0, column=0, sticky="w", padx=18, pady=(14, 6))
 
         self.canvas = tk.Canvas(
-            self, height=390, bg="#101922", highlightthickness=1, highlightbackground="#252c34"
+            self, height=340, bg="#101922", highlightthickness=1, highlightbackground="#252c34"
         )
-        self.canvas.grid(row=1, column=0, sticky="nsew", padx=18, pady=(0, 10))
+        self.canvas.grid(row=1, column=0, sticky="nsew", padx=18, pady=(0, 8))
         self.canvas.bind("<Configure>", lambda _event: self._draw_canvas())
 
         controls = ctk.CTkFrame(self, fg_color="transparent")
         controls.grid(row=2, column=0, sticky="ew", padx=18, pady=(0, 14))
         controls.grid_columnconfigure(4, weight=1)
-        self.prev_btn = ctk.CTkButton(controls, text="⏮", width=38, command=self.previous_step)
+        self.prev_btn = ctk.CTkButton(controls, text="<<", width=38, command=self.previous_step)
         self.prev_btn.grid(row=0, column=0, padx=(0, 6))
-        self.play_btn = ctk.CTkButton(controls, text="▶", width=44, command=self.toggle_play)
+        self.play_btn = ctk.CTkButton(controls, text="Play", width=54, command=self.toggle_play)
         self.play_btn.grid(row=0, column=1, padx=6)
-        self.next_btn = ctk.CTkButton(controls, text="⏭", width=38, command=self.next_step)
+        self.next_btn = ctk.CTkButton(controls, text=">>", width=38, command=self.next_step)
         self.next_btn.grid(row=0, column=2, padx=6)
         self.step_label = label(controls, "Krok 1 / 12", size=13, weight="bold")
         self.step_label.grid(row=0, column=3, padx=(16, 8), sticky="w")
@@ -55,11 +58,16 @@ class ModelAnimationCard(ctk.CTkFrame):
         self.speed.grid(row=0, column=6, padx=(0, 2))
 
     def set_model(self, model: TheoryModel) -> None:
-        self.stop()
+        self.stop(cancel_resume=True)
         self.model = model
         self.step_index = 0
         self._configure_slider()
         self._refresh(emit=True)
+        self.start_autoplay()
+
+    def set_example_values(self, values: dict[str, float]) -> None:
+        self.example_values.update(values)
+        self._draw_canvas()
 
     def _configure_slider(self) -> None:
         total = self.total_steps
@@ -69,43 +77,69 @@ class ModelAnimationCard(ctk.CTkFrame):
     def total_steps(self) -> int:
         return max(1, len(self.model.steps) if self.model is not None else 12)
 
-    def set_step(self, index: int, *, emit: bool = True) -> None:
+    def set_step(self, index: int, *, emit: bool = True, user_action: bool = False) -> None:
+        if user_action:
+            self.pause_for_reading()
         self.step_index = max(0, min(self.total_steps - 1, index))
         self._refresh(emit=emit)
 
     def previous_step(self) -> None:
-        self.set_step(self.step_index - 1)
+        self.set_step(self.step_index - 1, user_action=True)
 
     def next_step(self) -> None:
-        self.set_step((self.step_index + 1) % self.total_steps)
+        self.set_step((self.step_index + 1) % self.total_steps, user_action=True)
 
     def toggle_play(self) -> None:
         if self.is_playing:
-            self.stop()
+            self.autoplay_enabled = False
+            self.stop(cancel_resume=True)
         else:
-            self.is_playing = True
-            self.play_btn.configure(text="Ⅱ")
-            self._schedule_next()
+            self.autoplay_enabled = True
+            self.start_autoplay()
 
-    def stop(self) -> None:
+    def start_autoplay(self) -> None:
+        if self.is_playing or not self.autoplay_enabled:
+            return
+        self.is_playing = True
+        self.play_btn.configure(text="Stop")
+        self._schedule_next(initial=True)
+
+    def pause_for_reading(self, delay_ms: int = 4500) -> None:
+        if not self.autoplay_enabled:
+            return
+        self.stop(cancel_resume=False)
+        if self._resume_after_id is not None:
+            self.after_cancel(self._resume_after_id)
+        self._resume_after_id = self.after(delay_ms, self._resume_after_pause)
+
+    def _resume_after_pause(self) -> None:
+        self._resume_after_id = None
+        self.start_autoplay()
+
+    def stop(self, *, cancel_resume: bool = True) -> None:
         self.is_playing = False
-        self.play_btn.configure(text="▶")
+        self.play_btn.configure(text="Play")
         if self._after_id is not None:
             self.after_cancel(self._after_id)
             self._after_id = None
+        if cancel_resume and self._resume_after_id is not None:
+            self.after_cancel(self._resume_after_id)
+            self._resume_after_id = None
 
-    def _schedule_next(self) -> None:
-        factor = {"0.75x": 1500, "1.0x": 1150, "1.5x": 780}.get(self.speed.get(), 1150)
+    def _schedule_next(self, *, initial: bool = False) -> None:
+        factor = {"0.75x": 13000, "1.0x": 10000, "1.5x": 7000}.get(self.speed.get(), 10000)
+        if initial:
+            factor = 10000
         self._after_id = self.after(factor, self._play_tick)
 
     def _play_tick(self) -> None:
         if not self.is_playing:
             return
-        self.next_step()
+        self.set_step((self.step_index + 1) % self.total_steps)
         self._schedule_next()
 
     def _slider_changed(self, value: float) -> None:
-        self.set_step(int(round(value)) - 1)
+        self.set_step(int(round(value)) - 1, user_action=True)
 
     def _refresh(self, *, emit: bool = True) -> None:
         if self.model is None:
@@ -124,7 +158,7 @@ class ModelAnimationCard(ctk.CTkFrame):
         c = self.canvas
         c.delete("all")
         width = max(c.winfo_width(), 820)
-        height = max(c.winfo_height(), 390)
+        height = max(c.winfo_height(), 340)
         c.configure(scrollregion=(0, 0, width, height))
         self._draw_stepper(c, width)
         if model.family == "mh":
@@ -183,16 +217,17 @@ class ModelAnimationCard(ctk.CTkFrame):
     def _draw_ml(self, c: tk.Canvas, width: int, height: int) -> None:
         active = self.step_index
         phase = self._phase()
-        top = 130
-        panel_h = max(145, height - top - 18)
+        top = 104
+        panel_h = max(132, height - top - 18)
         self._panel(c, 36, top, 194, top + panel_h, "Instancja", active >= 0)
+        values = self.example_values
         rows = [
             ("ID", "1"),
             ("Klasa", "A"),
-            ("MT", "0.60"),
-            ("MO", "0.30"),
-            ("MZO", "0.10"),
-            ("GEN", "0.20"),
+            ("MT", f"{values['mt']:.2f}"),
+            ("MO", f"{values['mo']:.2f}"),
+            ("MZO", f"{values['mzo']:.2f}"),
+            ("GEN", f"{values['gen']:.2f}"),
         ]
         for i, (k, v) in enumerate(rows):
             y = top + 38 + i * 22
@@ -214,14 +249,30 @@ class ModelAnimationCard(ctk.CTkFrame):
                 font=("Segoe UI", 9, "bold" if i < 2 else "normal"),
             )
             c.create_text(164, y, text=v, fill="#dbeafe", anchor="e", font=("Segoe UI", 9))
-        if active >= 2:
+        if active >= 1:
+            c.create_rectangle(
+                58,
+                top + panel_h - 58,
+                172,
+                top + panel_h - 18,
+                fill="#172554" if active >= 2 else "#202831",
+                outline="#3b82f6",
+            )
             c.create_text(
                 115,
-                top + panel_h - 22,
-                text="cechy po skalowaniu",
-                fill="#93c5fd",
+                top + panel_h - 45,
+                text="historia",
+                fill="#dbeafe",
                 font=("Segoe UI", 8, "bold"),
             )
+            c.create_text(
+                115,
+                top + panel_h - 30,
+                text="+ poprzednie treningi" if active >= 2 else "szukanie packów",
+                fill="#93c5fd",
+                font=("Segoe UI", 7),
+            )
+        self._draw_ml_token(c, width, top, panel_h, active)
         self._arrow(c, 210, top + panel_h / 2, 250, top + panel_h / 2, active >= 3)
         self._panel(c, 266, top, width - 300, top + panel_h, "Model uczący się", active >= 3)
         self._draw_tree(c, (width - 34 - 300 + 266) / 2, top + 55, active)
@@ -292,10 +343,30 @@ class ModelAnimationCard(ctk.CTkFrame):
                 font=("Segoe UI", 9, "bold"),
             )
 
+    def _draw_ml_token(self, c: tk.Canvas, width: int, top: int, panel_h: int, active: int) -> None:
+        route = [
+            (115, top + panel_h / 2),
+            (115, top + panel_h - 38),
+            (230, top + panel_h / 2),
+            (width / 2 - 70, top + 120),
+            (width / 2, top + 55),
+            (width / 2 + 60, top + 108),
+            (width / 2 + 94, top + 157),
+            (width / 2, top + panel_h - 38),
+            (width - 264, top + panel_h / 2),
+            (width - 168, top + 82),
+            (width - 132, top + panel_h - 28),
+            (width - 88, top + panel_h - 28),
+        ]
+        idx = max(0, min(active, len(route) - 1))
+        x, y = route[idx]
+        c.create_oval(x - 8, y - 8, x + 8, y + 8, fill=YELLOW, outline="#fff7ad", width=2)
+        c.create_text(x, y - 18, text="przykład", fill="#fde68a", font=("Segoe UI", 8, "bold"))
+
     def _draw_mh(self, c: tk.Canvas, width: int, height: int) -> None:
         active = self.step_index
-        top = 130
-        panel_h = max(145, height - top - 18)
+        top = 104
+        panel_h = max(132, height - top - 18)
         jobs = [("J1", 6, 30), ("J2", 4, 20), ("J3", 2, 12), ("J4", 7, 25)]
         self._panel(c, 36, top, 210, top + panel_h, "Zlecenia", active >= 0)
         for i, (job, p, d) in enumerate(jobs):
@@ -397,6 +468,30 @@ class ModelAnimationCard(ctk.CTkFrame):
                 fill="#dcfce7",
                 font=("Segoe UI", 9, "bold"),
             )
+        route = [
+            (128, top + 45),
+            (128, top + 74),
+            (304, top + panel_h / 2),
+            (width / 2 - 120, top + 128),
+            (width / 2 - 82, top + 128),
+            (width / 2 - 28, top + 160),
+            (width / 2 + 45, top + panel_h - 44),
+            (width / 2 + 120, top + panel_h - 26),
+            (width / 2 + 155, top + 128),
+            (width - 290, top + panel_h / 2),
+            (width - 145, top + 48),
+            (width - 144, top + panel_h - 28),
+        ]
+        token_x, token_y = route[max(0, min(active, len(route) - 1))]
+        c.create_oval(
+            token_x - 8,
+            token_y - 8,
+            token_x + 8,
+            token_y + 8,
+            fill=YELLOW,
+            outline="#fff7ad",
+            width=2,
+        )
 
     def _panel(
         self, c: tk.Canvas, x1: float, y1: float, x2: float, y2: float, title: str, active: bool

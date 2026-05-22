@@ -4,7 +4,7 @@ import customtkinter as ctk
 
 from .animation import ModelAnimationCard
 from .data import EXAMPLE_ROWS, JOB_ROWS, TheoryModel, find_theory_model, get_theory_models
-from .widgets import BG_CARD, BLUE, BORDER, label, make_card, small_badge
+from .widgets import BG_CARD, BLUE, BORDER, GREEN, PURPLE, YELLOW, label, make_card, small_badge
 
 
 class TheoryPage(ctk.CTkFrame):
@@ -19,6 +19,8 @@ class TheoryPage(ctk.CTkFrame):
         self.model_buttons: dict[str, ctk.CTkButton] = {}
         self.family_buttons: dict[str, ctk.CTkButton] = {}
         self.step_cards: list[ctk.CTkFrame] = []
+        self.example_values = {"mt": 0.60, "mo": 0.30, "mzo": 0.10, "gen": 0.20}
+        self.example_value_labels: dict[str, ctk.CTkLabel] = {}
         self._build_layout()
         self._show_model(find_theory_model(self.selected_key))
 
@@ -41,7 +43,9 @@ class TheoryPage(ctk.CTkFrame):
 
         top = make_card(self, radius=14, fg_color="#0d1a26")
         top.grid(row=1, column=0, sticky="ew", padx=14, pady=(6, 8))
+        top.grid_columnconfigure(0, weight=0)
         top.grid_columnconfigure(1, weight=1)
+        top.grid_columnconfigure(2, weight=0)
         family_box = ctk.CTkFrame(top, fg_color="transparent")
         family_box.grid(row=0, column=0, sticky="w", padx=12, pady=10)
         self.family_buttons["ml"] = ctk.CTkButton(
@@ -62,9 +66,9 @@ class TheoryPage(ctk.CTkFrame):
         self.family_buttons["mh"].grid(row=0, column=1)
 
         self.model_bar = ctk.CTkScrollableFrame(
-            top, fg_color="transparent", orientation="horizontal", height=56
+            top, fg_color="transparent", orientation="horizontal", height=50
         )
-        self.model_bar.grid(row=0, column=1, sticky="ew", padx=(10, 12), pady=8)
+        self.model_bar.grid(row=1, column=0, columnspan=3, sticky="ew", padx=12, pady=(0, 8))
         self.model_bar.grid_rowconfigure(0, weight=1)
 
         compare = ctk.CTkFrame(top, fg_color="transparent")
@@ -76,9 +80,9 @@ class TheoryPage(ctk.CTkFrame):
 
         body = ctk.CTkFrame(self, fg_color="transparent")
         body.grid(row=2, column=0, sticky="nsew", padx=14, pady=(0, 14))
-        body.grid_columnconfigure(0, weight=16, minsize=235)
-        body.grid_columnconfigure(1, weight=64, minsize=660)
-        body.grid_columnconfigure(2, weight=20, minsize=330)
+        body.grid_columnconfigure(0, weight=17, minsize=250)
+        body.grid_columnconfigure(1, weight=58, minsize=660)
+        body.grid_columnconfigure(2, weight=25, minsize=360)
         body.grid_rowconfigure(0, weight=1)
 
         self.left = ctk.CTkScrollableFrame(body, fg_color="transparent", width=245)
@@ -89,6 +93,7 @@ class TheoryPage(ctk.CTkFrame):
         self.center.grid(row=0, column=1, sticky="nsew", padx=4)
         self.center.grid_columnconfigure(0, weight=1)
         self.center.grid_rowconfigure(0, weight=1)
+        self.center.grid_rowconfigure(1, weight=0)
 
         self.right = ctk.CTkScrollableFrame(body, fg_color="transparent", width=340)
         self.right.grid(row=0, column=2, sticky="nsew", padx=(8, 0))
@@ -101,17 +106,20 @@ class TheoryPage(ctk.CTkFrame):
 
         self.animation = ModelAnimationCard(self.center, on_step_changed=self._on_step_changed)
         self.animation.grid(row=0, column=0, sticky="nsew")
+        self.bind("<Map>", lambda _event: self.animation.start_autoplay())
 
-        self.bottom_bar = make_card(self.center, radius=14, fg_color=BG_CARD)
-        self.bottom_bar.grid(row=1, column=0, sticky="ew", pady=(8, 0))
+        self.bottom_bar = make_card(self.center, radius=12, fg_color=BG_CARD)
+        self.bottom_bar.grid(row=1, column=0, sticky="ew", pady=(6, 0))
+        self.bottom_bar.configure(height=124)
+        self.bottom_bar.grid_propagate(False)
         self.bottom_bar.grid_columnconfigure(0, weight=1)
-        label(self.bottom_bar, "Jak przebiega proces krok po kroku?", size=15, weight="bold").grid(
-            row=0, column=0, sticky="w", padx=16, pady=(12, 6)
+        label(self.bottom_bar, "Proces krok po kroku", size=13, weight="bold").grid(
+            row=0, column=0, sticky="w", padx=14, pady=(8, 2)
         )
         self.steps_frame = ctk.CTkScrollableFrame(
-            self.bottom_bar, fg_color="transparent", orientation="horizontal", height=112
+            self.bottom_bar, fg_color="transparent", orientation="horizontal", height=78
         )
-        self.steps_frame.grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 10))
+        self.steps_frame.grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 6))
 
     def _set_family(self, family: str) -> None:
         self.family = family
@@ -156,6 +164,7 @@ class TheoryPage(ctk.CTkFrame):
         self._render_info_card(model)
         self._render_step_cards(model)
         self.animation.set_model(model)
+        self.animation.set_example_values(self.example_values)
         self._render_right_panel(model, self.active_step)
 
     def _on_step_changed(self, index: int) -> None:
@@ -207,7 +216,15 @@ class TheoryPage(ctk.CTkFrame):
         else:
             headers = ["ID", "Klasa", "MT", "MO", "MZO", "GEN"]
             rows = [
-                (row.row_id, row.klass, row.mt, row.mo, row.mzo, row.gen) for row in EXAMPLE_ROWS
+                (
+                    row.row_id,
+                    row.klass,
+                    self.example_values["mt"] if row.row_id == 1 else row.mt,
+                    self.example_values["mo"] if row.row_id == 1 else row.mo,
+                    self.example_values["mzo"] if row.row_id == 1 else row.mzo,
+                    self.example_values["gen"] if row.row_id == 1 else row.gen,
+                )
+                for row in EXAMPLE_ROWS
             ]
             note = (
                 "Wyjaśnienie kolumn:\n"
@@ -237,9 +254,47 @@ class TheoryPage(ctk.CTkFrame):
                     text_color="#f8fafc",
                 )
                 cell.grid(row=row_no, column=col, padx=2, pady=2, sticky="ew")
+                if model.family == "ml" and row_no == 2 and col in {2, 3, 4, 5}:
+                    self.example_value_labels[headers[col].lower()] = cell
         label(self.data_card, note, size=10, color="#cbd5e1", wraplength=218).grid(
             row=8, column=0, columnspan=6, sticky="w", padx=14, pady=(12, 14)
         )
+        if model.family == "ml":
+            self._render_example_controls(row=9)
+
+    def _render_example_controls(self, row: int) -> None:
+        panel = ctk.CTkFrame(self.data_card, fg_color="#0d1a26", corner_radius=8)
+        panel.grid(row=row, column=0, columnspan=6, sticky="ew", padx=12, pady=(0, 14))
+        panel.grid_columnconfigure(1, weight=1)
+        label(panel, "Zmień przykład", size=12, weight="bold").grid(
+            row=0, column=0, columnspan=3, sticky="w", padx=10, pady=(10, 4)
+        )
+        for idx, key in enumerate(("mt", "mo", "mzo", "gen"), start=1):
+            label(panel, key.upper(), size=10, weight="bold", color="#dbeafe").grid(
+                row=idx, column=0, sticky="w", padx=10, pady=3
+            )
+            value_label = label(panel, f"{self.example_values[key]:.2f}", size=10, color="#cbd5e1")
+            value_label.grid(row=idx, column=2, sticky="e", padx=10, pady=3)
+            slider = ctk.CTkSlider(
+                panel,
+                from_=0.0,
+                to=1.0,
+                number_of_steps=100,
+                command=lambda value, name=key, out=value_label: self._update_example_value(
+                    name, float(value), out
+                ),
+            )
+            slider.set(self.example_values[key])
+            slider.grid(row=idx, column=1, sticky="ew", padx=8, pady=3)
+
+    def _update_example_value(self, key: str, value: float, value_label: ctk.CTkLabel) -> None:
+        self.animation.pause_for_reading()
+        self.example_values[key] = round(value, 2)
+        value_label.configure(text=f"{self.example_values[key]:.2f}")
+        if key in self.example_value_labels:
+            self.example_value_labels[key].configure(text=f"{self.example_values[key]:.2f}")
+        self.animation.set_example_values(self.example_values)
+        self._render_right_panel(find_theory_model(self.selected_key), self.active_step)
 
     def _render_info_card(self, model: TheoryModel) -> None:
         for child in self.info_card.winfo_children():
@@ -274,22 +329,36 @@ class TheoryPage(ctk.CTkFrame):
         self.step_cards = []
         for index, (step, detail) in enumerate(zip(model.steps, model.step_details, strict=True)):
             card = make_card(self.steps_frame, fg_color="#111f2d")
-            card.grid(row=0, column=index, padx=5, pady=4, sticky="nsew")
+            card.configure(width=246, height=68)
+            card.grid_propagate(False)
+            card.grid(row=0, column=index, padx=4, pady=2, sticky="nsew")
             card.grid_columnconfigure(1, weight=1)
             small_badge(card, str(index + 1), color=BLUE if index == 0 else "#334155").grid(
-                row=0, column=0, rowspan=2, padx=(10, 8), pady=10, sticky="n"
+                row=0, column=0, rowspan=2, padx=(8, 7), pady=8, sticky="n"
             )
-            label(card, step, size=11, weight="bold").grid(
-                row=0, column=1, sticky="w", padx=(0, 10), pady=(10, 2)
+            label(card, step, size=10, weight="bold").grid(
+                row=0, column=1, sticky="w", padx=(0, 8), pady=(8, 0)
             )
-            label(card, detail, size=10, color="#cbd5e1", wraplength=205).grid(
-                row=1, column=1, sticky="nw", padx=(0, 10), pady=(0, 10)
+            label(
+                card, self._short_step_detail(detail), size=9, color="#cbd5e1", wraplength=172
+            ).grid(row=1, column=1, sticky="nw", padx=(0, 8), pady=(0, 8))
+            card.bind(
+                "<Button-1>", lambda _event, i=index: self.animation.set_step(i, user_action=True)
             )
-            card.bind("<Button-1>", lambda _event, i=index: self.animation.set_step(i))
             for child in card.winfo_children():
-                child.bind("<Button-1>", lambda _event, i=index: self.animation.set_step(i))
+                child.bind(
+                    "<Button-1>",
+                    lambda _event, i=index: self.animation.set_step(i, user_action=True),
+                )
             self.step_cards.append(card)
         self._highlight_step_cards(0)
+
+    @staticmethod
+    def _short_step_detail(detail: str, max_chars: int = 82) -> str:
+        compact = " ".join(detail.split())
+        if len(compact) <= max_chars:
+            return compact
+        return compact[: max_chars - 1].rstrip() + "…"
 
     def _highlight_step_cards(self, active_index: int) -> None:
         for i, card in enumerate(self.step_cards):
@@ -298,6 +367,33 @@ class TheoryPage(ctk.CTkFrame):
                 fg_color="#123f78" if active else "#111f2d",
                 border_color=BLUE if active else BORDER,
             )
+        self.after_idle(lambda index=active_index: self._center_step_card(index))
+
+    def _center_step_card(self, active_index: int) -> None:
+        if not (0 <= active_index < len(self.step_cards)):
+            return
+
+        canvas = getattr(self.steps_frame, "_parent_canvas", None)
+        if canvas is None:
+            return
+
+        card = self.step_cards[active_index]
+        self.steps_frame.update_idletasks()
+        canvas.update_idletasks()
+        bbox = canvas.bbox("all")
+        if bbox is None:
+            return
+
+        content_width = max(1, bbox[2] - bbox[0])
+        viewport_width = max(1, canvas.winfo_width())
+        scrollable_width = content_width - viewport_width
+        if scrollable_width <= 0:
+            canvas.xview_moveto(0)
+            return
+
+        card_center = card.winfo_x() + card.winfo_width() / 2
+        target = (card_center - viewport_width / 2) / scrollable_width
+        canvas.xview_moveto(max(0.0, min(1.0, target)))
 
     def _render_right_panel(self, model: TheoryModel, step_index: int) -> None:
         for child in self.right.winfo_children():
@@ -319,8 +415,53 @@ class TheoryPage(ctk.CTkFrame):
             row=2, column=0, sticky="ew", padx=16, pady=(0, 16)
         )
 
+        code_card = make_card(self.right, fg_color="#101923")
+        code_card.grid(row=1, column=0, sticky="ew", pady=(10, 0))
+        code_card.grid_columnconfigure(0, weight=1)
+        label(code_card, "Mini-pseudokod", size=14, weight="bold").grid(
+            row=0, column=0, sticky="w", padx=16, pady=(14, 6)
+        )
+        start = max(0, step_index - 2)
+        end = min(len(model.pseudocode), step_index + 3)
+        for row_no, code_index in enumerate(range(start, end), start=1):
+            active_line = code_index == step_index
+            line = ctk.CTkLabel(
+                code_card,
+                text=f"{code_index + 1:02d}  {model.pseudocode[code_index]}",
+                anchor="w",
+                justify="left",
+                fg_color="#123f78" if active_line else "#0f1720",
+                corner_radius=6,
+                text_color="#ffffff" if active_line else "#bfdbfe",
+                font=("Consolas", 11, "bold" if active_line else "normal"),
+                padx=8,
+                pady=5,
+            )
+            line.grid(row=row_no, column=0, sticky="ew", padx=12, pady=2)
+
+        state = make_card(self.right, fg_color="#0d1a26")
+        state.grid(row=2, column=0, sticky="ew", pady=(10, 0))
+        state.grid_columnconfigure(0, weight=1)
+        label(state, "Stan przykładu", size=14, weight="bold").grid(
+            row=0, column=0, sticky="w", padx=16, pady=(14, 6)
+        )
+        label(
+            state,
+            self._state_text(model, step_index),
+            size=12,
+            color="#cbd5e1",
+            wraplength=292,
+        ).grid(row=1, column=0, sticky="ew", padx=16, pady=(0, 14))
+        variables = self._state_variables(model, step_index)
+        for i, (name, value) in enumerate(variables, start=2):
+            row = ctk.CTkFrame(state, fg_color="transparent")
+            row.grid(row=i, column=0, sticky="ew", padx=16, pady=2)
+            row.grid_columnconfigure(1, weight=1)
+            label(row, name, size=11, color="#93c5fd").grid(row=0, column=0, sticky="w")
+            label(row, value, size=11, weight="bold").grid(row=0, column=1, sticky="e")
+
         why = make_card(self.right, fg_color="#111f2d")
-        why.grid(row=1, column=0, sticky="ew", pady=(10, 0))
+        why.grid(row=3, column=0, sticky="ew", pady=(10, 0))
         why.grid_columnconfigure(0, weight=1)
         label(why, "ⓘ  Dlaczego to ważne?", size=14, weight="bold").grid(
             row=0, column=0, sticky="w", padx=16, pady=(14, 6)
@@ -330,7 +471,7 @@ class TheoryPage(ctk.CTkFrame):
         ).grid(row=1, column=0, sticky="ew", padx=16, pady=(0, 14))
 
         next_card = make_card(self.right, fg_color="#111f2d")
-        next_card.grid(row=2, column=0, sticky="ew", pady=(10, 0))
+        next_card.grid(row=4, column=0, sticky="ew", pady=(10, 0))
         next_card.grid_columnconfigure(0, weight=1)
         label(next_card, "➜  Co będzie dalej?", size=14, weight="bold", color="#bbf7d0").grid(
             row=0, column=0, sticky="w", padx=16, pady=(14, 6)
@@ -342,7 +483,7 @@ class TheoryPage(ctk.CTkFrame):
             )
 
         tip = make_card(self.right, fg_color="#2b2717", border=True)
-        tip.grid(row=3, column=0, sticky="ew", pady=(10, 0))
+        tip.grid(row=5, column=0, sticky="ew", pady=(10, 0))
         tip.grid_columnconfigure(0, weight=1)
         label(tip, "💡  Wskazówka", size=13, weight="bold", color="#fde68a").grid(
             row=0, column=0, sticky="w", padx=16, pady=(14, 4)
@@ -351,21 +492,81 @@ class TheoryPage(ctk.CTkFrame):
             row=1, column=0, sticky="ew", padx=16, pady=(0, 14)
         )
 
+    def _state_text(self, model: TheoryModel, step_index: int) -> str:
+        if model.family == "ml":
+            states = (
+                "Bieżący trening ma kilka nowych rekordów produkcyjnych.",
+                "W katalogu modeli znajdujemy wcześniejsze packi z tym samym typem modelu.",
+                "Zbiór treningowy rośnie: nowe rekordy + historia bez duplikatów.",
+                "Powstają kolumny numeryczne gotowe dla sklearn.",
+                "Scaler zapisuje skalę, żeby solve używał tych samych przeliczeń.",
+                "Estymatory dopasowują progi, wagi lub granice decyzyjne.",
+                "Jedna instancja jest prowadzona przez aktualny model.",
+                "Cząstkowe wyniki pokazują, skąd bierze się decyzja.",
+                "Agregacja redukuje przypadkowość pojedynczego drzewa.",
+                "Rozkład pozwala ocenić pewność, nie tylko samą etykietę.",
+                "Predykcja trafia do kolumny wynikowej dla CSV.",
+                "Pack zapisuje model, scaler, metadane i dane do następnego treningu.",
+            )
+        else:
+            states = (
+                "Lista zleceń jest punktem startowym symulacji STO.",
+                "Każde zlecenie dostaje wskaźniki pomocnicze.",
+                "Reguła sortowania tworzy pierwszą kolejkę.",
+                "Kolejka jest gotowa do symulacji czasu.",
+                "Pierwsze zlecenie ustawia początek osi czasu.",
+                "Czasy zakończenia narastają po kolejnych zleceniach.",
+                "Opóźnienia pojawiają się tylko po przekroczeniu terminu.",
+                "Suma dodatnich opóźnień staje się wynikiem metody.",
+                "Warianty kolejki mogą poprawić wynik bez pełnej enumeracji.",
+                "Wszystkie metody są liczone na tych samych danych.",
+                "Ranking wybiera najmniejsze STO.",
+                "Wybrany wariant trafia do wyników i raportu.",
+            )
+        return states[min(step_index, len(states) - 1)]
+
+    def _state_variables(self, model: TheoryModel, step_index: int) -> tuple[tuple[str, str], ...]:
+        if model.family == "ml":
+            signal = (
+                self.example_values["mt"] * 0.35
+                + self.example_values["mo"] * 0.25
+                + self.example_values["mzo"] * 0.15
+                + self.example_values["gen"] * 0.25
+            )
+            history_rows = 25 if step_index >= 1 else 0
+            train_rows = 5 + history_rows if step_index >= 2 else 5
+            confidence = min(0.95, 0.52 + signal * 0.38 + step_index * 0.01)
+            return (
+                ("MT", f"{self.example_values['mt']:.2f}"),
+                ("MO", f"{self.example_values['mo']:.2f}"),
+                ("MZO", f"{self.example_values['mzo']:.2f}"),
+                ("GEN", f"{self.example_values['gen']:.2f}"),
+                ("historia", f"{history_rows} rekordów"),
+                ("zbiór uczący", f"{train_rows} rekordów"),
+                ("pewność", f"{confidence:.2f}"),
+            )
+        return (
+            ("kolejka", "J3 -> J2 -> J1 -> J4"),
+            ("czas", f"{min(step_index * 3, 19)} h"),
+            ("T+", "7 h" if step_index >= 7 else "liczone"),
+            ("najlepszy wariant", model.short_title if step_index >= 10 else "w trakcie"),
+        )
+
     def _why_text(self, model: TheoryModel, step_index: int) -> str:
         if model.family == "ml":
             texts = (
-                "Bez dobrze przygotowanych danych model nie ma z czego uczyć zależności.",
-                "Jedna instancja pozwala zobaczyć decyzję modelu jak proces, a nie czarną skrzynkę.",
-                "Wspólna skala cech stabilizuje analizę i ułatwia porównywanie kolumn.",
-                "Model nie patrzy na wszystko jednakowo — szuka cech, które realnie zmniejszają błąd.",
-                "Podziały w drzewie tłumaczą, dlaczego podobne rekordy trafiają do podobnych wyników.",
-                "Przejście po gałęzi pokazuje, jak konkretne liczby zmieniają decyzję.",
-                "Wynik pojedynczego drzewa jest tylko fragmentem całej decyzji.",
-                "Wiele estymatorów zmniejsza ryzyko, że przypadkowy błąd jednego drzewa zdominuje wynik.",
+                "Bez nowych danych model nie ma świeżego sygnału z aktualnego uruchomienia.",
+                "Historia sprawia, że model nie zaczyna od zera przy każdym treningu.",
+                "Łączenie historii z nowymi rekordami daje szerszy i stabilniejszy zbiór uczący.",
+                "Dobre cechy są mostem między tabelą produkcyjną a algorytmem ML.",
+                "Wspólna skala stabilizuje analizę i ułatwia porównywanie kolumn.",
+                "Trening jest miejscem, w którym model faktycznie dopasowuje zależności.",
+                "Ścieżka decyzji pokazuje, jak konkretne liczby zmieniają wynik.",
+                "Wynik pojedynczego estymatora jest tylko fragmentem całej decyzji.",
                 "Łączenie głosów daje bardziej odporną predykcję.",
                 "Rozkład pokazuje nie tylko decyzję, ale też poziom pewności.",
                 "Końcowa predykcja jest tym, co później widzi użytkownik w wynikach.",
-                "Zapis wyniku pozwala użyć modelu w raportach, priorytetach i kolejnych obliczeniach.",
+                "Zapis doświadczenia pozwala kolejnym treningom korzystać z poprzednich uruchomień.",
             )
         else:
             texts = (
@@ -427,3 +628,42 @@ class TheoryPage(ctk.CTkFrame):
             label(row, item.focus, size=10, color="#cbd5e1", wraplength=255).grid(
                 row=1, column=0, sticky="w", padx=10, pady=(0, 8)
             )
+            score = self._compare_score(item, i)
+            bar = ctk.CTkProgressBar(row, height=10, progress_color=self._compare_color(item))
+            bar.set(score)
+            bar.grid(row=2, column=0, sticky="ew", padx=10, pady=(0, 4))
+            label(
+                row,
+                f"czytelność {score:.2f} | koszt treningu {self._training_cost_label(item)}",
+                size=10,
+                color="#cbd5e1",
+            ).grid(row=3, column=0, sticky="w", padx=10, pady=(0, 8))
+
+    def _compare_score(self, model: TheoryModel, index: int) -> float:
+        if model.family == "mh":
+            return max(0.35, 0.92 - index * 0.04)
+        if "Random" in model.algorithm or "Extra" in model.algorithm:
+            return 0.84
+        if "Hist" in model.algorithm:
+            return 0.80
+        if "Gradient" in model.algorithm:
+            return 0.76
+        return 0.68
+
+    def _compare_color(self, model: TheoryModel) -> str:
+        if model.family == "mh":
+            return GREEN
+        if "Gradient" in model.algorithm:
+            return YELLOW
+        if "Regresja" in model.algorithm:
+            return PURPLE
+        return BLUE
+
+    def _training_cost_label(self, model: TheoryModel) -> str:
+        if model.family == "mh":
+            return "brak treningu"
+        if "Hist" in model.algorithm or "Extra" in model.algorithm:
+            return "średni"
+        if "Gradient" in model.algorithm:
+            return "wyższy"
+        return "średni"

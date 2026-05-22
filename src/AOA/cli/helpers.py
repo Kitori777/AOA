@@ -4,10 +4,12 @@ import sys
 from collections.abc import Iterable
 from pathlib import Path
 
+from AOA.core.mh_models import MH_MODEL_NAMES
+from AOA.core.ml_models import ML_MODEL_NAMES
 from AOA.utils.logging_utils import get_logger
 
-AVAILABLE_ML_MODELS = {"Quality", "Delay", "Schedule"}
-AVAILABLE_STO_MODELS = {"MT", "MO", "MZO", "GENETIC"}
+AVAILABLE_ML_MODELS = set(ML_MODEL_NAMES)
+AVAILABLE_STO_MODELS = set(MH_MODEL_NAMES)
 AVAILABLE_BACKENDS = {"classic", "tabpfn"}
 DEFAULT_SHAPES = ["kwadrat", "trojkat", "trapez"]
 DEFAULT_MATERIALS = ["bawelna", "mikrofibra", "poliester", "wiskoza"]

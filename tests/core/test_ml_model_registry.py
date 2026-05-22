@@ -3,8 +3,10 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+from AOA.cli.helpers import AVAILABLE_ML_MODELS, AVAILABLE_STO_MODELS
 from AOA.core.data_generation import generate_production_data
-from AOA.core.ml_models import ML_MODEL_SPECS, ML_MODELS_BY_TASK, get_ml_task
+from AOA.core.mh_models import MH_MODEL_NAMES
+from AOA.core.ml_models import ML_MODEL_NAMES, ML_MODEL_SPECS, ML_MODELS_BY_TASK, get_ml_task
 from AOA.core.models import train_selected_models
 from AOA.gui.pages.theory_page.data import THEORY_MODELS
 
@@ -40,6 +42,14 @@ def test_ml_registry_contains_twelve_models_grouped_by_task():
     assert len(ML_MODELS_BY_TASK["delay"]) == 4
     assert len(ML_MODELS_BY_TASK["schedule"]) == 4
     assert {spec.name for spec in ML_MODEL_SPECS} == set().union(*ML_MODELS_BY_TASK.values())
+
+
+def test_cli_uses_ml_registry_model_names():
+    assert AVAILABLE_ML_MODELS == ML_MODEL_NAMES
+
+
+def test_cli_uses_sto_registry_model_names():
+    assert AVAILABLE_STO_MODELS == MH_MODEL_NAMES
 
 
 @pytest.mark.parametrize("spec", ML_MODEL_SPECS, ids=lambda spec: spec.name)
@@ -83,4 +93,5 @@ def test_every_ml_model_has_theory_card_with_full_step_animation(spec):
     assert card.algorithm
     assert len(card.steps) == 12
     assert len(card.step_details) == 12
+    assert len(card.pseudocode) == 12
     assert len(card.next_steps) >= 3

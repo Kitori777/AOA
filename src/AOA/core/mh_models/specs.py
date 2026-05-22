@@ -26,6 +26,12 @@ MH_MODEL_SPECS: tuple[MHModelSpec, ...] = (
         "długie zlecenia i obciążenie startu",
     ),
     MHModelSpec(
+        "MOPT",
+        "MOpt",
+        "Metoda optymalna minimalizująca sumę dodatnich opóźnień STO.",
+        "dokładny wybór kolejności zleceń",
+    ),
+    MHModelSpec(
         "GENETIC",
         "GENETIC",
         "Mutacyjna poprawa populacji kolejności.",

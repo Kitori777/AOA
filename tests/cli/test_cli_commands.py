@@ -1,9 +1,10 @@
+from argparse import Namespace
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
 from AOA import cli
+from AOA.cli.commands import generate, preview, solve, sto, train
 
 
 def norm(text: str) -> str:
@@ -18,9 +19,9 @@ def test_command_generate_prints_paths(monkeypatch, capsys):
         "messages": ["msg1", "msg2"],
     }
 
-    monkeypatch.setattr(cli, "generate_and_store_datasets", lambda **kwargs: fake_result)
+    monkeypatch.setattr(generate, "generate_and_store_datasets", lambda **kwargs: fake_result)
 
-    args = SimpleNamespace(
+    args = Namespace(
         n=800,
         machines=1,
         test_size=0.2,
@@ -47,9 +48,9 @@ def test_command_train_runs_ml_flow(monkeypatch, capsys, tmp_path):
     data_file = tmp_path / "train.csv"
     data_file.write_text("x", encoding="utf-8")
 
-    monkeypatch.setattr(cli, "resolve_existing_file", lambda path, label: data_file)
+    monkeypatch.setattr(train, "resolve_existing_file", lambda path, label: data_file)
     monkeypatch.setattr(
-        cli,
+        train,
         "load_training_data",
         lambda path, train_ratio: {
             "full_df": [1, 2, 3, 4],
@@ -60,7 +61,7 @@ def test_command_train_runs_ml_flow(monkeypatch, capsys, tmp_path):
     )
 
     monkeypatch.setattr(
-        cli,
+        train,
         "train_models_flow",
         lambda **kwargs: {
             "model_path": Path("models/model_ml.pkl"),
@@ -68,7 +69,7 @@ def test_command_train_runs_ml_flow(monkeypatch, capsys, tmp_path):
         },
     )
 
-    args = SimpleNamespace(
+    args = Namespace(
         data=str(data_file),
         models="Quality,Delay",
         backend="classic",
@@ -92,9 +93,9 @@ def test_command_train_runs_sto_flow(monkeypatch, capsys, tmp_path):
     data_file = tmp_path / "train.csv"
     data_file.write_text("x", encoding="utf-8")
 
-    monkeypatch.setattr(cli, "resolve_existing_file", lambda path, label: data_file)
+    monkeypatch.setattr(train, "resolve_existing_file", lambda path, label: data_file)
     monkeypatch.setattr(
-        cli,
+        train,
         "load_training_data",
         lambda path, train_ratio: {
             "full_df": [1, 2, 3],
@@ -105,7 +106,7 @@ def test_command_train_runs_sto_flow(monkeypatch, capsys, tmp_path):
     )
 
     monkeypatch.setattr(
-        cli,
+        train,
         "train_sto_models_flow",
         lambda methods: {
             "model_path": Path("models/model_sto.pkl"),
@@ -113,7 +114,7 @@ def test_command_train_runs_sto_flow(monkeypatch, capsys, tmp_path):
         },
     )
 
-    args = SimpleNamespace(
+    args = Namespace(
         data=str(data_file),
         models="MT,MO",
         backend="classic",
@@ -135,9 +136,9 @@ def test_command_train_runs_sto_flow(monkeypatch, capsys, tmp_path):
 def test_command_train_rejects_invalid_model(monkeypatch, tmp_path):
     data_file = tmp_path / "train.csv"
     data_file.write_text("x", encoding="utf-8")
-    monkeypatch.setattr(cli, "resolve_existing_file", lambda path, label: data_file)
+    monkeypatch.setattr(train, "resolve_existing_file", lambda path, label: data_file)
 
-    args = SimpleNamespace(
+    args = Namespace(
         data=str(data_file),
         models="Quality,BADMODEL",
         backend="classic",
@@ -161,9 +162,9 @@ def test_command_solve_prints_result_path(monkeypatch, capsys, tmp_path):
     def fake_resolve(path, label):
         return model_file if label == "pliku modelu" else data_file
 
-    monkeypatch.setattr(cli, "resolve_existing_file", fake_resolve)
+    monkeypatch.setattr(solve, "resolve_existing_file", fake_resolve)
     monkeypatch.setattr(
-        cli,
+        solve,
         "solve_models_flow",
         lambda model_path, data_path: {
             "result_path": Path("data/wynik.csv"),
@@ -171,7 +172,7 @@ def test_command_solve_prints_result_path(monkeypatch, capsys, tmp_path):
         },
     )
 
-    args = SimpleNamespace(model=str(model_file), data=str(data_file))
+    args = Namespace(model=str(model_file), data=str(data_file))
     code = cli.command_solve(args)
     assert code == 0
 
@@ -182,7 +183,7 @@ def test_command_solve_prints_result_path(monkeypatch, capsys, tmp_path):
 
 def test_command_sto_run_prints_report(monkeypatch, capsys):
     monkeypatch.setattr(
-        cli,
+        sto,
         "analyze_sto_models",
         lambda **kwargs: {
             "report": "RAPORT STO TEST",
@@ -192,7 +193,7 @@ def test_command_sto_run_prints_report(monkeypatch, capsys):
         },
     )
 
-    args = SimpleNamespace(
+    args = Namespace(
         jobs="Z1,Z2,Z3",
         times="10,20,100",
         deadlines="150,30,110",
@@ -211,7 +212,7 @@ def test_command_sto_run_prints_report(monkeypatch, capsys):
 
 def test_command_sto_train_prints_saved_model(monkeypatch, capsys):
     monkeypatch.setattr(
-        cli,
+        sto,
         "train_sto_models_flow",
         lambda methods: {
             "model_path": Path("models/sto.pkl"),
@@ -219,7 +220,7 @@ def test_command_sto_train_prints_saved_model(monkeypatch, capsys):
         },
     )
 
-    args = SimpleNamespace(methods="MT,MO,MZO")
+    args = Namespace(methods="MT,MO,MZO")
     code = cli.command_sto_train(args)
     assert code == 0
 
@@ -237,9 +238,9 @@ def test_command_sto_solve_prints_report(monkeypatch, capsys, tmp_path):
     def fake_resolve(path, label):
         return model_file if "modelu STO" in label else data_file
 
-    monkeypatch.setattr(cli, "resolve_existing_file", fake_resolve)
+    monkeypatch.setattr(sto, "resolve_existing_file", fake_resolve)
     monkeypatch.setattr(
-        cli,
+        sto,
         "solve_sto_with_saved_model",
         lambda model_path, data_path: {
             "report": "STO REPORT",
@@ -249,7 +250,7 @@ def test_command_sto_solve_prints_report(monkeypatch, capsys, tmp_path):
         },
     )
 
-    args = SimpleNamespace(model=str(model_file), data=str(data_file))
+    args = Namespace(model=str(model_file), data=str(data_file))
     code = cli.command_sto_solve(args)
     assert code == 0
 
@@ -263,15 +264,15 @@ def test_command_preview_prints_dataframe_preview(monkeypatch, capsys, tmp_path)
     data_file = tmp_path / "data.csv"
     data_file.write_text("x", encoding="utf-8")
 
-    monkeypatch.setattr(cli, "resolve_existing_file", lambda path, label: data_file)
-    monkeypatch.setattr(cli, "load_csv", lambda path: {"dummy": "df"})
+    monkeypatch.setattr(preview, "resolve_existing_file", lambda path, label: data_file)
+    monkeypatch.setattr(preview, "load_csv", lambda path: {"dummy": "df"})
     monkeypatch.setattr(
-        cli,
+        preview,
         "build_dataframe_preview_text",
         lambda df, title, max_rows: f"{title} | rows={max_rows}",
     )
 
-    args = SimpleNamespace(data=str(data_file), rows=10)
+    args = Namespace(data=str(data_file), rows=10)
     code = cli.command_preview(args)
     assert code == 0
 
@@ -280,7 +281,7 @@ def test_command_preview_prints_dataframe_preview(monkeypatch, capsys, tmp_path)
 
 
 def test_command_summary_prints_summary(capsys):
-    args = SimpleNamespace(
+    args = Namespace(
         models="Quality,Delay,MT",
         backend="tabpfn",
         n=800,
@@ -307,7 +308,7 @@ def test_command_summary_prints_summary(capsys):
 
 
 def test_command_status_without_file(capsys):
-    args = SimpleNamespace(data="", train_ratio=0.8)
+    args = Namespace(data="", train_ratio=0.8)
     code = cli.command_status(args)
     assert code == 0
 
@@ -320,9 +321,9 @@ def test_command_status_with_file(monkeypatch, capsys, tmp_path):
     data_file = tmp_path / "data.csv"
     data_file.write_text("x", encoding="utf-8")
 
-    monkeypatch.setattr(cli, "resolve_existing_file", lambda path, label: data_file)
+    monkeypatch.setattr(preview, "resolve_existing_file", lambda path, label: data_file)
     monkeypatch.setattr(
-        cli,
+        preview,
         "load_training_data",
         lambda path, train_ratio: {
             "train_df": [1, 2, 3],
@@ -330,7 +331,7 @@ def test_command_status_with_file(monkeypatch, capsys, tmp_path):
         },
     )
 
-    args = SimpleNamespace(data=str(data_file), train_ratio=0.8)
+    args = Namespace(data=str(data_file), train_ratio=0.8)
     code = cli.command_status(args)
     assert code == 0
 

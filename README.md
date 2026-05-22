@@ -4,7 +4,7 @@
 
 AOA to rozwijana aplikacja desktopowa i terminalowa napisana w Pythonie. Jej celem jest wspomaganie analizy danych, uczenia modeli, porównywania metod harmonogramowania oraz prezentowania wyników w formie czytelnych tabel, raportów i wykresów.
 
-Od wersji `0.5.1` projekt rozwija się nie tylko jako narzędzie produkcyjno-optymalizacyjne, ale również jako aplikacja analityczno-edukacyjna. Użytkownik może wczytać własne dane tabelaryczne, obejrzeć je w widoku podobnym do prostego CSV viewera, przygotować raport, uruchomić wizualizację oraz sprawdzić krótkie wyjaśnienia modeli i metryk.
+Od wersji `0.6.0` projekt rozwija się nie tylko jako narzędzie produkcyjno-optymalizacyjne, ale również jako aplikacja analityczno-edukacyjna. Użytkownik może wczytać własne dane tabelaryczne, obejrzeć je w widoku podobnym do prostego CSV viewera, przygotować raport, uruchomić wizualizację oraz sprawdzić krótkie wyjaśnienia modeli i metryk.
 
 Projekt zachowuje architekturę modułową:
 
@@ -33,71 +33,18 @@ Aplikacja umożliwia między innymi:
 - obsługę pełnych przepływów pracy zarówno z poziomu GUI, jak i z terminala.
 
 
-## Najważniejsze poprawki w wersji 0.5.1
+## Najważniejsze zmiany w wersji 0.6.0
 
-* Metryki ML pokazują teraz osobno wynik na zbiorze treningowym i testowym.
-* `df_test` jest realnie przekazywany do treningu i oceny modeli w CLI oraz GUI.
-* Dodano 12 wariantów modeli ML oraz testy dla każdego z nich.
-* `TheoryPage` ma większą, czytelniejszą animację oraz zwijany panel boczny.
-* Pakiety `services`, `ml_models` i `mh_models` są rozbite na mniejsze pliki, a `__init__.py` pełnią rolę lekkich fasad.
+* Pełny przepływ ML `train -> save -> load -> solve` działa dla wszystkich 12 wariantów `classic` opisanych w README.
+* Poprawiono wczytywanie zapisanych modeli scikit-learn opartych o `GradientBoosting*` i `HistGradientBoosting*`.
+* Naprawiono modele `Schedule*` w `solve`: symulacja harmonogramu dostaje teraz dane, a model przewiduje strategię na przygotowanych cechach.
+* CLI korzysta z tego samego rejestru modeli co GUI, więc terminal i interfejs graficzny pokazują spójny zestaw modeli.
+* Buildery modeli ML zostały przebudowane na pipeline'y scikit-learn z imputacją braków danych i lepszymi domyślnymi parametrami.
+* Modele mogą korzystać z pamięci treningowej: zapisane paczki przechowują dane treningowe, które kolejne treningi mogą dołączyć do nowych rekordów.
+* `Visual Lab` ma osobne renderery D3 dla wszystkich wyborów wykresów, w tym macierzy korelacji, podobieństwa, Pair Explorer, heatmapy, bubble chart, outlier map, 3D i drzewa decyzyjnego.
+* `Results Studio` ma prostszy CSV loader: tryb, kolumna, preset liczby wierszy i własna liczba rekordów.
+* `TheoryPage` ma bardziej kompaktowy pasek kroków i większy obszar animacji, żeby łatwiej zatrzymać i przeanalizować aktualny etap.
 
-## Najważniejsze nowości w wersji 0.5.0
-
-### Interaktywna instrukcja użytkownika
-
-Strona `Readme` została przebudowana z prostego widoku dokumentacji na interaktywną instrukcję. Użytkownik może przechodzić po kolejnych krokach i sprawdzać:
-
-- co robi dany moduł,
-- gdzie kliknąć,
-- po co wykonywany jest dany etap,
-- na co uważać przy danych, modelach, STO i wynikach.
-
-### Theory Page — teoria użytkowa modeli
-
-Strona `Theory` pokazuje najważniejsze pojęcia potrzebne do korzystania z aplikacji:
-
-- regresja i metryki RMSE/MAE/R²,
-- klasyfikacja i metryki Accuracy/F1,
-- przeuczenie modelu,
-- ważność cech,
-- modele jakości i opóźnień,
-- strategia harmonogramowania,
-- STO,
-- priorytet zlecenia.
-
-Każdy moduł ma krótki zapis matematyczny, opis prostym językiem, praktyczną interpretację i wykres pokazujący intuicję działania.
-
-### Visual Lab — wizualizacje i raporty
-
-Widok `Visual` został rozbudowany w kierunku laboratorium eksploracji danych. Użytkownik może wybierać kolumny X/Y/Z i przełączać typy wykresów, m.in.:
-
-- `Dashboard`,
-- `Diagnostics`,
-- `Pair Explorer`,
-- `3D Scatter`,
-- `3D Surface`,
-- `Bubble Chart`,
-- `Heatmap Density`,
-- `Outlier Map`,
-- `Step View`,
-- `Column Ranking`,
-- klasyczne wykresy `Scatter`, `Line`, `Histogram`, `Boxplot`,
-- macierze korelacji i podobieństwa.
-
-Po prawej stronie widoczny jest raport, który podsumowuje dane, statystyki wybranych kolumn, obserwacje odstające i korelację.
-
-### Results Studio — viewer i raport danych
-
-Strona `Results` została przebudowana jako początek prostego, nowoczesnego viewera danych. Zamiast niedokończonych przycisków regresji i klasyfikacji widok skupia się na pracy z tabelą:
-
-- globalny filtr tekstowy,
-- sortowanie po wybranej kolumnie,
-- wybór kierunku sortowania,
-- limit liczby wierszy,
-- profil wybranej kolumny,
-- raport braków danych,
-- eksport widocznego widoku do CSV,
-- karty podsumowania liczby wierszy, kolumn, braków i duplikatów.
 
 ## Aktualna struktura repozytorium
 
@@ -192,7 +139,7 @@ W bieżącej wersji panel wyboru modeli został rozszerzony tak, aby użytkownik
 - `Delay`, `Delay_RF`, `Delay_ET`, `Delay_HGB` — cztery modele regresyjne dla opóźnień, skupione na ryzyku przekroczenia terminu i dużych błędach.
 - `Schedule`, `Schedule_ET`, `Schedule_GB`, `Schedule_LOG` — cztery klasyfikatory strategii harmonogramowania, od modeli drzewiastych po prosty baseline liniowy.
 
-Modele heurystyczne STO zostały rozszerzone do zestawu 12 metod: `MT`, `MO`, `MZO`, `GENETIC`, `SLACK`, `CR`, `EDD_SPT`, `SPT_EDD`, `LPT_EDD`, `NEH`, `LOCAL_SEARCH`, `RANDOM_RESTART`. Każda metoda ma opis, na co patrzy: termin, czas obróbki, zapas, krytyczność, wariant wstawiania lub lokalne poprawki kolejności.
+Modele heurystyczne STO zostały rozszerzone do zestawu 13 metod: `MT`, `MO`, `MZO`, `MOPT`, `GENETIC`, `SLACK`, `CR`, `EDD_SPT`, `SPT_EDD`, `LPT_EDD`, `NEH`, `LOCAL_SEARCH`, `RANDOM_RESTART`. Każda metoda ma opis, na co patrzy: termin, czas obróbki, zapas, dokładne minimum STO, krytyczność, wariant wstawiania lub lokalne poprawki kolejności.
 
 Architektura została przygotowana modułowo: definicje modeli ML znajdują się w `src/AOA/core/ml_models/`, a definicje heurystyk w `src/AOA/core/mh_models/`. Dzięki temu można później dopisywać kolejne warianty bez przeciążania głównych plików aplikacji.
 
@@ -281,21 +228,33 @@ Projekt posiada działający fundament techniczny i obejmuje aplikację desktopo
 - przygotowanie cech do modeli ML,
 - trenowanie wielu modeli jednocześnie,
 - automatyczny zapis modeli do osobnych plików,
-- klasyczne modele ML:
-  - Random Forest dla jakości,
-  - Gradient Boosting dla opóźnień,
-  - Random Forest dla strategii harmonogramowania,
+- 12 klasycznych wariantów ML:
+  - `Quality`, `Quality_ET`, `Quality_GB`, `Quality_HGB`,
+  - `Delay`, `Delay_RF`, `Delay_ET`, `Delay_HGB`,
+  - `Schedule`, `Schedule_ET`, `Schedule_GB`, `Schedule_LOG`,
+- pełny przepływ `train -> save -> load -> solve` dla modeli ML,
+- pipeline'y ML z imputacją braków danych i spójnym przygotowaniem cech,
+- pamięć treningowa modeli ML oparta o zapisane paczki modeli,
 - eksperymentalny backend `TabPFN`,
 - metryki jakości uczenia modeli ML,
 - heurystyczne modele STO:
   - `MT`,
   - `MO`,
   - `MZO`,
+  - `MOPT`,
   - `GENETIC`,
+  - `SLACK`,
+  - `CR`,
+  - `EDD_SPT`,
+  - `SPT_EDD`,
+  - `LPT_EDD`,
+  - `NEH`,
+  - `LOCAL_SEARCH`,
+  - `RANDOM_RESTART`,
 - zapis i późniejsze używanie modeli STO,
 - interaktywna instrukcja na stronie `Readme`,
 - teoria użytkowa na stronie `Theory`,
-- rozbudowane wizualizacje i raporty na stronie `Visual`,
+- rozbudowane wizualizacje, raporty i pełniejsze wykresy D3 na stronie `Visual`,
 - przebudowany viewer danych na stronie `Results`,
 - podstawowe operacje analityczne i ewaluacyjne,
 - obsługa pełnych przepływów pracy w GUI i CLI,
@@ -306,12 +265,13 @@ Projekt posiada działający fundament techniczny i obejmuje aplikację desktopo
 
 ## Plan na kolejne aktualizacje
 
-- dalszy rozwój `Visual Lab` w kierunku bardziej interaktywnych wykresów,
-- mocniejsze dashboardy i karty diagnostyczne,
-- dalszy rozwój `Results Studio` w stronę pełnego narzędzia do pracy z plikami CSV,
-- dodanie bardziej zaawansowanych filtrów kolumnowych,
-- eksport raportów do osobnych plików,
-- lepsze porównywanie wyników wielu modeli,
-- rozwój helpdesku / asystenta użytkownika,
+- kreator dashboardów w `Visual Lab`, pozwalający zapisywać własne układy paneli i wracać do nich później,
+- bardziej zaawansowane filtry kolumnowe w `Results Studio`, np. warunki tekstowe, zakresy dat, profile kategorii i zapis presetów filtrów,
+- eksport raportów do HTML/PDF wraz z tabelą, wykresami i opisem jakości danych,
+- porównywarka wielu zapisanych modeli ML: metryki, różnice predykcji, stabilność i historia treningu,
+- panel historii treningów pokazujący, z jakich wcześniejszych paczek korzystała pamięć modelu,
+- rozszerzenie pamięci treningowej o kontrolowane strategie: limit wieku danych, ręczne wykluczanie paczek i walidację jakości historii,
+- asystent użytkownika / helpdesk w aplikacji, który po opisaniu celu podpowie właściwy moduł i przygotuje konfigurację analizy,
+- opcjonalna integracja z agentami albo projektem AIRI jako przyszły tryb wspomagania użytkownika,
 - dalsza optymalizacja kodu i wydajności GUI,
-- rozbudowa dokumentacji i przykładów użycia.
+- rozbudowa dokumentacji o scenariusze krok po kroku oraz przykładowe pliki wejściowe dla ML, STO, Visual i Results.

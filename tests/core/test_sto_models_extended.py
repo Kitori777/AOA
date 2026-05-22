@@ -37,9 +37,9 @@ def test_run_selected_sto_models_rejects_no_methods():
 def test_run_selected_sto_models_returns_result_for_each_method():
     jobs = parse_jobs("A,B,C", "2,1,3", "5,4,9")
 
-    results = run_selected_sto_models(jobs, ["MT", "MO", "MZO", "GENETIC"])
+    results = run_selected_sto_models(jobs, ["MT", "MO", "MZO", "MOPT", "GENETIC"])
 
-    assert len(results) == 4
+    assert len(results) == 5
     for item in results:
         assert "method" in item
         assert "order" in item

@@ -43,6 +43,7 @@ class TheoryModel:
     focus: str
     steps: tuple[str, ...]
     step_details: tuple[str, ...]
+    pseudocode: tuple[str, ...]
     next_steps: tuple[str, ...]
     tip: str
     probabilities: tuple[tuple[str, float], ...]
@@ -65,18 +66,18 @@ JOB_ROWS: tuple[JobRow, ...] = (
 )
 
 ML_STEPS: tuple[str, ...] = (
-    "Dane wejściowe",
-    "Wybór instancji",
-    "Normalizacja cech",
-    "Skanowanie cech",
-    "Pierwszy podział",
-    "Przejście po gałęzi",
-    "Wynik drzewa",
-    "Kolejne estymatory",
+    "Nowe dane",
+    "Pamięć treningowa",
+    "Połączenie historii",
+    "Przygotowanie cech",
+    "Normalizacja",
+    "Trening estymatorów",
+    "Ścieżka decyzji",
+    "Wyniki cząstkowe",
     "Łączenie głosów",
     "Rozkład wyniku",
     "Predykcja końcowa",
-    "Zapis do raportu",
+    "Zapis doświadczenia",
 )
 
 MH_STEPS: tuple[str, ...] = (
@@ -133,18 +134,35 @@ def _ml_result(name: str) -> str:
 
 def _ml_details(algorithm: str, task: str) -> tuple[str, ...]:
     return (
-        "Wczytujemy przykładowe rekordy i pokazujemy cechy, z których model może korzystać.",
-        "Wybieramy jeden przypadek, żeby śledzić jego drogę przez model od początku do końca.",
-        "Cechy MT, MO, MZO i GEN są ustawiane w jednej skali, aby żadna kolumna nie dominowała tylko przez jednostkę.",
-        f"Model {algorithm} sprawdza, które cechy najsilniej pomagają przewidzieć {task}.",
-        "Drzewo lub estymator wybiera pierwszy podział, który najmocniej zmniejsza błąd na danych treningowych.",
-        "Instancja przechodzi do lewej albo prawej gałęzi, zależnie od wartości cechy i progu.",
-        "Pojedyncze drzewo daje wynik cząstkowy: głos klasy, wartość jakości albo poprawkę opóźnienia.",
-        "Kolejne drzewa/estymatory analizują ten sam przypadek z innych losowań lub poprawiają wcześniejszy błąd.",
-        "Wyniki cząstkowe są uśredniane albo sumowane, dzięki czemu decyzja jest stabilniejsza niż jedno drzewo.",
-        "Aplikacja zamienia wyniki na czytelny rozkład: widać, która klasa lub wariant ma największą pewność.",
-        "Najwyższy wynik staje się predykcją końcową widoczną dla użytkownika.",
-        "Predykcja może trafić do tabeli wyników, priorytetu zlecenia, raportu lub dalszej symulacji.",
+        "Wczytujemy rekordy z bieżącego uruchomienia: z GUI, CSV albo generatora danych.",
+        "Aplikacja szuka poprzednich zapisanych model packów z pasującymi modelami i backendem.",
+        "Nowe rekordy są łączone z historią, a duplikaty usuwane, żeby model uczył się na szerszym doświadczeniu.",
+        "Z surowych kolumn tworzymy cechy liczbowe: presję terminu, koszt czasu, jakość materiału i geometrię.",
+        "Cechy trafiają do jednej skali, żeby model nie traktował większych jednostek jako ważniejszych.",
+        f"Model {algorithm} uczy się zależności między cechami a celem: {task}.",
+        "Wybrana instancja przechodzi przez reguły modelu, progi drzew albo granicę decyzyjną klasyfikatora.",
+        "Każdy estymator daje wynik cząstkowy: wartość, poprawkę błędu albo głos klasy.",
+        "Wyniki cząstkowe są uśredniane, sumowane albo głosowane, co stabilizuje decyzję.",
+        "Aplikacja pokazuje rozkład wyniku: widać nie tylko decyzję, ale też poziom pewności.",
+        "Najsilniejszy wynik staje się predykcją końcową używaną w solve i raportach.",
+        "Model pack zapisuje model oraz dane treningowe, żeby następne uruchomienie mogło uczyć się dalej.",
+    )
+
+
+def _ml_pseudocode() -> tuple[str, ...]:
+    return (
+        "current = load_current_training_rows()",
+        "history = scan_saved_model_packs(selected_models, backend)",
+        "train_df = dedupe(history + current).tail(max_rows)",
+        "X, y_quality, y_delay = prepare_features(train_df)",
+        "X_scaled = scaler.fit_transform(X)",
+        "model.fit(X_scaled, target)",
+        "path = estimator.decision_path(sample)",
+        "partial = estimator.predict(sample)",
+        "prediction = aggregate(partial_results)",
+        "distribution = normalize_scores(prediction)",
+        "result_df[column] = prediction",
+        "save_model_pack(model, training_data=train_df)",
     )
 
 
@@ -162,6 +180,23 @@ def _mh_details(label: str, description: str) -> tuple[str, ...]:
         "Ten sam zestaw zleceń jest liczony innymi heurystykami, żeby mieć punkt odniesienia.",
         "Wyniki trafiają do rankingu STO. Najniższa suma opóźnień wygrywa.",
         "Wybrana kolejka może zostać zapisana jako rekomendacja, CSV albo raport dla użytkownika.",
+    )
+
+
+def _mh_pseudocode() -> tuple[str, ...]:
+    return (
+        "jobs = load_jobs()",
+        "features = compute_processing_deadline_ratios(jobs)",
+        "ordered = sort_by_rule(features)",
+        "time = 0; queue = ordered",
+        "start(job) = time",
+        "finish(job) = start(job) + processing_time(job)",
+        "lateness(job) = max(0, finish(job) - due_date(job))",
+        "sto = sum(lateness)",
+        "candidate = try_local_variant(queue)",
+        "scores = compare_all_methods(jobs)",
+        "best = min(scores, key=sto)",
+        "save_result(best.queue, best.sto)",
     )
 
 
@@ -193,6 +228,7 @@ def _build_ml_models() -> list[TheoryModel]:
                 focus=spec.focus,
                 steps=ML_STEPS,
                 step_details=_ml_details(algorithm, task),
+                pseudocode=_ml_pseudocode(),
                 next_steps=(
                     "Następny krok pokaże przepływ danych przez kolejną część modelu.",
                     "Po przejściu wszystkich kroków zobaczysz wynik i rozkład pewności.",
@@ -223,6 +259,7 @@ def _build_mh_models() -> list[TheoryModel]:
                 focus=spec.focus,
                 steps=MH_STEPS,
                 step_details=_mh_details(spec.label, spec.description),
+                pseudocode=_mh_pseudocode(),
                 next_steps=(
                     "Następny krok przelicza kolejkę i pokazuje, skąd bierze się STO.",
                     "Na końcu porównamy wynik z innymi heurystykami.",

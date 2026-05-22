@@ -17,7 +17,7 @@ def build_examples_text() -> str:
           aoa-cli train --data data/train_x.csv --models Quality --backend tabpfn
           aoa-cli solve --model models/model_x.pkl --data data/test_x.csv
           aoa-cli sto-run --jobs Z1,Z2,Z3 --times 10,20,100 --deadlines 150,30,110 --methods MT,MO,MZO
-          aoa-cli sto-train --methods MT,MO,MZO,GENETIC
+          aoa-cli sto-train --methods MT,MO,MZO,MOPT
           aoa-cli sto-solve --model models/model_sto_x.pkl --data data/test_x.csv
           aoa-cli preview --data data/test_x.csv --rows 10
           aoa-cli summary --models Quality,Delay,MT --backend tabpfn --n 800 --machines 1
@@ -151,7 +151,7 @@ def build_parser() -> argparse.ArgumentParser:
         "sto-train",
         help="Zapisz paczkę modeli STO",
         description="Zapisuje paczkę metod STO do późniejszego użycia.",
-        epilog="Przykład: aoa-cli sto-train --methods MT,MO,MZO,GENETIC",
+        epilog="Przykład: aoa-cli sto-train --methods MT,MO,MZO,MOPT",
         formatter_class=formatter,
     )
     sto_train_parser.add_argument("--methods", required=True, type=str, help="Lista metod STO")

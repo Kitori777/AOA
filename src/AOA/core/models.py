@@ -361,10 +361,18 @@ SAFE_MODULE_PREFIXES = (
     "sklearn",
     "AOA",
 )
+SAFE_MODULES = {
+    # scikit-learn serializes some GradientBoosting/HistGradientBoosting
+    # loss objects through this private extension module.
+    "_loss",
+}
 
 
 def _is_safe_module(module: str) -> bool:
     if module.startswith("test_"):
+        return True
+
+    if module in SAFE_MODULES:
         return True
 
     return any(

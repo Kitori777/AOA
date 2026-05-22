@@ -68,6 +68,10 @@ def filter_sort_limit_dataframe(
     sort_column: str | None = None,
     descending: bool = False,
     limit: int = 200,
+    numeric_column: str | None = None,
+    min_value: float | None = None,
+    max_value: float | None = None,
+    top_mode: str = "all",
 ) -> pd.DataFrame:
     """Return a user-facing table preview after filtering, sorting and limiting."""
     if df is None or df.empty:
@@ -83,7 +87,23 @@ def filter_sort_limit_dataframe(
         )
         result = result.loc[mask]
 
-    if sort_column and sort_column in result.columns:
+    if numeric_column and numeric_column in result.columns:
+        numeric_values = pd.to_numeric(result[numeric_column], errors="coerce")
+        if min_value is not None:
+            result = result.loc[numeric_values >= min_value]
+            numeric_values = numeric_values.loc[result.index]
+        if max_value is not None:
+            result = result.loc[numeric_values <= max_value]
+
+    if top_mode in {"largest", "smallest"} and numeric_column and numeric_column in result.columns:
+        numeric_values = pd.to_numeric(result[numeric_column], errors="coerce")
+        result = (
+            result.assign(_aoa_sort_value=numeric_values)
+            .dropna(subset=["_aoa_sort_value"])
+            .sort_values("_aoa_sort_value", ascending=top_mode == "smallest", kind="mergesort")
+            .drop(columns=["_aoa_sort_value"])
+        )
+    elif sort_column and sort_column in result.columns:
         result = result.sort_values(sort_column, ascending=not descending, kind="mergesort")
 
     if limit <= 0:
@@ -169,6 +189,10 @@ def build_viewer_result(
     descending: bool = False,
     limit: int = 200,
     profile_column: str | None = None,
+    numeric_column: str | None = None,
+    min_value: float | None = None,
+    max_value: float | None = None,
+    top_mode: str = "all",
 ) -> ViewerResult:
     visible_df = filter_sort_limit_dataframe(
         df,
@@ -176,6 +200,10 @@ def build_viewer_result(
         sort_column=sort_column,
         descending=descending,
         limit=limit,
+        numeric_column=numeric_column,
+        min_value=min_value,
+        max_value=max_value,
+        top_mode=top_mode,
     )
     text = visible_df.to_string(index=True) if not visible_df.empty else "Brak wierszy po filtrze."
     report = build_dataset_report(df, visible_df)
