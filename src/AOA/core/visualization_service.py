@@ -233,7 +233,9 @@ def _production_dashboard(df: pd.DataFrame) -> Figure:
     axes = fig.subplots(2, 2)
 
     time_col = "czas_produkcji_h" if "czas_produkcji_h" in df.columns else numeric_cols[0]
-    deadline_col = "termin_h" if "termin_h" in df.columns else numeric_cols[min(1, len(numeric_cols) - 1)]
+    deadline_col = (
+        "termin_h" if "termin_h" in df.columns else numeric_cols[min(1, len(numeric_cols) - 1)]
+    )
     quality_col = "pred_quality" if "pred_quality" in df.columns else numeric_cols[0]
     delay_col = "pred_delay" if "pred_delay" in df.columns else deadline_col
     common = _paired_numeric(df, time_col, deadline_col).head(3000)
@@ -257,7 +259,9 @@ def _production_dashboard(df: pd.DataFrame) -> Figure:
     else:
         _column_variability_subplot(df, axes[1][0])
 
-    corr_cols = [col for col in [time_col, deadline_col, quality_col, delay_col] if col in numeric_cols]
+    corr_cols = [
+        col for col in [time_col, deadline_col, quality_col, delay_col] if col in numeric_cols
+    ]
     corr_cols = list(dict.fromkeys(corr_cols))[:4]
     corr = df[corr_cols].corr(numeric_only=True).fillna(0.0)
     image = axes[1][1].imshow(corr, vmin=-1, vmax=1, cmap="coolwarm")
@@ -304,7 +308,11 @@ def _missingness_map(df: pd.DataFrame) -> Figure:
 
 def _priority_timeline(df: pd.DataFrame, x_col: str | None, y_col: str | None) -> Figure:
     numeric_cols = _numeric_columns(df)
-    y_name = "priority" if "priority" in numeric_cols else (y_col if y_col in numeric_cols else numeric_cols[0])
+    y_name = (
+        "priority"
+        if "priority" in numeric_cols
+        else (y_col if y_col in numeric_cols else numeric_cols[0])
+    )
     x_name = x_col if x_col in numeric_cols else None
     ordered = df.copy()
     if x_name is not None:

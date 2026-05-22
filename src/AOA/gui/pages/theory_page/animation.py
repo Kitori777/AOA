@@ -127,9 +127,7 @@ class ModelAnimationCard(ctk.CTkFrame):
             self._resume_after_id = None
 
     def _schedule_next(self, *, initial: bool = False) -> None:
-        factor = {"0.75x": 13000, "1.0x": 10000, "1.5x": 7000}.get(
-            self.speed.get(), 10000
-        )
+        factor = {"0.75x": 13000, "1.0x": 10000, "1.5x": 7000}.get(self.speed.get(), 10000)
         if initial:
             factor = 10000
         self._after_id = self.after(factor, self._play_tick)
@@ -484,8 +482,16 @@ class ModelAnimationCard(ctk.CTkFrame):
             (width - 145, top + 48),
             (width - 144, top + panel_h - 28),
         ]
-        x, y = route[max(0, min(active, len(route) - 1))]
-        c.create_oval(x - 8, y - 8, x + 8, y + 8, fill=YELLOW, outline="#fff7ad", width=2)
+        token_x, token_y = route[max(0, min(active, len(route) - 1))]
+        c.create_oval(
+            token_x - 8,
+            token_y - 8,
+            token_x + 8,
+            token_y + 8,
+            fill=YELLOW,
+            outline="#fff7ad",
+            width=2,
+        )
 
     def _panel(
         self, c: tk.Canvas, x1: float, y1: float, x2: float, y2: float, title: str, active: bool

@@ -24,7 +24,9 @@ def _selected_models_overlap(left, right) -> bool:
 
 
 def _merge_training_history(df_train, history_frames):
-    frames = [frame for frame in history_frames if isinstance(frame, pd.DataFrame) and not frame.empty]
+    frames = [
+        frame for frame in history_frames if isinstance(frame, pd.DataFrame) and not frame.empty
+    ]
     if not frames:
         return df_train.copy(), 0
 
@@ -36,8 +38,8 @@ def _merge_training_history(df_train, history_frames):
 
 
 def _load_training_history(selected_models, backend):
-    history_frames = []
-    used_sources = []
+    history_frames: list[pd.DataFrame] = []
+    used_sources: list[str] = []
     if not MODELS_DIR.exists():
         return history_frames, used_sources
 

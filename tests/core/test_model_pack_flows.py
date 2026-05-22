@@ -154,7 +154,9 @@ def test_train_models_flow_reuses_training_data_from_previous_model_pack(
         }
 
     monkeypatch.setattr(training_services, "train_selected_models", fake_train_selected_models)
-    monkeypatch.setattr(training_services, "calculate_model_training_metrics", lambda *args, **kwargs: {})
+    monkeypatch.setattr(
+        training_services, "calculate_model_training_metrics", lambda *args, **kwargs: {}
+    )
 
     result = services.train_models_flow(second_df, selected_models=["Quality"], backend="classic")
 

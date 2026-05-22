@@ -138,9 +138,9 @@ class ResultsPage(ctk.CTkFrame):
         loader = ctk.CTkFrame(toolbar, fg_color="#0b1220", corner_radius=14)
         loader.grid(row=1, column=0, columnspan=8, sticky="ew", padx=12, pady=(0, 12))
         loader.grid_columnconfigure(8, weight=1)
-        ctk.CTkLabel(loader, text="1. Tryb:", text_color="#cbd5e1", font=("Arial", 12, "bold")).grid(
-            row=0, column=0, padx=(12, 6), pady=10
-        )
+        ctk.CTkLabel(
+            loader, text="1. Tryb:", text_color="#cbd5e1", font=("Arial", 12, "bold")
+        ).grid(row=0, column=0, padx=(12, 6), pady=10)
         self.top_menu = ctk.CTkOptionMenu(
             loader,
             values=["Wszystkie", "Największe", "Najmniejsze"],
@@ -148,14 +148,14 @@ class ResultsPage(ctk.CTkFrame):
             width=125,
         )
         self.top_menu.grid(row=0, column=1, padx=6, pady=10)
-        ctk.CTkLabel(loader, text="2. Kolumna:", text_color="#cbd5e1", font=("Arial", 12, "bold")).grid(
-            row=0, column=2, padx=(10, 2), pady=10
-        )
+        ctk.CTkLabel(
+            loader, text="2. Kolumna:", text_color="#cbd5e1", font=("Arial", 12, "bold")
+        ).grid(row=0, column=2, padx=(10, 2), pady=10)
         self.metric_menu = ctk.CTkOptionMenu(loader, values=[], variable=self.metric_var, width=145)
         self.metric_menu.grid(row=0, column=3, padx=6, pady=10)
-        ctk.CTkLabel(loader, text="3. Wiersze:", text_color="#cbd5e1", font=("Arial", 12, "bold")).grid(
-            row=0, column=4, padx=(12, 4), pady=10
-        )
+        ctk.CTkLabel(
+            loader, text="3. Wiersze:", text_color="#cbd5e1", font=("Arial", 12, "bold")
+        ).grid(row=0, column=4, padx=(12, 4), pady=10)
         self.limit_menu = ctk.CTkOptionMenu(
             loader,
             values=["Wszystkie", "10", "20", "50"],
@@ -421,6 +421,9 @@ class ResultsPage(ctk.CTkFrame):
         self.profile_var.set(column)
         self.refresh_view()
 
+    def _make_sort_command(self, column: str):
+        return lambda: self._sort_by_column(column)
+
     def _on_row_selected(self, _event=None) -> None:
         selected = self.tree.selection()
         if not selected or self.visible_df is None or self.visible_df.empty:
@@ -437,7 +440,7 @@ class ResultsPage(ctk.CTkFrame):
         self.tree.configure(columns=self.tree_columns)
         for column in self.tree_columns:
             width = self._column_width(df, column)
-            self.tree.heading(column, text=column, command=lambda c=column: self._sort_by_column(c))
+            self.tree.heading(column, text=column, command=self._make_sort_command(column))
             self.tree.column(column, width=width, minwidth=82, stretch=False, anchor="w")
         if df is None or df.empty:
             self.table_status.configure(text="Brak wierszy po filtrze.")

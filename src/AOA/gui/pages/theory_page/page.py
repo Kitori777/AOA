@@ -339,15 +339,16 @@ class TheoryPage(ctk.CTkFrame):
             label(card, step, size=10, weight="bold").grid(
                 row=0, column=1, sticky="w", padx=(0, 8), pady=(8, 0)
             )
-            label(card, self._short_step_detail(detail), size=9, color="#cbd5e1", wraplength=172).grid(
-                row=1, column=1, sticky="nw", padx=(0, 8), pady=(0, 8)
-            )
+            label(
+                card, self._short_step_detail(detail), size=9, color="#cbd5e1", wraplength=172
+            ).grid(row=1, column=1, sticky="nw", padx=(0, 8), pady=(0, 8))
             card.bind(
                 "<Button-1>", lambda _event, i=index: self.animation.set_step(i, user_action=True)
             )
             for child in card.winfo_children():
                 child.bind(
-                    "<Button-1>", lambda _event, i=index: self.animation.set_step(i, user_action=True)
+                    "<Button-1>",
+                    lambda _event, i=index: self.animation.set_step(i, user_action=True),
                 )
             self.step_cards.append(card)
         self._highlight_step_cards(0)

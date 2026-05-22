@@ -170,7 +170,9 @@ REGRESSOR_FACTORIES: dict[str, ModelFactory] = {
     ),
     "Quality_KNN": ModelFactory(
         "Quality_KNN",
-        lambda: _scaled_pipeline(KNeighborsRegressor(n_neighbors=9, weights="distance"), robust=True),
+        lambda: _scaled_pipeline(
+            KNeighborsRegressor(n_neighbors=9, weights="distance"), robust=True
+        ),
         "lokalny model podobnych przypadków",
     ),
     "Quality_SVR": ModelFactory(
