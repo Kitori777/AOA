@@ -3,6 +3,7 @@ from __future__ import annotations
 import random
 from collections.abc import Callable
 from dataclasses import dataclass
+from functools import cache
 from itertools import permutations
 
 import pandas as pd
@@ -137,6 +138,57 @@ def sequence_mo(jobs: list[Job]) -> list[Job]:
 
 def sequence_mzo(jobs: list[Job]) -> list[Job]:
     return sorted(jobs, key=lambda job: (-job.processing_time, job.deadline, job.job_id))
+
+
+def sequence_mopt(jobs: list[Job]) -> list[Job]:
+    if not jobs:
+        return []
+
+    indexed_jobs = tuple(enumerate(jobs))
+    processing_sum_cache: dict[int, float] = {}
+
+    def processing_sum(mask: int) -> float:
+        if mask not in processing_sum_cache:
+            processing_sum_cache[mask] = sum(
+                job.processing_time for index, job in indexed_jobs if mask & (1 << index)
+            )
+        return processing_sum_cache[mask]
+
+    @cache
+    def best_for(mask: int) -> tuple[float, tuple[int, ...]]:
+        if mask == 0:
+            return 0.0, ()
+
+        current_completion = processing_sum(mask)
+        best_cost = float("inf")
+        best_order: tuple[int, ...] = ()
+
+        for index, job in indexed_jobs:
+            bit = 1 << index
+            if not mask & bit:
+                continue
+
+            previous_cost, previous_order = best_for(mask ^ bit)
+            tardiness = max(0.0, current_completion - job.deadline)
+            total_cost = previous_cost + tardiness
+            candidate_order = previous_order + (index,)
+
+            if total_cost < best_cost:
+                best_cost = total_cost
+                best_order = candidate_order
+                continue
+
+            if total_cost == best_cost:
+                current_ids = tuple(jobs[i].job_id for i in best_order)
+                candidate_ids = tuple(jobs[i].job_id for i in candidate_order)
+                if candidate_ids < current_ids:
+                    best_order = candidate_order
+
+        return best_cost, best_order
+
+    all_jobs_mask = (1 << len(jobs)) - 1
+    _, order = best_for(all_jobs_mask)
+    return [jobs[index] for index in order]
 
 
 def sequence_slack(jobs: list[Job]) -> list[Job]:
@@ -345,6 +397,7 @@ def run_selected_sto_models(jobs: list[Job], selected_methods: list[str]) -> lis
         "MT": sequence_mt,
         "MO": sequence_mo,
         "MZO": sequence_mzo,
+        "MOPT": sequence_mopt,
         "GENETIC": sequence_genetic,
         "SLACK": sequence_slack,
         "CR": sequence_cr,

@@ -1,7 +1,9 @@
 from AOA.core.sto_models import (
     build_sto_report,
+    evaluate_sequence,
     parse_jobs,
     run_selected_sto_models,
+    sequence_mopt,
 )
 
 
@@ -35,3 +37,23 @@ def test_build_sto_report_contains_best_and_worst_information():
     assert "Najgorszy wynik:" in report
     assert "MODEL STO" in report
     assert "STO:" in report
+
+
+def test_sequence_mopt_matches_pdf_three_job_example():
+    jobs = parse_jobs("Z1,Z2,Z3", "10,20,100", "150,30,110")
+
+    sequence = sequence_mopt(jobs)
+    evaluation = evaluate_sequence(sequence)
+
+    assert evaluation["order"] == ["Z2", "Z3", "Z1"]
+    assert evaluation["sto"] == 10.0
+
+
+def test_sequence_mopt_matches_pdf_four_job_example():
+    jobs = parse_jobs("Z1,Z2,Z3,Z4", "10,20,100,50", "150,30,110,60")
+
+    sequence = sequence_mopt(jobs)
+    evaluation = evaluate_sequence(sequence)
+
+    assert evaluation["order"] == ["Z2", "Z4", "Z1", "Z3"]
+    assert evaluation["sto"] == 80.0

@@ -1,5 +1,44 @@
 # CHANGELOG
 
+## [0.6.0] - 2026-05-22
+
+### Fixed
+
+* Naprawiono pełny workflow ML `train -> save -> load -> solve` dla wszystkich 12 wariantów `classic` z `ML_MODEL_SPECS`.
+* `RestrictedModelUnpickler` dopuszcza teraz wymagany przez scikit-learn moduł `_loss`, dzięki czemu modele `GradientBoosting*` i `HistGradientBoosting*` zapisane przez aplikację można ponownie wczytać.
+* Naprawiono gałąź `schedule` w `solve_models_flow`: `simulate_schedule()` dostaje teraz dane `DataFrame`, a predykcja strategii jest wykonywana przez model na cechach harmonogramowania.
+* CLI korzysta z tego samego rejestru modeli ML co GUI i dokumentacja, więc widzi pełne 12 wariantów zamiast tylko `Quality`, `Delay`, `Schedule`.
+* Usunięto podwójne skalowanie cech w przepływie `solve`, które mogło pogarszać predykcje modeli klasycznych.
+* Poprawiono układ strony `Theory`, aby sterowanie animacją było widoczne, a dolny pasek kroków nie zabierał miejsca głównej animacji.
+* Poprawiono `Results Studio`: uproszczono CSV loader do czterech jasnych wyborów i usunięto nieczytelne pola zakresu, które mogły przypadkowo filtrować tabelę do zera.
+* Naprawiono i rozszerzono renderery D3 tak, aby każdy typ wykresu z `Visual Lab` miał własny widok, zamiast wpadać do domyślnego scattera.
+
+### Changed
+
+* Przebudowano buildery modeli ML na registry/factory z pipeline'ami scikit-learn.
+* Modele klasyczne korzystają teraz z pipeline'ów z imputacją braków danych, a modele wrażliwe na skalę także ze skalowania `RobustScaler` albo `StandardScaler`.
+* Zwiększono sensowność domyślnych parametrów modeli drzewiastych i boostingowych, m.in. przez większą liczbę estymatorów, `min_samples_leaf`, `max_features`, `class_weight` i mechanizmy wcześniejszego zatrzymania tam, gdzie są dostępne.
+* Rozszerzono pamięć treningową: zapisane paczki ML przechowują dane treningowe, a kolejne treningi mogą korzystać z historii poprzednich uruchomień.
+* `TheoryPage` działa bardziej jak przewodnik krokowy: auto-play przechodzi co 10 sekund, a użytkownik może zatrzymać animację i analizować aktualny krok.
+
+### Added
+
+* Dodano test regresyjny pełnego cyklu dla każdego modelu z `ML_MODEL_SPECS`: trening, zapis, wczytanie i użycie w `solve`.
+* Dodano testy spójności listy modeli CLI z rejestrem ML.
+* Dodano pełniejsze renderery D3 dla: `CorrelationMatrix`, `SimilarityMatrix`, `Pair Explorer`, `Heatmap Density`, `Bubble Chart`, `Outlier Map`, `3D Scatter`, `3D Surface`, `DecisionTree`, `Gantt`, `Missingness Map`, `Column Ranking`, `Diagnostics`, `Histogram`, `Boxplot`, `Line` i dashboardów.
+* Dodano obsługę `MOPT` / `MOpt` w metodach STO na podstawie materiału z PDF oraz zaktualizowano rejestr metod harmonogramowania.
+* Dodano jaśniejsze komunikaty w `Results Studio`, gdy użytkownik wybierze limit większy niż liczba rekordów w pliku.
+
+### Documentation
+
+* Zaktualizowano README pod wersję `0.6.0`, aktualny stan ML, D3, Results Studio i stronę Theory.
+* Uporządkowano listę funkcji już zrealizowanych oraz plan na kolejne wersje, żeby nie obiecywać jako przyszłych rzeczy, które są już w aplikacji.
+
+### Tests
+
+* `python -m ruff check ...`
+* `python -m pytest --basetemp .pytest-tmp tests` → `258 passed`
+
 ## [0.5.1] - 2026-05-11
 
 ### Fixed

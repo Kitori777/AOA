@@ -32,6 +32,7 @@ Aplikacja pozwala między innymi na:
 - **MT** – sortowanie według terminu realizacji,
 - **MO** – sortowanie według najkrótszego czasu wykonania,
 - **MZO** – sortowanie według najdłuższego czasu wykonania,
+- **MOPT** – dokładna metoda optymalna minimalizująca STO,
 - **GENETIC** – model genetyczny / optymalizacyjny minimalizujący STO.
 
 ═════════════════════════════════════════════════════
@@ -148,6 +149,10 @@ Model sortuje zlecenia według najkrótszego czasu wykonania.
 
 #### **MZO**
 Model sortuje zlecenia według najdłuższego czasu wykonania.
+
+#### **MOPT**
+
+Metoda optymalna wyznacza kolejność o minimalnej sumie dodatnich opóźnień STO.
 
 #### **GENETIC**
 Model genetyczny / optymalizacyjny szuka takiej kolejności zleceń, która daje możliwie najmniejsze STO.
@@ -312,7 +317,7 @@ Zaznacz co najmniej jedną kolumnę do analizy.
 Najpierw wygeneruj dane lub wczytaj plik CSV.
 
 **Brak modelu STO**  
-Zaznacz przynajmniej jeden model STO: `MT`, `MO`, `MZO` lub `GENETIC`.
+Zaznacz przynajmniej jeden model STO: `MT`, `MO`, `MZO`, `MOPT` lub `GENETIC`.
 
 **Niska jakość predykcji**  
 Zwiększ liczbę danych lub popraw ich jakość.
@@ -346,6 +351,6 @@ W bieżącej wersji panel wyboru modeli został rozszerzony tak, aby użytkownik
 - `Delay`, `Delay_RF`, `Delay_ET`, `Delay_HGB` — cztery modele regresyjne dla opóźnień, skupione na ryzyku przekroczenia terminu i dużych błędach.
 - `Schedule`, `Schedule_ET`, `Schedule_GB`, `Schedule_LOG` — cztery klasyfikatory strategii harmonogramowania, od modeli drzewiastych po prosty baseline liniowy.
 
-Modele heurystyczne STO zostały rozszerzone do zestawu 12 metod: `MT`, `MO`, `MZO`, `GENETIC`, `SLACK`, `CR`, `EDD_SPT`, `SPT_EDD`, `LPT_EDD`, `NEH`, `LOCAL_SEARCH`, `RANDOM_RESTART`. Każda metoda ma opis, na co patrzy: termin, czas obróbki, zapas, krytyczność, wariant wstawiania lub lokalne poprawki kolejności.
+Modele heurystyczne STO zostały rozszerzone do zestawu 13 metod: `MT`, `MO`, `MZO`, `MOPT`, `GENETIC`, `SLACK`, `CR`, `EDD_SPT`, `SPT_EDD`, `LPT_EDD`, `NEH`, `LOCAL_SEARCH`, `RANDOM_RESTART`. Każda metoda ma opis, na co patrzy: termin, czas obróbki, zapas, dokładne minimum STO, krytyczność, wariant wstawiania lub lokalne poprawki kolejności.
 
 Architektura została przygotowana modułowo: definicje modeli ML znajdują się w `src/AOA/core/ml_models/`, a definicje heurystyk w `src/AOA/core/mh_models/`. Dzięki temu można później dopisywać kolejne warianty bez przeciążania głównych plików aplikacji.

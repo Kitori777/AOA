@@ -33,7 +33,7 @@ class MainPage(
                 for spec in self.ml_model_specs
             },
             **{
-                spec.name: ctk.BooleanVar(value=spec.name in {"MT", "MO", "MZO", "GENETIC"})
+                spec.name: ctk.BooleanVar(value=spec.name in {"MT", "MO", "MZO", "MOPT"})
                 for spec in self.mh_model_specs
             },
         }

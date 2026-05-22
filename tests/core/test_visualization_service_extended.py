@@ -2,7 +2,13 @@ import pandas as pd
 import pytest
 from matplotlib.figure import Figure
 
-from AOA.core.visualization_service import build_figure_from_request
+from AOA.core.visualization_service import (
+    build_d3_dashboard_html_report,
+    build_d3_html_report,
+    build_figure_from_prompt,
+    build_figure_from_request,
+    parse_visual_command,
+)
 
 
 def _df():
@@ -31,6 +37,9 @@ def _df():
         ("CorrelationMatrix", {}),
         ("SimilarityMatrix", {}),
         ("DecisionTree", {}),
+        ("Production Dashboard", {}),
+        ("Missingness Map", {}),
+        ("Priority Timeline", {"x_col": "x", "y_col": "y"}),
     ],
 )
 def test_build_figure_from_request_supported_chart_types(chart_type, kwargs):
@@ -62,3 +71,70 @@ def test_build_figure_from_request_rejects_bad_boxplot_column():
 def test_build_figure_from_request_rejects_unsupported_chart_type():
     with pytest.raises(ValueError, match="Nieobsługiwany typ wykresu"):
         build_figure_from_request(_df(), "Pie")
+
+
+def test_parse_visual_command_maps_prompt_to_chart_and_columns():
+    parsed = parse_visual_command(_df(), "scatter x x y y kolor z")
+
+    assert parsed["chart_type"] == "Scatter"
+    assert parsed["x_col"] == "x"
+    assert parsed["y_col"] == "y"
+    assert parsed["z_col"] == "z"
+
+
+def test_build_figure_from_prompt_returns_figure_and_parsed_request():
+    fig, parsed = build_figure_from_prompt(_df(), "histogram x")
+
+    assert isinstance(fig, Figure)
+    assert parsed["chart_type"] == "Histogram"
+    assert parsed["x_col"] == "x"
+
+
+def test_build_d3_html_report_contains_d3_and_inline_data():
+    html = build_d3_html_report(_df(), x_col="x", y_col="y", z_col="z", chart_type="Scatter")
+
+    assert "d3@7" in html
+    assert "const data" in html
+    assert '"x": 1' in html
+    assert "drawNativeFallback" in html
+
+
+def test_build_d3_dashboard_html_report_contains_multi_panel_dashboard():
+    html = build_d3_dashboard_html_report(_df(), x_col="x", y_col="y", z_col="z")
+
+    assert "AOA D3 Dashboard" in html
+    assert 'id="scatter"' in html
+    assert 'id="histogram"' in html
+    assert 'id="bars"' in html
+    assert 'id="missingness"' in html
+    assert "numericColumns" in html
+
+
+@pytest.mark.parametrize(
+    ("chart_type", "renderer"),
+    [
+        ("Histogram", "drawHistogram"),
+        ("Gantt", "drawGantt"),
+        ("Line", "drawLine"),
+        ("Production Dashboard", "drawProductionDashboard"),
+        ("Dashboard", "drawProductionDashboard"),
+        ("Missingness Map", "drawMissingness"),
+        ("Diagnostics", "drawDiagnostics"),
+        ("Boxplot", "drawBoxplot"),
+        ("Column Ranking", "drawColumnRanking"),
+        ("CorrelationMatrix", "drawCorrelationMatrix"),
+        ("SimilarityMatrix", "drawSimilarityMatrix"),
+        ("Bubble Chart", "drawBubbleChart"),
+        ("Heatmap Density", "drawHeatmapDensity"),
+        ("Outlier Map", "drawOutlierMap"),
+        ("Pair Explorer", "drawPairExplorer"),
+        ("3D Scatter", "drawPseudo3DScatter"),
+        ("3D Surface", "drawPseudo3DSurface"),
+        ("DecisionTree", "drawDecisionTree"),
+    ],
+)
+def test_build_d3_html_report_contains_chart_specific_renderers(chart_type, renderer):
+    html = build_d3_html_report(_df(), x_col="x", y_col="y", z_col="z", chart_type=chart_type)
+
+    assert f'chartType === "{chart_type}"' in html
+    assert renderer in html
