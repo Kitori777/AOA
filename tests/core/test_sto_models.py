@@ -1,4 +1,7 @@
+import pandas as pd
+
 from AOA.core.sto_models import (
+    apply_sto_result_to_dataframe,
     build_sto_report,
     evaluate_sequence,
     parse_jobs,
@@ -57,3 +60,24 @@ def test_sequence_mopt_matches_pdf_four_job_example():
 
     assert evaluation["order"] == ["Z2", "Z4", "Z1", "Z3"]
     assert evaluation["sto"] == 80.0
+
+
+def test_apply_sto_result_adds_solution_tree_columns():
+    jobs = parse_jobs("Z1,Z2,Z3", "10,20,100", "150,30,110")
+    result = run_selected_sto_models(jobs, ["MOPT"])[0]
+
+    df = apply_sto_result_to_dataframe(
+        pd.DataFrame(
+            {
+                "sto_job_id": ["Z1", "Z2", "Z3"],
+                "czas_produkcji_h": [10, 20, 100],
+                "termin_h": [150, 30, 110],
+            }
+        ),
+        result,
+    )
+
+    assert "solution_node_id" in df.columns
+    assert "solution_parent_id" in df.columns
+    assert "solution_details" in df.columns
+    assert "solution_tree_json" in df.columns

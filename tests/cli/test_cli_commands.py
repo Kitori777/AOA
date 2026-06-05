@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from AOA import cli
-from AOA.cli.commands import generate, preview, solve, sto, train
+from AOA.cli.commands import analytics, generate, preview, solve, sto, train
 
 
 def norm(text: str) -> str:
@@ -258,6 +258,80 @@ def test_command_sto_solve_prints_report(monkeypatch, capsys, tmp_path):
     assert "STO REPORT" in out
     assert "data/mo.csv" in out
     assert "BEST: data/best.csv" in out
+
+
+def test_command_analytics_runs_workflow_and_writes_html(monkeypatch, capsys, tmp_path):
+    data_file = tmp_path / "data.csv"
+    data_file.write_text("cena,material\n10,bawelna\n20,wiskoza\n", encoding="utf-8")
+    output = tmp_path / "analysis.html"
+
+    class FakeResult:
+        title = "Build Report"
+        body = "Raport testowy"
+        recommended_chart = "Dashboard"
+
+    monkeypatch.setattr(analytics, "run_analytics_workflow", lambda *_args: FakeResult())
+
+    args = Namespace(
+        data=str(data_file),
+        workflow="Build Report",
+        metric="cena",
+        dimension="material",
+        format="html",
+        output=str(output),
+    )
+
+    code = cli.command_analytics(args)
+    assert code == 0
+    assert output.exists()
+    assert "Raport testowy" in output.read_text(encoding="utf-8")
+    assert "OUTPUT:" in norm(capsys.readouterr().out)
+
+
+def test_command_report_writes_pdf(monkeypatch, capsys, tmp_path):
+    source = tmp_path / "report.tex"
+    source.write_text("\\title{Test}\n\\section{Wynik}\nOK\n", encoding="utf-8")
+    output = tmp_path / "report.pdf"
+
+    args = Namespace(
+        source=str(source),
+        title="Test",
+        format="pdf",
+        output=str(output),
+        preview=True,
+    )
+
+    code = cli.command_report(args)
+    assert code == 0
+    assert output.exists()
+    assert output.read_bytes().startswith(b"%PDF")
+    out = norm(capsys.readouterr().out)
+    assert "PODGLAD RAPORTU" in out
+    assert "OUTPUT:" in out
+
+
+def test_command_diagram_writes_html(capsys, tmp_path):
+    output = tmp_path / "diagram.html"
+    args = Namespace(template="Flowchart", format="html", output=str(output))
+
+    code = cli.command_diagram(args)
+    assert code == 0
+    text = output.read_text(encoding="utf-8")
+    assert "Load data" in text
+    assert "OUTPUT:" in norm(capsys.readouterr().out)
+
+
+def test_command_alice_prints_answer(monkeypatch, capsys):
+    class FakeAssistant:
+        def answer(self, question):
+            return f"Odpowiadam na: {question}", [], False
+
+    monkeypatch.setattr(analytics, "AssistantService", FakeAssistant)
+    args = Namespace(question="Jak dziala Visual?", sources=0)
+
+    code = cli.command_alice(args)
+    assert code == 0
+    assert "Odpowiadam na: Jak dziala Visual?" in capsys.readouterr().out
 
 
 def test_command_preview_prints_dataframe_preview(monkeypatch, capsys, tmp_path):

@@ -4,8 +4,12 @@ from AOA.utils.error_utils import write_exception_log
 from AOA.utils.logging_utils import configure_logging
 
 from .commands import (
+    command_alice,
+    command_analytics,
+    command_diagram,
     command_generate,
     command_preview,
+    command_report,
     command_solve,
     command_status,
     command_sto_run,
@@ -45,6 +49,14 @@ def main(argv: list[str] | None = None) -> int:
             return command_status(args)
         if args.command == "workflow":
             return command_workflow(args)
+        if args.command == "analytics":
+            return command_analytics(args)
+        if args.command == "report":
+            return command_report(args)
+        if args.command == "diagram":
+            return command_diagram(args)
+        if args.command == "alice":
+            return command_alice(args)
         if args.command == "interactive":
             return command_interactive(args)
         parser.print_help()

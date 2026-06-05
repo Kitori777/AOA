@@ -18,6 +18,7 @@ class MainPageResultsPanelMixin:
         best = sto_result.get("best_result")
         saved_paths = sto_result.get("saved_paths", [])
         best_path = sto_result.get("best_path")
+        all_path = sto_result.get("all_path")
 
         self._safe_log("===== WYNIKI STO =====")
         if best is not None:
@@ -35,6 +36,38 @@ class MainPageResultsPanelMixin:
             self._safe_log("")
             self._safe_log("===== ZAPISANE PLIKI STO =====")
             for item in saved_paths:
-                self._safe_log(f"- {item['method']} | STO={item['sto']:.3f} | {item['path']}")
+                self._safe_log(
+                    f"- {item['method']} | STO={item['sto']:.3f} | drzewo: SolutionTree | {item['path']}"
+                )
+        if all_path:
+            self._safe_log(f"- WSZYSTKIE MODELE | wybieraj model drzewa w Visual | {all_path}")
         if best_path:
             self._safe_log(f"- BEST | {best_path}")
+
+    def _sto_saved_files_text(self, sto_result: dict) -> str:
+        saved_paths = sto_result.get("saved_paths", [])
+        best_path = sto_result.get("best_path")
+        all_path = sto_result.get("all_path")
+        if not saved_paths and not best_path and not all_path:
+            return ""
+
+        lines = [
+            "",
+            "ZAPISANE WYNIKI I DRZEWA",
+            "========================",
+        ]
+        if all_path:
+            lines.extend(
+                [
+                    f"Zbiorczy CSV: {all_path}",
+                    "W Visual wczytaj ten plik, wybierz SolutionTree i wskaz model w polu modelu drzewa.",
+                    "",
+                ]
+            )
+        for item in saved_paths:
+            lines.append(
+                f"- {item['method']}: STO={item['sto']:.3f} | CSV: {item['path']} | wykres: SolutionTree"
+            )
+        if best_path:
+            lines.append(f"- BEST: {best_path}")
+        return "\n".join(lines)

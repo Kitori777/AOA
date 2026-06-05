@@ -4,6 +4,7 @@ import pytest
 
 from AOA.core import services
 from AOA.core.models import save_model_pack
+from AOA.core.services import sto as sto_services
 from AOA.core.services import training as training_services
 
 
@@ -181,9 +182,15 @@ def test_solve_models_flow_predicts_quality_delay_saves_csv_and_sorts_priority(
     assert list(result["df"]["pred_delay"]) == [1.0, 2.0, 5.0]
     assert "priority" in result["df"].columns
     assert result["df"]["priority"].is_monotonic_decreasing
+    assert "solution_node_id" in result["df"].columns
+    assert "solution_parent_id" in result["df"].columns
+    assert "solution_details" in result["df"].columns
+    assert "solution_tree_json" in result["df"].columns
     saved_df = pd.read_csv(result_file)
     assert "pred_quality" in saved_df.columns
     assert "pred_delay" in saved_df.columns
+    assert "solution_node_id" in saved_df.columns
+    assert "solution_tree_json" in saved_df.columns
     assert any("Rozwiązanie gotowe" in message for message in result["messages"])
 
 
@@ -217,6 +224,8 @@ def test_solve_models_flow_handles_only_quality_model(tmp_path, monkeypatch, sol
     assert "pred_quality" in result["df"].columns
     assert "pred_delay" not in result["df"].columns
     assert "priority" not in result["df"].columns
+    assert "solution_node_id" in result["df"].columns
+    assert "solution_tree_json" in result["df"].columns
     assert result_file.exists()
 
 
@@ -264,3 +273,28 @@ def test_solve_models_flow_rejects_csv_with_headers_but_no_rows(tmp_path):
 
     with pytest.raises(ValueError, match="Plik danych jest pusty"):
         services.solve_models_flow(pack_path, data_path)
+
+
+def test_analyze_sto_models_saves_each_method_and_combined_tree_csv(monkeypatch, tmp_path):
+    paths = []
+
+    def fake_result_filename(model_name, source_name, suffix=".csv"):
+        path = tmp_path / f"{model_name}_{source_name}{suffix}"
+        paths.append(path)
+        return path
+
+    monkeypatch.setattr(sto_services, "build_result_filename", fake_result_filename)
+
+    result = services.analyze_sto_models(
+        job_ids_text="Z1,Z2,Z3",
+        processing_text="10,20,100",
+        deadlines_text="150,30,110",
+        selected_methods=["MT", "MO"],
+    )
+
+    assert len(result["saved_paths"]) == 2
+    assert result["all_path"].exists()
+    assert all(item["tree_chart"] == "SolutionTree" for item in result["saved_paths"])
+    combined = pd.read_csv(result["all_path"])
+    assert sorted(combined["sto_model"].unique().tolist()) == ["MO", "MT"]
+    assert "solution_tree_json" in combined.columns

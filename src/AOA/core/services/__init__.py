@@ -27,6 +27,14 @@ from .common import (
     parse_generation_config,
     split_selected_models,
 )
+from .data_mapping import (
+    DEFAULT_FIELD_ALIASES,
+    ML_REQUIRED_FIELDS,
+    STO_REQUIRED_FIELDS,
+    apply_data_mapping,
+    required_fields,
+    suggest_mapping,
+)
 from .files import (
     build_model_filename,
     build_result_filename,

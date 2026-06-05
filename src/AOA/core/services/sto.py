@@ -25,6 +25,7 @@ def analyze_sto_models(job_ids_text, processing_text, deadlines_text, selected_m
     saved_paths = []
     best_result = None
     best_path = None
+    all_path = None
     if results:
         jobs_df = pd.DataFrame(
             {
@@ -35,13 +36,24 @@ def analyze_sto_models(job_ids_text, processing_text, deadlines_text, selected_m
         )
         best_result = min(results, key=lambda x: x["sto"])
         best_jobs_df = apply_sto_result_to_dataframe(jobs_df, best_result)
+        result_frames = []
         for result in results:
             result_df = apply_sto_result_to_dataframe(jobs_df, result)
+            result_frames.append(result_df)
             out_path = build_result_filename(f"sto_{result['method']}", "manual", suffix=".csv")
             save_csv(result_df, out_path)
-            saved_paths.append({"method": result["method"], "sto": result["sto"], "path": out_path})
+            saved_paths.append(
+                {
+                    "method": result["method"],
+                    "sto": result["sto"],
+                    "path": out_path,
+                    "tree_chart": "SolutionTree",
+                }
+            )
         best_path = build_result_filename("sto_best", "manual", suffix=".csv")
         save_csv(best_jobs_df, best_path)
+        all_path = build_result_filename("sto_all", "manual", suffix=".csv")
+        save_csv(pd.concat(result_frames, ignore_index=True, sort=False), all_path)
 
     return {
         "jobs": jobs,
@@ -50,6 +62,7 @@ def analyze_sto_models(job_ids_text, processing_text, deadlines_text, selected_m
         "saved_paths": saved_paths,
         "best_result": best_result,
         "best_path": best_path,
+        "all_path": all_path,
         "messages": ["✔ Analiza STO zakończona"],
     }
 
@@ -78,6 +91,7 @@ def solve_sto_with_saved_model(model_path, data_path):
     saved_paths = []
     best_result = None
     best_path = None
+    all_path = None
     if results:
         jobs_df = pd.DataFrame(
             {
@@ -88,15 +102,26 @@ def solve_sto_with_saved_model(model_path, data_path):
         )
         best_result = min(results, key=lambda x: x["sto"])
         best_jobs_df = apply_sto_result_to_dataframe(jobs_df, best_result)
+        result_frames = []
         for result in results:
             result_df = apply_sto_result_to_dataframe(jobs_df, result)
+            result_frames.append(result_df)
             out_path = build_result_filename(
                 f"sto_{result['method']}", Path(data_path).stem, suffix=".csv"
             )
             save_csv(result_df, out_path)
-            saved_paths.append({"method": result["method"], "sto": result["sto"], "path": out_path})
+            saved_paths.append(
+                {
+                    "method": result["method"],
+                    "sto": result["sto"],
+                    "path": out_path,
+                    "tree_chart": "SolutionTree",
+                }
+            )
         best_path = build_result_filename("sto_best", Path(data_path).stem, suffix=".csv")
         save_csv(best_jobs_df, best_path)
+        all_path = build_result_filename("sto_all", Path(data_path).stem, suffix=".csv")
+        save_csv(pd.concat(result_frames, ignore_index=True, sort=False), all_path)
 
     return {
         "jobs": jobs,
@@ -105,5 +130,6 @@ def solve_sto_with_saved_model(model_path, data_path):
         "saved_paths": saved_paths,
         "best_result": best_result,
         "best_path": best_path,
+        "all_path": all_path,
         "messages": ["✔ Rozwiązanie STO zakończone"],
     }

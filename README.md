@@ -1,234 +1,431 @@
-# AOA – Aplikacja Optymalnego Algorytmowania
+# AOA - Aplikacja Optymalnego Algorytmowania
 
 ## Opis projektu
 
-AOA to rozwijana aplikacja desktopowa i terminalowa napisana w Pythonie. Jej celem jest wspomaganie analizy danych, uczenia modeli, porównywania metod harmonogramowania oraz prezentowania wyników w formie czytelnych tabel, raportów i wykresów.
+AOA to rozwijana aplikacja desktopowa i terminalowa napisana w Pythonie.
+Jej celem jest wspomaganie analizy danych, trenowania modeli, porownywania
+metod harmonogramowania, tworzenia raportow, wizualizacji, diagramow oraz
+wyjasniania wynikow uzytkownikowi prostym jezykiem.
 
-Od wersji `0.6.0` projekt rozwija się nie tylko jako narzędzie produkcyjno-optymalizacyjne, ale również jako aplikacja analityczno-edukacyjna. Użytkownik może wczytać własne dane tabelaryczne, obejrzeć je w widoku podobnym do prostego CSV viewera, przygotować raport, uruchomić wizualizację oraz sprawdzić krótkie wyjaśnienia modeli i metryk.
+Projekt rozwija sie jako narzedzie produkcyjno-optymalizacyjne,
+analityczne i edukacyjne. Uzytkownik moze wczytac wlasne dane tabelaryczne,
+uruchomic modele ML albo heurystyki STO, obejrzec wyniki w tabelach,
+zbudowac wykresy, wygenerowac HTML, przygotowac raport, narysowac diagram
+i zapytac ALICE, co oznacza aktualny wynik.
 
-Projekt zachowuje architekturę modułową:
+Glowna zasada architektury pozostaje prosta:
 
-- warstwa `core` odpowiada za logikę aplikacji, generowanie i przetwarzanie danych, trenowanie modeli, ewaluację wyników, harmonogramowanie, raporty, treści edukacyjne i przygotowanie danych do wizualizacji,
-- warstwa `gui` odpowiada za graficzny interfejs użytkownika i nie powinna przechowywać logiki biznesowej,
-- warstwa `cli` umożliwia obsługę aplikacji z poziomu terminala,
-- katalog `tests` zawiera testy jednostkowe i testy przepływów,
-- katalog `docs` zawiera dokumentację użytkową i teoretyczną,
-- katalog `logs` przechowuje logi błędów i informacje diagnostyczne.
+- warstwa `core` odpowiada za logike aplikacji, dane, modele, STO, raporty,
+  wizualizacje, ALICE i przygotowanie eksportow,
+- warstwa `gui` odpowiada za interfejs graficzny i prowadzenie uzytkownika,
+- warstwa `cli` pozwala uzywac aplikacji z terminala,
+- katalog `docs` zawiera dokumentacje, teorie oraz baze wiedzy ALICE,
+- katalog `tests` zawiera testy jednostkowe i przeplywowe,
+- katalog `data` przechowuje dane lokalne, raporty HTML i eksporty,
+- katalog `models` przechowuje zapisane modele,
+- katalog `logs` przechowuje logi aplikacji i diagnostyke.
 
-Aplikacja umożliwia między innymi:
+## Co mozna zrobic w aplikacji
 
-- generowanie przykładowych danych produkcyjnych,
-- wczytywanie danych z plików `.csv`, `.txt` i `.tsv`,
-- pracę także na dowolnych danych tabelarycznych, nie tylko produkcyjnych,
-- trenowanie modeli ML dla jakości, opóźnień i strategii harmonogramowania,
-- korzystanie z klasycznych modeli `scikit-learn` oraz eksperymentalnego backendu `TabPFN`,
-- ocenę modeli za pomocą metryk takich jak RMSE, MAE, R², Accuracy i F1,
-- uruchamianie metod harmonogramowania STO i porównywanie ich wyników,
-- tworzenie wykresów 2D i 3D,
-- przeglądanie danych w przebudowanym `Results Studio`,
-- filtrowanie, sortowanie, limitowanie, profilowanie i eksport widocznego widoku danych,
-- korzystanie z interaktywnej instrukcji użytkownika na stronie `Readme`,
-- korzystanie ze strony `Theory`, która prostym językiem wyjaśnia zachowanie modeli, metryk i algorytmów,
-- zapis modeli, raportów i wyników do plików,
-- obsługę pełnych przepływów pracy zarówno z poziomu GUI, jak i z terminala.
+- Wczytywac dane z plikow `.csv`, `.txt` i `.tsv`.
+- Generowac przykladowe dane produkcyjne.
+- Pracowac na dowolnych danych tabelarycznych, nie tylko produkcyjnych.
+- Trenowac modele ML dla jakosci, opoznien i strategii harmonogramowania.
+- Porownywac wiele modeli ML w jednym przeplywie pracy.
+- Uruchamiac heurystyki STO i wybierac najlepsza kolejnosc zlecen.
+- Liczyc i interpretowac metryki regresji oraz klasyfikacji.
+- Rysowac wykresy w `Visual Lab` z bibliotek Matplotlib, Seaborn, Plotly,
+  Altair i NetworkX.
+- Otwierac interaktywne raporty HTML/D3, dashboardy i drzewa rozwiazan.
+- Chowac i ponownie pokazywac galezie drzewa w HTML.
+- Analizowac tabele w `Results Studio`: filtr, sortowanie, SQL, profil
+  kolumn, braki danych i eksport CSV.
+- Tworzyc raporty i workflowy w `Analytics Studio`: KPI, data quality,
+  dashboard, report, notebook, segmenty, korelacje, outliery i akcje.
+- Budowac wlasne raporty z sekcji, wynikow z innych plikow, wizualizacji
+  i diagramow.
+- Tworzyc diagramy w `Diagrams`: flowchart, UML, ERD, BPMN, sieci, mind map,
+  org chart, data pipeline i eksport `.drawio`, SVG, Mermaid oraz HTML.
+- Korzystac z `Theory`, ktora pokazuje animacje i prawdziwe dzialanie
+  algorytmow krok po kroku.
+- Korzystac z ALICE jako lokalnego mozgu aplikacji: przewodnika, tlumacza,
+  raportujacej asystentki i pomocy glosowej.
 
+## Najwazniejsze nowosci aktualnej wersji
 
-## Najważniejsze zmiany w wersji 0.6.0
+- ALICE ma lokalna baze wiedzy `docs/alice_brain.json`, dzieki ktorej zna
+  moduly aplikacji, procesy, algorytmy, wykresy, raporty, HTML, STO i checklisty
+  przed publikacja na GitHubie.
+- `Visual Lab` ma wybor biblioteki wykresow: Matplotlib, Seaborn, Plotly,
+  Altair i NetworkX.
+- Typy wykresow sa walidowane wzgledem biblioteki, zeby uzytkownik widzial
+  tylko sensowne opcje.
+- HTML dla `SolutionTree` wymusza renderer drzewa, nawet gdy wybrana jest
+  biblioteka Plotly albo Altair.
+- `SolutionTree` w HTML pozwala klikac wezly, chowac wybrane galezie i pokazac
+  cale drzewo ponownie.
+- Zielony kolor w drzewie oznacza najlepsza sciezke, a zolty wariant sprawdzony,
+  pokonany albo taki, do ktorego algorytm wrocil po porownaniu.
+- `Analytics Studio` zostalo rozwiniete poza raporty: zawiera data quality,
+  dashboardy, KPI, diagnostyke metryk, segment explorer, correlation explorer,
+  outlier analysis, pivot summary, data dictionary, time trend i plan notebooka.
+- Kreator raportow w Analytics dziala bardziej jak prosty edytor dokumentu:
+  mozna dodawac sekcje, KPI, wykresy, rekomendacje i ogladac podglad.
+- `Diagrams` ma lepszy edytor: przeciaganie elementow, menu pod prawym
+  kliknieciem, kolory, duplikowanie, usuwanie, auto layout i czytelniejsze
+  polaczenia.
+- `Theory` rozdziela ML od heurystyk STO. ML pokazuje mechanike modeli, a STO
+  pokazuje kolejke, czasy zakonczenia, opoznienia i ranking metod.
+- ALICE lepiej odpowiada na pytania typu: "co robi Main", "jak dziala STO",
+  "jak rysuje SolutionTree", "jakie biblioteki wykresow sa dostepne" oraz
+  "co sprawdzic przed wersja na GitHuba".
 
-* Pełny przepływ ML `train -> save -> load -> solve` działa dla wszystkich 12 wariantów `classic` opisanych w README.
-* Poprawiono wczytywanie zapisanych modeli scikit-learn opartych o `GradientBoosting*` i `HistGradientBoosting*`.
-* Naprawiono modele `Schedule*` w `solve`: symulacja harmonogramu dostaje teraz dane, a model przewiduje strategię na przygotowanych cechach.
-* CLI korzysta z tego samego rejestru modeli co GUI, więc terminal i interfejs graficzny pokazują spójny zestaw modeli.
-* Buildery modeli ML zostały przebudowane na pipeline'y scikit-learn z imputacją braków danych i lepszymi domyślnymi parametrami.
-* Modele mogą korzystać z pamięci treningowej: zapisane paczki przechowują dane treningowe, które kolejne treningi mogą dołączyć do nowych rekordów.
-* `Visual Lab` ma osobne renderery D3 dla wszystkich wyborów wykresów, w tym macierzy korelacji, podobieństwa, Pair Explorer, heatmapy, bubble chart, outlier map, 3D i drzewa decyzyjnego.
-* `Results Studio` ma prostszy CSV loader: tryb, kolumna, preset liczby wierszy i własna liczba rekordów.
-* `TheoryPage` ma bardziej kompaktowy pasek kroków i większy obszar animacji, żeby łatwiej zatrzymać i przeanalizować aktualny etap.
+## Najwazniejsze moduly
 
-## Najważniejsze poprawki w wersji 0.5.1
+### Main
 
-* `Results Studio` ma czytelniejszy CSV loader: presety liczby wierszy, pole na własną liczbę rekordów, sortowanie i eksport widocznego wycinka.
-* `Visual Lab` generuje raporty HTML/D3 oraz dashboardy D3 z większymi panelami, tooltipami, linią trendu, histogramem ze średnią i kartami jakości danych.
-* Strony `Readme` i `Theory` zostały dopasowane do trybu instruktażowego: Readme prowadzi po przepływie pracy, a Theory pokazuje animację krok po kroku z automatycznym przechodzeniem.
-* Metryki ML pokazują teraz osobno wynik na zbiorze treningowym i testowym.
-* `df_test` jest realnie przekazywany do treningu i oceny modeli w CLI oraz GUI.
-* Dodano 12 wariantów modeli ML oraz testy dla każdego z nich.
-* `TheoryPage` ma większą, czytelniejszą animację oraz zwijany panel boczny.
-* Pakiety `services`, `ml_models` i `mh_models` są rozbite na mniejsze pliki, a `__init__.py` pełnią rolę lekkich fasad.
+`Main` jest centrum obliczen. Tutaj uzytkownik przygotowuje lub wczytuje dane,
+wybiera modele ML/STO, uruchamia trening, analizuje przebieg i zapisuje wyniki.
 
-## Najważniejsze nowości w wersji 0.5.0
+Typowy przeplyw:
 
-### Interaktywna instrukcja użytkownika
+1. Wczytaj dane albo wygeneruj dane przykladowe.
+2. Wybierz modele ML albo metody STO.
+3. Uruchom trening lub analize.
+4. Sprawdz metryki i komunikaty.
+5. Przejdz do `Visual`, `Results`, `Analytics` albo `Theory`.
 
-Strona `Readme` została przebudowana z prostego widoku dokumentacji na interaktywną instrukcję. Użytkownik może przechodzić po kolejnych krokach i sprawdzać:
+### Visual Lab
 
-- co robi dany moduł,
-- gdzie kliknąć,
-- po co wykonywany jest dany etap,
-- na co uważać przy danych, modelach, STO i wynikach.
+`Visual Lab` jest laboratorium wykresow i interaktywnego HTML.
+Uzytkownik wybiera kolumny X/Y/Z, typ wykresu i biblioteke.
 
-### Theory Page — teoria użytkowa modeli
+Dostepne biblioteki:
 
-Strona `Theory` pokazuje najważniejsze pojęcia potrzebne do korzystania z aplikacji:
+- `Matplotlib` - bazowy podglad desktopowy,
+- `Seaborn` - wykresy statystyczne, regresja, KDE, ECDF, violin i pair plot,
+- `Plotly` - interaktywny HTML dla scatter, line, histogram, bar, pie, 3D,
+  dashboardow i podobnych widokow,
+- `Altair` - deklaratywne wykresy Vega-Lite w HTML,
+- `NetworkX` - grafy zaleznosci i drzewa.
 
-- regresja i metryki RMSE/MAE/R²,
-- klasyfikacja i metryki Accuracy/F1,
-- przeuczenie modelu,
-- ważność cech,
-- modele jakości i opóźnień,
-- strategia harmonogramowania,
-- STO,
-- priorytet zlecenia.
+Wspierane sa m.in.:
 
-Każdy moduł ma krótki zapis matematyczny, opis prostym językiem, praktyczną interpretację i wykres pokazujący intuicję działania.
-
-### Visual Lab — wizualizacje i raporty
-
-Widok `Visual` został rozbudowany w kierunku laboratorium eksploracji danych. Użytkownik może wybierać kolumny X/Y/Z i przełączać typy wykresów, m.in.:
-
+- `Production Dashboard`,
 - `Dashboard`,
 - `Diagnostics`,
+- `Model Diagnostics`,
 - `Pair Explorer`,
+- `Pair Plot`,
+- `Joint Plot`,
 - `3D Scatter`,
 - `3D Surface`,
 - `Bubble Chart`,
 - `Heatmap Density`,
+- `KDE Plot`,
+- `ECDF Plot`,
+- `Violin Plot`,
+- `Regression Plot`,
 - `Outlier Map`,
+- `DBSCAN Anomaly`,
+- `PCA State Segments`,
+- `LDA vs t-SNE`,
+- `KMeans vs GMM`,
 - `Step View`,
+- `Priority Timeline`,
+- `Area Chart`,
+- `Treemap`,
+- `Sunburst`,
+- `Funnel`,
+- `Waterfall`,
+- `Radar Chart`,
+- `Missingness Map`,
 - `Column Ranking`,
-- klasyczne wykresy `Scatter`, `Line`, `Histogram`, `Boxplot`,
-- macierze korelacji i podobieństwa.
+- `Stacked Bar`,
+- `Binned Scatter`,
+- `Faceted Scatter`,
+- `Interactive Brush`,
+- `Bar Chart`,
+- `Pie Chart`,
+- `Scatter`,
+- `Line`,
+- `Histogram`,
+- `Boxplot`,
+- `Count Plot`,
+- `Strip Plot`,
+- `Swarm Plot`,
+- `Point Plot`,
+- `Bar Estimate`,
+- `Gantt`,
+- `SolutionTree`,
+- `ML Decision Tree`,
+- `Network Graph`,
+- `Circular Network`,
+- `Spring Network`,
+- `Shell Network`,
+- `Kamada-Kawai Network`,
+- `Tree Network`,
+- `CorrelationMatrix`,
+- `SimilarityMatrix`.
 
-Po prawej stronie widoczny jest raport, który podsumowuje dane, statystyki wybranych kolumn, obserwacje odstające i korelację.
+`SolutionTree` pokazuje drzewo wariantow rozwiazania. W HTML mozna kliknac
+wezel, schowac galaz, pokazac cale drzewo i porownac kolory:
 
-### Results Studio — viewer i raport danych
+- zielony - najlepsza sciezka,
+- zolty - wariant sprawdzony, pokonany albo odzyskany,
+- bialy - pozostale warianty.
 
-Strona `Results` została przebudowana jako początek prostego, nowoczesnego viewera danych. Zamiast niedokończonych przycisków regresji i klasyfikacji widok skupia się na pracy z tabelą:
+### Results Studio
 
-- globalny filtr tekstowy,
-- sortowanie po wybranej kolumnie,
-- wybór kierunku sortowania,
-- limit liczby wierszy,
-- profil wybranej kolumny,
-- raport braków danych,
-- eksport widocznego widoku do CSV,
-- karty podsumowania liczby wierszy, kolumn, braków i duplikatów.
+`Results Studio` jest widokiem pracy z tabela. Pozwala:
+
+- wczytywac dane,
+- filtrowac rekordy,
+- sortowac kolumny,
+- limitowac liczbe wierszy,
+- sprawdzac profil kolumn,
+- analizowac braki i duplikaty,
+- uruchamiac zapytania SQL,
+- eksportowac wyniki do CSV.
+
+To najlepsze miejsce do sprawdzania rekordow, ktore odstaja na wykresach.
+
+### Analytics Studio
+
+`Analytics Studio` jest panelem raportow, KPI, diagnostyki i workflowow
+analitycznych. Nie jest tylko miejscem wyboru opcji - uruchamia analize,
+generuje raporty, HTML, notebooki i liste akcji.
+
+Dostepne workflowy i obszary:
+
+- `Index`,
+- `Analyze Data Quality`,
+- `Build Dashboard`,
+- `Build Report`,
+- `Design KPIs`,
+- `Metric Diagnostics`,
+- `Market Sizing`,
+- `Visualize Data`,
+- `Executive Summary`,
+- `Opportunity Sizing`,
+- `Chart QA`,
+- `Risk & Caveats`,
+- `Action Plan`,
+- `Jupyter Notebook Plan`,
+- `Statistical Summary`,
+- `Segment Explorer`,
+- `Correlation Explorer`,
+- `Outlier Analysis`,
+- `Pivot Summary`,
+- `Data Dictionary`,
+- `Time Trend`.
+
+Raporty mozna skladac z sekcji, KPI, wykresow, rekomendacji, wynikow z innych
+plikow oraz podgladu podobnego do prostego edytora dokumentu.
+
+### Diagrams
+
+`Diagrams` jest interaktywnym edytorem diagramow. Uzytkownik moze:
+
+- wybrac szablon,
+- dodawac ksztalty,
+- przeciagac elementy myszka,
+- laczyc elementy,
+- edytowac tekst dwuklikiem,
+- otworzyc menu prawym kliknieciem,
+- zmieniac kolory,
+- duplikowac i usuwac elementy,
+- uzyc auto layout,
+- eksportowac `.drawio`, SVG, Mermaid i HTML.
+
+Szablony obejmuja m.in.:
+
+- `Blank`,
+- `Flowchart`,
+- `UML Class`,
+- `ERD Database`,
+- `BPMN Process`,
+- `Network Diagram`,
+- `Mind Map`,
+- `Org Chart`,
+- `Swimlane`,
+- `Sequence Diagram`,
+- `Data Pipeline`,
+- `System Architecture`,
+- `Decision Tree`,
+- `Kanban Board`.
+
+### Theory
+
+`Theory` jest edukacyjnym widokiem animacji i teorii algorytmow.
+Najwazniejsza zasada: ML i STO sa rozdzielone.
+
+Modele ML ucza zaleznosci z danych:
+
+- `Random Forest` - wiele drzew, bagging, agregacja i OOB,
+- `ExtraTrees` - mocniej losowe progi podzialu,
+- `Gradient Boosting` - kolejne drzewa poprawiaja blad,
+- `HistGradient Boosting` - boosting na koszykach wartosci,
+- `Logistic Regression` - skalowanie, wagi, softmax i klasy.
+
+Heurystyki STO nie trenuja wag ani drzew. One ukladaja kolejke zlecen i licza:
+
+```text
+Cj = czas zakonczenia zlecenia j
+dj = termin zlecenia j
+Tj = max(0, Cj - dj)
+STO = suma Tj
+```
+
+Im mniejsze `STO`, tym lepsza kolejnosc.
+
+### ALICE
+
+ALICE jest asystentka aplikacji. Jej zadaniem jest prowadzic uzytkownika po
+aplikacji, tlumaczyc wyniki i proponowac kolejne kroki.
+
+ALICE potrafi:
+
+- odpowiedziec, do czego sluzy aplikacja,
+- wyjasnic, co robi `Main`, `Visual`, `Results`, `Analytics`, `Diagrams`
+  i `Theory`,
+- opisac dzialanie modeli ML,
+- opisac heurystyki STO,
+- tlumaczyc wykresy i raporty HTML,
+- wyjasnic kolory w `SolutionTree`,
+- podpowiadac workflow krok po kroku,
+- czytac odpowiedzi glosowo,
+- korzystac z lokalnej bazy wiedzy `docs/alice_brain.json`,
+- opcjonalnie korzystac z endpointu LLM przez zmienne srodowiskowe.
+
+## Modele ML
+
+Dostepnych jest 12 klasycznych wariantow ML.
+
+### Modele jakosci
+
+- `Quality` - Random Forest Regressor,
+- `Quality_ET` - ExtraTrees Regressor,
+- `Quality_GB` - Gradient Boosting Regressor,
+- `Quality_HGB` - HistGradient Boosting Regressor.
+
+### Modele opoznien
+
+- `Delay` - Gradient Boosting Regressor,
+- `Delay_RF` - Random Forest Regressor,
+- `Delay_ET` - ExtraTrees Regressor,
+- `Delay_HGB` - HistGradient Boosting Regressor.
+
+### Modele strategii harmonogramowania
+
+- `Schedule` - Random Forest Classifier,
+- `Schedule_ET` - ExtraTrees Classifier,
+- `Schedule_GB` - Gradient Boosting Classifier,
+- `Schedule_LOG` - Logistic Regression baseline.
+
+Metryki regresji:
+
+- `RMSE`,
+- `MAE`,
+- `R2`.
+
+Metryki klasyfikacji:
+
+- `Accuracy`,
+- `F1`,
+- prawdopodobienstwa klas.
+
+## Heurystyki STO
+
+Dostepne metody:
+
+- `MT` / `EDD` - najpierw najwczesniejszy termin,
+- `MO` / `SPT` - najpierw najkrotszy czas obrobki,
+- `MZO` / `LPT` - najpierw najdluzszy czas obrobki,
+- `MOPT` - dokladne szukanie najlepszego STO,
+- `GENETIC` - selekcja, krzyzowanie i mutacja kolejek,
+- `SLACK` - najmniejszy zapas czasu,
+- `CR` - critical ratio,
+- `EDD_SPT` - termin, a remisy rozstrzyga krotszy czas,
+- `SPT_EDD` - krotki czas, a remisy rozstrzyga termin,
+- `LPT_EDD` - dlugi czas, potem termin,
+- `NEH` - wstawianie kolejnych zlecen w najlepsze miejsce,
+- `LOCAL_SEARCH` - lokalne zamiany sasiadow,
+- `RANDOM_RESTART` - wiele losowych startow.
 
 ## Aktualna struktura repozytorium
 
 ```text
 TOOLS/
-├── docs/
-│   ├── guide.md
-│   └── theory.md
-├── data/
-│   └── sample/
-│       ├── production.csv
-│       ├── train.csv
-│       └── test.csv
-├── logs/
-├── models/
-├── src/
-│   └── AOA/
-│       ├── __init__.py
-│       ├── app.py
-│       ├── config.py
-│       ├── messages.py
-│       ├── cli/
-│       │   ├── __init__.py
-│       │   ├── __main__.py
-│       │   ├── helpers.py
-│       │   ├── interactive.py
-│       │   ├── main.py
-│       │   ├── parser.py
-│       │   └── commands/
-│       │       ├── generate.py
-│       │       ├── preview.py
-│       │       ├── solve.py
-│       │       ├── sto.py
-│       │       ├── train.py
-│       │       └── workflow.py
-│       ├── core/
-│       │   ├── __init__.py
-│       │   ├── constants.py
-│       │   ├── data_generation.py
-│       │   ├── data_io.py
-│       │   ├── dataset_ops.py
-│       │   ├── evaluation.py
-│       │   ├── features.py
-│       │   ├── learning_content.py
-│       │   ├── models.py
-│       │   ├── result_viewer_service.py
-│       │   ├── scheduling.py
-│       │   ├── sto_models.py
-│       │   ├── tabpfn_models.py
-│       │   ├── visualization_service.py
-│       │   ├── diagrams/
-│       │   └── services/
-│       │       ├── __init__.py
-│       │       ├── analysis.py
-│       │       ├── common.py
-│       │       ├── files.py
-│       │       ├── io_ops.py
-│       │       ├── sto.py
-│       │       ├── summary.py
-│       │       └── training.py
-│       ├── gui/
-│       │   ├── __init__.py
-│       │   ├── main_window.py
-│       │   └── pages/
-│       │       ├── __init__.py
-│       │       ├── main_page/
-│       │       ├── theory_page/
-│       │       ├── readme_page.py
-│       │       ├── results_page.py
-│       │       └── visual_page.py
-│       └── utils/
-│           ├── __init__.py
-│           ├── error_utils.py
-│           ├── logging_utils.py
-│           └── threading_utils.py
-├── tests/
-│   ├── cli/
-│   └── core/
-├── CHANGELOG.md
-├── README.md
-├── pyproject.toml
-└── uv.lock
+|-- docs/
+|   |-- alice_brain.json
+|   |-- architecture.md
+|   |-- guide.md
+|   |-- theory.md
+|   |-- workflows.md
+|   `-- alice_sources/
+|-- data/
+|   `-- sample/
+|-- logs/
+|-- models/
+|-- src/
+|   `-- AOA/
+|       |-- app.py
+|       |-- config.py
+|       |-- cli/
+|       |-- core/
+|       |   |-- assistant_service.py
+|       |   |-- data_analytics_service.py
+|       |   |-- drawio_service.py
+|       |   |-- visualization_service.py
+|       |   |-- ml_models/
+|       |   |-- mh_models/
+|       |   |-- mlstack/
+|       |   |-- diagrams/
+|       |   `-- services/
+|       |-- gui/
+|       |   |-- assistant_panel.py
+|       |   |-- main_window.py
+|       |   `-- pages/
+|       |       |-- analytics_page.py
+|       |       |-- drawio_page.py
+|       |       |-- readme_page.py
+|       |       |-- results_page.py
+|       |       |-- visual_page.py
+|       |       `-- theory_page/
+|       `-- utils/
+|-- tests/
+|   |-- cli/
+|   |-- core/
+|   `-- gui/
+|-- README.md
+|-- CHANGELOG.md
+|-- pyproject.toml
+`-- uv.lock
 ```
 
-Dane przykładowe są trzymane wyłącznie w `data/sample/`. Pliki generowane lokalnie przez aplikację (`data/dane_*.csv`, `data/train_*.csv`, `data/test_*.csv`, wyniki solve/STO) są ignorowane przez `.gitignore`, żeby nie trafiały przypadkowo do commitów.
+Pliki generowane lokalnie przez aplikacje, np. raporty HTML, wyniki treningu,
+dane tymczasowe i eksporty, powinny pozostawac lokalne i nie trafiac przypadkiem
+do commitow.
 
-## Rozszerzone modele ML i heurystyki STO
-
-W bieżącej wersji panel wyboru modeli został rozszerzony tak, aby użytkownik mógł porównywać różne podejścia dla podobnych celów. W trybie `classic` dostępnych jest 12 wariantów ML:
-
-- `Quality`, `Quality_ET`, `Quality_GB`, `Quality_HGB` — cztery modele regresyjne dla jakości, patrzące odpowiednio na stabilność lasu, większą losowość ExtraTrees, poprawianie błędów przez boosting oraz szybki boosting histogramowy.
-- `Delay`, `Delay_RF`, `Delay_ET`, `Delay_HGB` — cztery modele regresyjne dla opóźnień, skupione na ryzyku przekroczenia terminu i dużych błędach.
-- `Schedule`, `Schedule_ET`, `Schedule_GB`, `Schedule_LOG` — cztery klasyfikatory strategii harmonogramowania, od modeli drzewiastych po prosty baseline liniowy.
-
-Modele heurystyczne STO zostały rozszerzone do zestawu 13 metod: `MT`, `MO`, `MZO`, `MOPT`, `GENETIC`, `SLACK`, `CR`, `EDD_SPT`, `SPT_EDD`, `LPT_EDD`, `NEH`, `LOCAL_SEARCH`, `RANDOM_RESTART`. Każda metoda ma opis, na co patrzy: termin, czas obróbki, zapas, dokładne minimum STO, krytyczność, wariant wstawiania lub lokalne poprawki kolejności.
-
-Architektura została przygotowana modułowo: definicje modeli ML znajdują się w `src/AOA/core/ml_models/`, a definicje heurystyk w `src/AOA/core/mh_models/`. Dzięki temu można później dopisywać kolejne warianty bez przeciążania głównych plików aplikacji.
-
-## Jak uruchomić projekt
+## Jak uruchomic projekt
 
 ### Wersja z `uv`
 
-#### 1. Sklonuj repozytorium i przejdź do katalogu projektu
+#### 1. Sklonuj repozytorium i przejdz do katalogu projektu
 
 ```bash
 git clone git@github.com:UZ-FENS/passthebranch-Kitori2137.git
-cd passthebranch-Kitori2137.git
+cd passthebranch-Kitori2137
 ```
 
-#### 2. Zainstaluj zależności
+#### 2. Zainstaluj zaleznosci
 
 ```bash
 uv sync --dev
 ```
 
-#### 3. Uruchom aplikację desktopową
+#### 3. Uruchom aplikacje desktopowa
 
 ```bash
 uv run python -m AOA.app
@@ -248,98 +445,86 @@ uv run pytest
 
 ### Wersja bez `uv`
 
-#### 1. Sklonuj repozytorium i przejdź do katalogu projektu
-
-```bash
-git clone git@github.com:UZ-FENS/passthebranch-Kitori2137.git
-cd passthebranch-Kitori2137.git
-```
-
-#### 2. Utwórz i aktywuj środowisko wirtualne
+#### 1. Utworz i aktywuj srodowisko wirtualne
 
 ```bash
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 ```
 
-#### 3. Zainstaluj projekt
+#### 2. Zainstaluj projekt
 
 ```bash
-pip install -e .
+pip install -e .[dev]
 ```
 
-#### 4. Uruchom aplikację
+#### 3. Uruchom aplikacje
 
 ```bash
 python -m AOA.app
 ```
 
-#### 5. Uruchom testy
+#### 4. Uruchom testy
 
 ```bash
 pytest
 ```
 
+## CLI
+
+Przykladowe komendy:
+
+```bash
+uv run aoa-cli --help
+uv run aoa-cli generate
+uv run aoa-cli train --models Quality,Delay
+uv run aoa-cli sto --models MT,MO,GENETIC
+uv run aoa-cli workflow
+```
+
+## Baza wiedzy ALICE
+
+ALICE ma lokalny plik wiedzy:
+
+```text
+docs/alice_brain.json
+```
+
+Kazdy wpis zawiera:
+
+- `id` - identyfikator tematu,
+- `aliases` - hasla i pytania, po ktorych ALICE rozpoznaje temat,
+- `answer` - odpowiedz bazowa,
+- `steps` - kroki dla uzytkownika.
+
+Dzieki temu przed publikacja na GitHubie mozna latwo dopisywac nowe pytania
+i odpowiedzi bez przepisywania calej logiki asystenta.
+
 ## Aktualny stan projektu
 
-Projekt posiada działający fundament techniczny i obejmuje aplikację desktopową, interfejs terminalowy, warstwę testów oraz pierwsze moduły edukacyjno-analityczne. Główna zasada architektury pozostaje bez zmian: logika aplikacji znajduje się w `core`, a GUI jest warstwą prezentacji i obsługi użytkownika.
+Projekt ma dzialajacy fundament techniczny:
 
-### Zrealizowane elementy
+- aplikacje desktopowa,
+- interfejs CLI,
+- modele ML,
+- heurystyki STO,
+- wizualizacje,
+- eksport HTML,
+- Analytics Studio,
+- Diagrams,
+- Theory,
+- ALICE,
+- dokumentacje,
+- testy jednostkowe i przeplywowe.
 
-- wydzielenie warstwy `core`,
-- oddzielenie logiki aplikacyjnej od GUI,
-- dodanie warstwy `cli`,
-- modularna struktura projektu oparta o układ `src/`,
-- generowanie danych testowych,
-- wczytywanie danych CSV/TXT/TSV,
-- obsługa dowolnych danych tabelarycznych w widokach `Visual` i `Results`,
-- przygotowanie cech do modeli ML,
-- trenowanie wielu modeli jednocześnie,
-- automatyczny zapis modeli do osobnych plików,
-- 12 klasycznych wariantów ML:
-  - `Quality`, `Quality_ET`, `Quality_GB`, `Quality_HGB`,
-  - `Delay`, `Delay_RF`, `Delay_ET`, `Delay_HGB`,
-  - `Schedule`, `Schedule_ET`, `Schedule_GB`, `Schedule_LOG`,
-- pełny przepływ `train -> save -> load -> solve` dla modeli ML,
-- pipeline'y ML z imputacją braków danych i spójnym przygotowaniem cech,
-- pamięć treningowa modeli ML oparta o zapisane paczki modeli,
-- eksperymentalny backend `TabPFN`,
-- metryki jakości uczenia modeli ML,
-- heurystyczne modele STO:
-  - `MT`,
-  - `MO`,
-  - `MZO`,
-  - `MOPT`,
-  - `GENETIC`,
-  - `SLACK`,
-  - `CR`,
-  - `EDD_SPT`,
-  - `SPT_EDD`,
-  - `LPT_EDD`,
-  - `NEH`,
-  - `LOCAL_SEARCH`,
-  - `RANDOM_RESTART`,
-- zapis i późniejsze używanie modeli STO,
-- interaktywna instrukcja na stronie `Readme`,
-- teoria użytkowa na stronie `Theory`,
-- rozbudowane wizualizacje, raporty i pełniejsze wykresy D3 na stronie `Visual`,
-- przebudowany viewer danych na stronie `Results`,
-- podstawowe operacje analityczne i ewaluacyjne,
-- obsługa pełnych przepływów pracy w GUI i CLI,
-- logowanie błędów do katalogu `logs`,
-- testy jednostkowe i testy przepływów,
-- plik `CHANGELOG.md`,
-- przygotowanie projektu do wersjonowania oraz release’ów.
+Ostatnio sprawdzony pelny zestaw testow przechodzil w liczbie ponad 360 testow.
 
 ## Plan na kolejne aktualizacje
 
-- kreator dashboardów w `Visual Lab`, pozwalający zapisywać własne układy paneli i wracać do nich później,
-- bardziej zaawansowane filtry kolumnowe w `Results Studio`, np. warunki tekstowe, zakresy dat, profile kategorii i zapis presetów filtrów,
-- eksport raportów do HTML/PDF wraz z tabelą, wykresami i opisem jakości danych,
-- porównywarka wielu zapisanych modeli ML: metryki, różnice predykcji, stabilność i historia treningu,
-- panel historii treningów pokazujący, z jakich wcześniejszych paczek korzystała pamięć modelu,
-- rozszerzenie pamięci treningowej o kontrolowane strategie: limit wieku danych, ręczne wykluczanie paczek i walidację jakości historii,
-- asystent użytkownika / helpdesk w aplikacji, który po opisaniu celu podpowie właściwy moduł i przygotuje konfigurację analizy,
-- opcjonalna integracja z agentami albo projektem AIRI jako przyszły tryb wspomagania użytkownika,
-- dalsza optymalizacja kodu i wydajności GUI,
-- rozbudowa dokumentacji o scenariusze krok po kroku oraz przykładowe pliki wejściowe dla ML, STO, Visual i Results.
+- Dalsze rozwijanie bazy wiedzy ALICE o pytania uzytkownikow z realnego uzycia.
+- Lepszy tryb release-check przed publikacja na GitHubie.
+- Dalszy QA HTML dla kazdego typu wykresu i kazdej biblioteki.
+- Porownywarka wielu zapisanych modeli ML.
+- Historia treningow i historia workflowow.
+- Wieksza liczba przykladowych plikow danych.
+- Bardziej rozbudowane tutoriale krok po kroku w `docs/`.

@@ -64,3 +64,18 @@ class MainPage(
         self.render_summary()
         self.render_status()
         self.render_preview()
+
+    def focus_section(self, section: str) -> None:
+        frame = getattr(self, "assistant_sections", {}).get(section)
+        if frame is None:
+            return
+        self._pulse_frame(frame)
+        if section == "actions" and hasattr(self, "btn_train"):
+            self._pulse_frame(self.btn_train)
+
+    def _pulse_frame(self, widget) -> None:
+        try:
+            widget.configure(border_width=2, border_color="#1f8fff")
+            self.after(1400, lambda: widget.configure(border_width=0))
+        except Exception:
+            return
