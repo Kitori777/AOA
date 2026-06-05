@@ -27,11 +27,10 @@ class ModelAnimationCard(ctk.CTkFrame):
         self._build()
 
     def _build(self) -> None:
-        self.title = label(self, "Animacja działania modelu", size=16, weight="bold")
+        self.title = label(self, "Animacja dzialania modelu", size=16, weight="bold")
         self.title.grid(row=0, column=0, sticky="w", padx=18, pady=(14, 6))
-
         self.canvas = tk.Canvas(
-            self, height=340, bg="#101922", highlightthickness=1, highlightbackground="#252c34"
+            self, height=420, bg="#101922", highlightthickness=1, highlightbackground="#252c34"
         )
         self.canvas.grid(row=1, column=0, sticky="nsew", padx=18, pady=(0, 8))
         self.canvas.bind("<Configure>", lambda _event: self._draw_canvas())
@@ -51,8 +50,7 @@ class ModelAnimationCard(ctk.CTkFrame):
             controls, from_=1, to=12, number_of_steps=11, command=self._slider_changed
         )
         self.slider.grid(row=0, column=4, padx=8, sticky="ew")
-        self.auto_label = label(controls, "Tempo", size=12, weight="bold")
-        self.auto_label.grid(row=0, column=5, padx=(14, 6))
+        label(controls, "Tempo", size=12, weight="bold").grid(row=0, column=5, padx=(14, 6))
         self.speed = ctk.CTkOptionMenu(controls, values=["0.75x", "1.0x", "1.5x"], width=84)
         self.speed.set("1.0x")
         self.speed.grid(row=0, column=6, padx=(0, 2))
@@ -69,13 +67,13 @@ class ModelAnimationCard(ctk.CTkFrame):
         self.example_values.update(values)
         self._draw_canvas()
 
-    def _configure_slider(self) -> None:
-        total = self.total_steps
-        self.slider.configure(from_=1, to=total, number_of_steps=max(total - 1, 1))
-
     @property
     def total_steps(self) -> int:
         return max(1, len(self.model.steps) if self.model is not None else 12)
+
+    def _configure_slider(self) -> None:
+        total = self.total_steps
+        self.slider.configure(from_=1, to=total, number_of_steps=max(total - 1, 1))
 
     def set_step(self, index: int, *, emit: bool = True, user_action: bool = False) -> None:
         if user_action:
@@ -127,10 +125,8 @@ class ModelAnimationCard(ctk.CTkFrame):
             self._resume_after_id = None
 
     def _schedule_next(self, *, initial: bool = False) -> None:
-        factor = {"0.75x": 13000, "1.0x": 10000, "1.5x": 7000}.get(self.speed.get(), 10000)
-        if initial:
-            factor = 10000
-        self._after_id = self.after(factor, self._play_tick)
+        delay = {"0.75x": 13000, "1.0x": 10000, "1.5x": 7000}.get(self.speed.get(), 10000)
+        self._after_id = self.after(10000 if initial else delay, self._play_tick)
 
     def _play_tick(self) -> None:
         if not self.is_playing:
@@ -144,7 +140,7 @@ class ModelAnimationCard(ctk.CTkFrame):
     def _refresh(self, *, emit: bool = True) -> None:
         if self.model is None:
             return
-        self.title.configure(text=f"Animacja działania modelu: {self.model.title}")
+        self.title.configure(text=f"Animacja dzialania modelu: {self.model.title}")
         self.step_label.configure(text=f"Krok {self.step_index + 1} / {self.total_steps}")
         self.slider.set(self.step_index + 1)
         self._draw_canvas()
@@ -152,27 +148,21 @@ class ModelAnimationCard(ctk.CTkFrame):
             self.on_step_changed(self.step_index)
 
     def _draw_canvas(self) -> None:
-        model = self.model
-        if model is None:
+        if self.model is None:
             return
         c = self.canvas
         c.delete("all")
-        width = max(c.winfo_width(), 820)
-        height = max(c.winfo_height(), 340)
+        width = max(c.winfo_width(), 920)
+        height = max(c.winfo_height(), 420)
         c.configure(scrollregion=(0, 0, width, height))
         self._draw_stepper(c, width)
-        if model.family == "mh":
+        if self.model.family == "mh":
             self._draw_mh(c, width, height)
         else:
             self._draw_ml(c, width, height)
 
-    def _phase(self) -> int:
-        return min(3, int(self.step_index / max(1, self.total_steps / 4)))
-
     def _draw_stepper(self, c: tk.Canvas, width: int) -> None:
-        model = self.model
-        if model is None:
-            return
+        assert self.model is not None
         total = self.total_steps
         y = 36
         left = 58
@@ -182,193 +172,387 @@ class ModelAnimationCard(ctk.CTkFrame):
         c.create_line(left, y, left + gap * self.step_index, y, fill=BLUE, width=3)
         for i in range(total):
             x = left + gap * i
-            active = i <= self.step_index
             current = i == self.step_index
+            active = i <= self.step_index
             radius = 13 if current else 9
-            fill = BLUE if active else "#4b5563"
             c.create_oval(
                 x - radius,
                 y - radius,
                 x + radius,
                 y + radius,
-                fill=fill,
+                fill=BLUE if active else "#4b5563",
                 outline="#93c5fd" if current else "#38424c",
                 width=2 if current else 1,
             )
-            if current or i in {0, total - 1}:
-                c.create_text(x, y, text=str(i + 1), fill="white", font=("Segoe UI", 8, "bold"))
-        title = model.steps[self.step_index]
         c.create_text(
             width / 2,
             70,
-            text=f"Krok {self.step_index + 1}: {title}",
+            text=f"Krok {self.step_index + 1}: {self.model.steps[self.step_index]}",
             fill="#f8fafc",
             font=("Segoe UI", 12, "bold"),
         )
         c.create_text(
             width / 2,
             94,
-            text=model.step_details[self.step_index],
+            text=self.model.step_details[self.step_index],
             fill=TEXT_MUTED,
             font=("Segoe UI", 9),
-            width=min(760, width - 90),
+            width=min(780, width - 90),
         )
 
+    @staticmethod
+    def _ml_visual_kind(model: TheoryModel) -> str:
+        algorithm = model.algorithm.lower()
+        if "logist" in algorithm:
+            return "logistic"
+        if "histgradient" in algorithm:
+            return "hist"
+        if "gradient" in algorithm:
+            return "boost"
+        if "extra" in algorithm:
+            return "extra"
+        return "forest"
+
+    @staticmethod
+    def _ml_stage_caption(kind: str) -> str:
+        if kind == "logistic":
+            return "regresja logistyczna: wagi cech, softmax i prawdopodobienstwa klas"
+        if kind == "boost":
+            return "Gradient Boosting: kolejne drzewa poprawiaja blad poprzedniej predykcji"
+        if kind == "hist":
+            return "HistGradient: wartosci trafiaja do koszykow, a boosting poprawia gradient bledu"
+        if kind == "extra":
+            return "ExtraTrees: wiele drzew z mocniej losowanymi progami podzialu"
+        return "Random Forest: wiele drzew na losowych probkach i agregacja wyniku"
+
     def _draw_ml(self, c: tk.Canvas, width: int, height: int) -> None:
+        assert self.model is not None
         active = self.step_index
-        phase = self._phase()
         top = 104
         panel_h = max(132, height - top - 18)
-        self._panel(c, 36, top, 194, top + panel_h, "Instancja", active >= 0)
+        kind = self._ml_visual_kind(self.model)
+        task = (
+            "strategia"
+            if self.model.key.startswith("Schedule")
+            else ("opoznienie" if self.model.key.startswith("Delay") else "jakosc")
+        )
+
+        data_x1, data_x2 = 36, 226
+        model_x1, model_x2 = 264, width - 282
+        result_x1, result_x2 = width - 244, width - 36
+
+        self._panel(c, data_x1, top, data_x2, top + panel_h, "Rekord danych", active >= 0)
         values = self.example_values
         rows = [
             ("ID", "1"),
-            ("Klasa", "A"),
-            ("MT", f"{values['mt']:.2f}"),
-            ("MO", f"{values['mo']:.2f}"),
-            ("MZO", f"{values['mzo']:.2f}"),
-            ("GEN", f"{values['gen']:.2f}"),
+            ("Cel", task),
+            ("czas_h", f"{8 + values['mt'] * 6:.1f}"),
+            ("termin_h", f"{24 + values['mo'] * 42:.1f}"),
+            ("koszt", f"{100 + values['mzo'] * 160:.0f}"),
+            ("material", f"{values['gen']:.2f}"),
         ]
-        for i, (k, v) in enumerate(rows):
+        for i, (name, value) in enumerate(rows):
             y = top + 38 + i * 22
             if i >= 2:
                 c.create_rectangle(
-                    58,
+                    data_x1 + 22,
                     y - 10,
-                    172,
+                    data_x2 - 22,
                     y + 10,
                     fill="#1f4f85" if 2 <= active <= 4 else "#202831",
                     outline="#314155",
                 )
             c.create_text(
-                70,
+                data_x1 + 34,
                 y,
-                text=k,
+                text=name,
                 fill="white",
                 anchor="w",
                 font=("Segoe UI", 9, "bold" if i < 2 else "normal"),
             )
-            c.create_text(164, y, text=v, fill="#dbeafe", anchor="e", font=("Segoe UI", 9))
+            c.create_text(
+                data_x2 - 30, y, text=value, fill="#dbeafe", anchor="e", font=("Segoe UI", 9)
+            )
         if active >= 1:
             c.create_rectangle(
-                58,
+                data_x1 + 22,
                 top + panel_h - 58,
-                172,
+                data_x2 - 22,
                 top + panel_h - 18,
-                fill="#172554" if active >= 2 else "#202831",
+                fill="#172554",
                 outline="#3b82f6",
             )
             c.create_text(
-                115,
+                (data_x1 + data_x2) / 2,
                 top + panel_h - 45,
-                text="historia",
+                text="train/test",
                 fill="#dbeafe",
                 font=("Segoe UI", 8, "bold"),
             )
             c.create_text(
-                115,
+                (data_x1 + data_x2) / 2,
                 top + panel_h - 30,
-                text="+ poprzednie treningi" if active >= 2 else "szukanie packów",
+                text="walidacja modelu",
                 fill="#93c5fd",
                 font=("Segoe UI", 7),
             )
+
         self._draw_ml_token(c, width, top, panel_h, active)
-        self._arrow(c, 210, top + panel_h / 2, 250, top + panel_h / 2, active >= 3)
-        self._panel(c, 266, top, width - 300, top + panel_h, "Model uczący się", active >= 3)
-        self._draw_tree(c, (width - 34 - 300 + 266) / 2, top + 55, active)
-        if active >= 7:
-            for offset, label_text in [(-95, "drzewo 1"), (0, "drzewo 2"), (95, "drzewo 3")]:
-                c.create_rectangle(
-                    (width / 2) + offset - 38,
-                    top + panel_h - 50,
-                    (width / 2) + offset + 38,
-                    top + panel_h - 25,
-                    fill="#223149",
-                    outline="#3b5f86",
-                )
-                c.create_text(
-                    (width / 2) + offset,
-                    top + panel_h - 37,
-                    text=label_text,
-                    fill="#dbeafe",
-                    font=("Segoe UI", 8, "bold"),
-                )
-        self._arrow(c, width - 284, top + panel_h / 2, width - 246, top + panel_h / 2, active >= 8)
-        self._panel(c, width - 230, top, width - 36, top + panel_h, "Wynik", active >= 8)
-        model = self.model
-        assert model is not None
-        for i, (name, value) in enumerate(model.probabilities):
+        self._arrow(
+            c, data_x2 + 6, top + panel_h / 2, model_x1 - 10, top + panel_h / 2, active >= 2
+        )
+        self._panel(c, model_x1, top, model_x2, top + panel_h, self.model.algorithm, active >= 3)
+        self._draw_ml_core(c, model_x1, model_x2, top, panel_h, active, kind)
+        self._arrow(
+            c, model_x2 + 8, top + panel_h / 2, result_x1 - 8, top + panel_h / 2, active >= 7
+        )
+        self._panel(c, result_x1, top, result_x2, top + panel_h, "Wynik modelu", active >= 7)
+
+        for i, (prob_name, prob_value) in enumerate(self.model.probabilities):
             y = top + 46 + i * 38
-            bar_w = int(126 * value)
+            bar_w = int((result_x2 - result_x1 - 72) * prob_value)
             color = [BLUE, GREEN, PURPLE][i % 3]
+            bar_x1, bar_x2 = result_x1 + 26, result_x2 - 24
+            c.create_rectangle(bar_x1, y - 13, bar_x2, y + 13, fill="#202831", outline="#2f3a45")
             c.create_rectangle(
-                width - 204, y - 13, width - 58, y + 13, fill="#202831", outline="#2f3a45"
-            )
-            c.create_rectangle(
-                width - 204,
+                bar_x1,
                 y - 13,
-                width - 204 + bar_w,
+                bar_x1 + bar_w,
                 y + 13,
-                fill=color if active >= 9 else "#3a4350",
+                fill=color if active >= 8 else "#3a4350",
                 outline="",
             )
             c.create_text(
-                width - 196, y, text=name, fill="#f8fafc", anchor="w", font=("Segoe UI", 8)
+                bar_x1 + 8, y, text=prob_name, fill="#f8fafc", anchor="w", font=("Segoe UI", 8)
             )
             c.create_text(
-                width - 66, y, text=f"{value:.2f}", fill="#f8fafc", anchor="e", font=("Segoe UI", 8)
+                bar_x2 - 8,
+                y,
+                text=f"{prob_value:.2f}",
+                fill="#f8fafc",
+                anchor="e",
+                font=("Segoe UI", 8),
             )
         c.create_rectangle(
-            width - 204,
-            top + panel_h - 42,
-            width - 58,
-            top + panel_h - 14,
+            result_x1 + 26,
+            top + panel_h - 46,
+            result_x2 - 24,
+            top + panel_h - 16,
             fill="#234a2d" if active >= 10 else "#252c34",
             outline="#31523a",
         )
         c.create_text(
-            width - 131,
-            top + panel_h - 28,
-            text=model.result,
+            (result_x1 + result_x2) / 2,
+            top + panel_h - 31,
+            text=self.model.result,
             fill="#dcfce7",
             font=("Segoe UI", 9, "bold"),
-            width=136,
+            width=result_x2 - result_x1 - 60,
         )
-        if phase >= 1:
+        if self.step_index >= 3:
             c.create_text(
-                width / 2,
-                top + 28,
-                text="model wybiera cechy i progi, które zmniejszają błąd",
+                (model_x1 + model_x2) / 2,
+                top + 48,
+                text=self._ml_stage_caption(kind),
                 fill="#bfdbfe",
                 font=("Segoe UI", 9, "bold"),
+                width=model_x2 - model_x1 - 36,
+            )
+
+    def _draw_ml_core(
+        self, c: tk.Canvas, x1: float, x2: float, top: int, panel_h: int, active: int, kind: str
+    ) -> None:
+        x_mid = (x1 + x2) / 2
+        core_w = max(260, x2 - x1)
+        if kind == "logistic":
+            axis_left, axis_right = x1 + 42, x2 - 42
+            axis_bottom, axis_top = top + panel_h - 72, top + 78
+            c.create_line(
+                axis_left,
+                axis_bottom,
+                axis_right,
+                axis_bottom,
+                fill="#64748b",
+                width=2,
+                arrow=tk.LAST,
+            )
+            c.create_line(
+                axis_left, axis_bottom, axis_left, axis_top, fill="#64748b", width=2, arrow=tk.LAST
+            )
+            c.create_line(
+                axis_left + 10,
+                axis_bottom - 24,
+                axis_right - 10,
+                axis_top + 22,
+                fill=YELLOW,
+                width=3,
+            )
+            for px, py, color in [
+                (axis_left + core_w * 0.16, axis_bottom - 42, BLUE),
+                (axis_left + core_w * 0.34, axis_bottom - 62, GREEN),
+                (axis_left + core_w * 0.56, axis_bottom - 104, PURPLE),
+            ]:
+                c.create_oval(
+                    px - 8,
+                    py - 8,
+                    px + 8,
+                    py + 8,
+                    fill=color if active >= 4 else "#475569",
+                    outline="",
+                )
+            if active >= 5:
+                c.create_text(
+                    x_mid,
+                    top + 84,
+                    text="softmax -> P(A), P(B), P(C)",
+                    fill="#dbeafe",
+                    font=("Segoe UI", 9, "bold"),
+                )
+            if active >= 8:
+                c.create_text(
+                    x_mid,
+                    top + panel_h - 30,
+                    text="regularizacja ogranicza zbyt duze wagi",
+                    fill="#c4b5fd",
+                    font=("Segoe UI", 9, "bold"),
+                )
+            return
+
+        if kind in {"boost", "hist"}:
+            labels = ["start", "blad", "drzewo +", "blad", "drzewo +"]
+            item_w = min(72, max(54, (core_w - 78) / len(labels)))
+            gap = (core_w - 56 - item_w * len(labels)) / max(1, len(labels) - 1)
+            x0 = x1 + 28
+            y_box = top + panel_h * 0.46
+            for i, text in enumerate(labels):
+                x = x0 + i * (item_w + gap)
+                fill = [BLUE, "#ef4444", GREEN, "#f97316", PURPLE][i]
+                c.create_rectangle(
+                    x,
+                    y_box - 26,
+                    x + item_w,
+                    y_box + 26,
+                    fill=fill if active >= i + 2 else "#334155",
+                    outline="#cbd5e1",
+                )
+                c.create_text(
+                    x + item_w / 2,
+                    y_box,
+                    text=text,
+                    fill="white",
+                    font=("Segoe UI", 8, "bold"),
+                    width=item_w - 8,
+                )
+                if i < len(labels) - 1:
+                    self._arrow(
+                        c, x + item_w + 4, y_box, x + item_w + gap - 4, y_box, active >= i + 3
+                    )
+            if kind == "hist":
+                for i in range(5):
+                    bx = x_mid - 112 + i * 56
+                    c.create_rectangle(
+                        bx,
+                        top + 76,
+                        bx + 38,
+                        top + 108,
+                        fill="#1e3a8a" if active >= 2 else "#334155",
+                        outline="#93c5fd",
+                    )
+                c.create_text(
+                    x_mid,
+                    top + 60,
+                    text="koszyki wartosci / histogramy",
+                    fill="#bfdbfe",
+                    font=("Segoe UI", 9, "bold"),
+                )
+            if active >= 8:
+                c.create_text(
+                    x_mid,
+                    top + panel_h - 32,
+                    text="early stopping: walidacja zatrzymuje uczenie",
+                    fill="#fde68a",
+                    font=("Segoe UI", 9, "bold"),
+                )
+            return
+
+        top_y = top + 92
+        bottom_y = top + panel_h - 104
+        offsets = [-0.34, 0.0, 0.34, -0.18, 0.18]
+        y_positions = [top_y, top_y - 12, top_y, bottom_y, bottom_y]
+        for i, (offset, y) in enumerate(zip(offsets, y_positions, strict=True)):
+            x = x_mid + offset * core_w
+            text = f"drzewo {i + 1}" if kind == "forest" else f"losowe {i + 1}"
+            c.create_rectangle(
+                x - 42,
+                y - 22,
+                x + 42,
+                y + 22,
+                fill="#1f2937",
+                outline="#93c5fd" if active >= 3 else "#475569",
+                width=2,
+            )
+            c.create_text(x, y, text=text, fill="#dbeafe", font=("Segoe UI", 8, "bold"))
+            if active >= 4:
+                self._draw_tiny_split(c, x, y + 42, active, random_threshold=(kind == "extra"))
+        if active >= 7:
+            c.create_rectangle(
+                x_mid - 96,
+                top + panel_h - 52,
+                x_mid + 96,
+                top + panel_h - 18,
+                fill="#123f78",
+                outline="#bfdbfe",
+            )
+            c.create_text(
+                x_mid,
+                top + panel_h - 35,
+                text="srednia / glosowanie",
+                fill="#f8fafc",
+                font=("Segoe UI", 9, "bold"),
+            )
+
+    def _draw_tiny_split(
+        self, c: tk.Canvas, x: float, y: float, active: int, *, random_threshold: bool
+    ) -> None:
+        color = YELLOW if random_threshold else GREEN
+        c.create_line(x, y, x - 22, y + 24, fill=color, width=2)
+        c.create_line(x, y, x + 22, y + 24, fill=color, width=2)
+        c.create_oval(x - 7, y - 7, x + 7, y + 7, fill=color, outline="")
+        if active >= 5:
+            c.create_text(
+                x,
+                y + 38,
+                text="losowy prog" if random_threshold else "najlepszy prog",
+                fill="#cbd5e1",
+                font=("Segoe UI", 7),
             )
 
     def _draw_ml_token(self, c: tk.Canvas, width: int, top: int, panel_h: int, active: int) -> None:
         route = [
-            (115, top + panel_h / 2),
-            (115, top + panel_h - 38),
-            (230, top + panel_h / 2),
-            (width / 2 - 70, top + 120),
-            (width / 2, top + 55),
-            (width / 2 + 60, top + 108),
-            (width / 2 + 94, top + 157),
-            (width / 2, top + panel_h - 38),
+            (125, top + panel_h / 2),
+            (125, top + panel_h - 38),
+            (250, top + panel_h / 2),
+            (width / 2 - 120, top + 130),
+            (width / 2 - 55, top + 110),
+            (width / 2 + 20, top + 130),
+            (width / 2 + 92, top + 130),
+            (width / 2, top + panel_h - 42),
             (width - 264, top + panel_h / 2),
             (width - 168, top + 82),
             (width - 132, top + panel_h - 28),
             (width - 88, top + panel_h - 28),
         ]
-        idx = max(0, min(active, len(route) - 1))
-        x, y = route[idx]
+        x, y = route[max(0, min(active, len(route) - 1))]
         c.create_oval(x - 8, y - 8, x + 8, y + 8, fill=YELLOW, outline="#fff7ad", width=2)
-        c.create_text(x, y - 18, text="przykład", fill="#fde68a", font=("Segoe UI", 8, "bold"))
+        c.create_text(x, y - 18, text="rekord", fill="#fde68a", font=("Segoe UI", 8, "bold"))
 
     def _draw_mh(self, c: tk.Canvas, width: int, height: int) -> None:
+        assert self.model is not None
         active = self.step_index
         top = 104
         panel_h = max(132, height - top - 18)
         jobs = [("J1", 6, 30), ("J2", 4, 20), ("J3", 2, 12), ("J4", 7, 25)]
-        self._panel(c, 36, top, 210, top + panel_h, "Zlecenia", active >= 0)
+        self._panel(c, 36, top, 210, top + panel_h, "Zlecenia STO", active >= 0)
         for i, (job, p, d) in enumerate(jobs):
             y = top + 45 + i * 28
             c.create_rectangle(58, y - 11, 190, y + 11, fill="#202831", outline="#2f3a45")
@@ -376,27 +560,25 @@ class ModelAnimationCard(ctk.CTkFrame):
             c.create_text(126, y, text=f"p={p}", fill="#dbeafe", font=("Segoe UI", 9))
             c.create_text(174, y, text=f"d={d}", fill="#dbeafe", font=("Segoe UI", 9))
         self._arrow(c, 226, top + panel_h / 2, 266, top + panel_h / 2, active >= 2)
-        self._panel(c, 282, top, width - 326, top + panel_h, "Reguła i symulacja", active >= 2)
-        model = self.model
-        assert model is not None
+        self._panel(c, 282, top, width - 326, top + panel_h, "Regula i symulacja", active >= 2)
         c.create_text(
             width / 2 - 20,
             top + 43,
-            text=model.algorithm,
+            text=self.model.algorithm,
             fill="#f8fafc",
             font=("Segoe UI", 14, "bold"),
         )
         c.create_text(
             width / 2 - 20,
             top + 72,
-            text=model.focus,
+            text=self.model.focus,
             fill="#cbd5e1",
             font=("Segoe UI", 10),
             width=250,
         )
         order = (
             ["J4", "J1", "J2", "J3"]
-            if "LPT" in model.algorithm or model.key in {"MZO", "LPT_EDD"}
+            if "LPT" in self.model.algorithm or self.model.key in {"MZO", "LPT_EDD"}
             else ["J3", "J2", "J1", "J4"]
         )
         x = width / 2 - 150
@@ -418,24 +600,24 @@ class ModelAnimationCard(ctk.CTkFrame):
                 )
             x += w + 8
         if active >= 6:
-            metrics = [("Tj", "0 / 0 / 0 / 7"), ("T+", "7"), ("STO", "7")]
-            for i, (k, v) in enumerate(metrics):
+            for i, (name, value) in enumerate([("Tj", "0 / 0 / 0 / 7"), ("T+", "7"), ("STO", "7")]):
                 y = top + panel_h - 62 + i * 18
                 c.create_text(
-                    width / 2 - 150, y, text=k, fill=TEXT_MUTED, anchor="w", font=("Segoe UI", 9)
+                    width / 2 - 150, y, text=name, fill=TEXT_MUTED, anchor="w", font=("Segoe UI", 9)
                 )
                 c.create_text(
                     width / 2 + 150,
                     y,
-                    text=v,
+                    text=value,
                     fill="#f8fafc",
                     anchor="e",
                     font=("Segoe UI", 9, "bold"),
                 )
         self._arrow(c, width - 310, top + panel_h / 2, width - 268, top + panel_h / 2, active >= 9)
         self._panel(c, width - 252, top, width - 36, top + panel_h, "Ranking STO", active >= 9)
-        rows = [(model.short_title, "7"), ("MT / EDD", "9"), ("MO / SPT", "11"), ("GENETIC", "6")]
-        for i, (name, score) in enumerate(rows):
+        for i, (name, score) in enumerate(
+            [(self.model.short_title, "7"), ("MT / EDD", "9"), ("MO / SPT", "11"), ("GENETIC", "6")]
+        ):
             y = top + 48 + i * 30
             fill = "#234a2d" if active >= 10 and i == 0 else "#202831"
             c.create_rectangle(
@@ -512,30 +694,13 @@ class ModelAnimationCard(ctk.CTkFrame):
     def _arrow(
         self, c: tk.Canvas, x1: float, y1: float, x2: float, y2: float, active: bool
     ) -> None:
-        color = BLUE if active else "#49525d"
-        c.create_line(x1, y1, x2, y2, fill=color, width=3, arrow=tk.LAST, arrowshape=(12, 14, 5))
-
-    def _draw_tree(self, c: tk.Canvas, x: float, y: float, active: int) -> None:
-        colors = [BLUE, GREEN, PURPLE, "#9ca3af", "#6b7280"]
-        points = [
-            (x, y),
-            (x - 62, y + 52),
-            (x + 62, y + 52),
-            (x - 100, y + 102),
-            (x - 40, y + 102),
-            (x + 40, y + 102),
-            (x + 100, y + 102),
-        ]
-        edges = [(0, 1), (0, 2), (1, 3), (1, 4), (2, 5), (2, 6)]
-        for a, b in edges:
-            c.create_line(
-                *points[a], *points[b], fill="#6b7280" if active >= 4 else "#374151", width=2
-            )
-        for i, (px, py) in enumerate(points):
-            fill = colors[i % len(colors)] if active >= 4 else "#3d4652"
-            radius = 13 if (active >= 5 and i in {1, 4}) else 10
-            c.create_oval(
-                px - radius, py - radius, px + radius, py + radius, fill=fill, outline="#cbd5e1"
-            )
-            if active >= 6 and i in {3, 4, 5, 6}:
-                c.create_text(px, py + 21, text="głos", fill="#cbd5e1", font=("Segoe UI", 7))
+        c.create_line(
+            x1,
+            y1,
+            x2,
+            y2,
+            fill=BLUE if active else "#49525d",
+            width=3,
+            arrow=tk.LAST,
+            arrowshape=(12, 14, 5),
+        )

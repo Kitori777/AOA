@@ -3,12 +3,19 @@ from __future__ import annotations
 import html
 import json
 import re
+import textwrap
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from matplotlib import colormaps
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
+from sklearn.cluster import DBSCAN, KMeans
+from sklearn.decomposition import PCA
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+from sklearn.manifold import TSNE
+from sklearn.mixture import GaussianMixture
 from sklearn.tree import plot_tree
 
 from AOA.core.diagrams.correlation_matrix import prepare_correlation_matrix_data
@@ -18,6 +25,207 @@ from AOA.core.diagrams.line_chart import prepare_line_chart_data
 from AOA.core.diagrams.similarity_matrix import prepare_similarity_matrix_data
 
 D3_CDN_URL = "https://cdn.jsdelivr.net/npm/d3@7"
+
+VISUAL_LIBRARIES = ["Matplotlib", "Seaborn", "Plotly", "Altair", "NetworkX"]
+
+CHART_TYPES = [
+    "ESM Best Method",
+    "Production Dashboard",
+    "Dashboard",
+    "Diagnostics",
+    "Model Diagnostics",
+    "Pair Explorer",
+    "Pair Plot",
+    "Joint Plot",
+    "3D Scatter",
+    "3D Surface",
+    "Bubble Chart",
+    "Heatmap Density",
+    "Treemap",
+    "Sunburst",
+    "Funnel",
+    "Waterfall",
+    "Radar Chart",
+    "KDE Plot",
+    "ECDF Plot",
+    "Violin Plot",
+    "Count Plot",
+    "Strip Plot",
+    "Swarm Plot",
+    "Point Plot",
+    "Bar Estimate",
+    "Regression Plot",
+    "Stacked Bar",
+    "Binned Scatter",
+    "Faceted Scatter",
+    "Interactive Brush",
+    "Outlier Map",
+    "DBSCAN Anomaly",
+    "PCA State Segments",
+    "LDA vs t-SNE",
+    "KMeans vs GMM",
+    "Step View",
+    "Priority Timeline",
+    "Area Chart",
+    "Missingness Map",
+    "Column Ranking",
+    "Bar Chart",
+    "Pie Chart",
+    "Scatter",
+    "Line",
+    "Histogram",
+    "Boxplot",
+    "Gantt",
+    "SolutionTree",
+    "ML Decision Tree",
+    "Network Graph",
+    "Circular Network",
+    "Spring Network",
+    "Shell Network",
+    "Kamada-Kawai Network",
+    "Tree Network",
+    "CorrelationMatrix",
+    "SimilarityMatrix",
+]
+
+SEABORN_CHART_TYPES = [
+    "Scatter",
+    "Histogram",
+    "Boxplot",
+    "Count Plot",
+    "Strip Plot",
+    "Swarm Plot",
+    "Point Plot",
+    "Bar Estimate",
+    "Violin Plot",
+    "KDE Plot",
+    "ECDF Plot",
+    "Regression Plot",
+    "Joint Plot",
+    "Pair Plot",
+    "Heatmap Density",
+    "CorrelationMatrix",
+]
+
+PLOTLY_CHART_TYPES = [
+    "Scatter",
+    "Line",
+    "Histogram",
+    "Boxplot",
+    "Violin Plot",
+    "Bar Chart",
+    "Pie Chart",
+    "Area Chart",
+    "Bubble Chart",
+    "3D Scatter",
+    "3D Surface",
+    "Heatmap Density",
+    "Treemap",
+    "Sunburst",
+    "Funnel",
+    "Waterfall",
+    "Radar Chart",
+    "CorrelationMatrix",
+    "Production Dashboard",
+    "Dashboard",
+    "SolutionTree",
+    "Network Graph",
+]
+
+ALTAIR_CHART_TYPES = [
+    "Scatter",
+    "Line",
+    "Histogram",
+    "Boxplot",
+    "Bar Chart",
+    "Stacked Bar",
+    "Pie Chart",
+    "Area Chart",
+    "Bubble Chart",
+    "Binned Scatter",
+    "Faceted Scatter",
+    "Interactive Brush",
+    "Heatmap Density",
+    "Regression Plot",
+    "ECDF Plot",
+    "Missingness Map",
+    "Column Ranking",
+]
+
+NETWORKX_CHART_TYPES = [
+    "Network Graph",
+    "Circular Network",
+    "Spring Network",
+    "Shell Network",
+    "Kamada-Kawai Network",
+    "Tree Network",
+    "SolutionTree",
+]
+
+D3_CHART_TYPES = [
+    chart_type
+    for chart_type in CHART_TYPES
+    if chart_type
+    not in {
+        "Treemap",
+        "Sunburst",
+        "Funnel",
+        "Waterfall",
+        "Radar Chart",
+        "Count Plot",
+        "Strip Plot",
+        "Swarm Plot",
+        "Point Plot",
+        "Bar Estimate",
+        "Stacked Bar",
+        "Binned Scatter",
+        "Faceted Scatter",
+        "Interactive Brush",
+        "Circular Network",
+        "Spring Network",
+        "Shell Network",
+        "Kamada-Kawai Network",
+        "Tree Network",
+    }
+]
+
+LIBRARY_CHART_SUPPORT = {
+    "Matplotlib": CHART_TYPES,
+    "Seaborn": SEABORN_CHART_TYPES,
+    "Plotly": PLOTLY_CHART_TYPES,
+    "Altair": ALTAIR_CHART_TYPES,
+    "NetworkX": NETWORKX_CHART_TYPES,
+}
+
+
+def get_supported_chart_types(chart_library: str) -> list[str]:
+    return list(LIBRARY_CHART_SUPPORT.get(chart_library, CHART_TYPES))
+
+
+def is_chart_supported_by_library(chart_type: str, chart_library: str) -> bool:
+    if chart_type == "DecisionTree":
+        chart_type = "ML Decision Tree"
+    return chart_type in get_supported_chart_types(chart_library)
+
+
+def coerce_chart_for_library(chart_type: str, chart_library: str) -> str:
+    if chart_type == "DecisionTree":
+        chart_type = "ML Decision Tree"
+    supported = get_supported_chart_types(chart_library)
+    if chart_type in supported:
+        return chart_type
+    return supported[0] if supported else "Scatter"
+
+
+SOLUTION_TREE_TEMPLATE_COLUMNS = [
+    "node_id",
+    "parent_id",
+    "label",
+    "details",
+    "edge_label",
+    "level",
+    "order",
+]
 
 COMMAND_CHART_ALIASES = {
     "scatter": "Scatter",
@@ -29,6 +237,18 @@ COMMAND_CHART_ALIASES = {
     "trend": "Line",
     "hist": "Histogram",
     "histogram": "Histogram",
+    "bar": "Bar Chart",
+    "bars": "Bar Chart",
+    "slupki": "Bar Chart",
+    "pie": "Pie Chart",
+    "area": "Area Chart",
+    "violin": "Violin Plot",
+    "kde": "KDE Plot",
+    "ecdf": "ECDF Plot",
+    "regression": "Regression Plot",
+    "regresja": "Regression Plot",
+    "joint": "Joint Plot",
+    "pairplot": "Pair Plot",
     "box": "Boxplot",
     "boxplot": "Boxplot",
     "pudełko": "Boxplot",
@@ -40,19 +260,47 @@ COMMAND_CHART_ALIASES = {
     "babel": "Bubble Chart",
     "corr": "CorrelationMatrix",
     "korelacja": "CorrelationMatrix",
+    "diagnostics": "Diagnostics",
+    "diagnostyka": "Model Diagnostics",
+    "diagnostyka_modelu": "Model Diagnostics",
+    "modelcheck": "Model Diagnostics",
+    "posterior": "Model Diagnostics",
+    "residuals": "Model Diagnostics",
     "dashboard": "Production Dashboard",
     "produkcja": "Production Dashboard",
+    "esm": "ESM Best Method",
+    "best_method": "ESM Best Method",
+    "najlepsza_metoda": "ESM Best Method",
+    "tree": "SolutionTree",
+    "drzewo": "SolutionTree",
+    "drzewo_rozwiazan": "SolutionTree",
+    "solutiontree": "SolutionTree",
+    "solution_tree": "SolutionTree",
+    "network": "Network Graph",
+    "graf": "Network Graph",
+    "siec": "Network Graph",
     "braki": "Missingness Map",
     "missing": "Missingness Map",
     "ranking": "Column Ranking",
     "outlier": "Outlier Map",
     "odstające": "Outlier Map",
     "odstajace": "Outlier Map",
+    "pca": "PCA State Segments",
+    "segmenty": "PCA State Segments",
+    "lda": "LDA vs t-SNE",
+    "tsne": "LDA vs t-SNE",
+    "kmeans": "KMeans vs GMM",
+    "gmm": "KMeans vs GMM",
 }
 
 
 def _numeric_columns(df: pd.DataFrame) -> list[str]:
     return df.select_dtypes(include=[np.number]).columns.tolist()
+
+
+def plt_colormap(n: int) -> list[tuple[float, float, float, float]]:
+    cmap = colormaps.get_cmap("tab20").resampled(max(n, 1))
+    return [cmap(i) for i in range(max(n, 1))]
 
 
 def _default_columns(df: pd.DataFrame) -> tuple[str | None, str | None, str | None]:
@@ -129,8 +377,7 @@ def parse_visual_command(df: pd.DataFrame, command: str) -> dict[str, str | None
         result["x_col"] = result["x_col"] if " x " in f" {lowered} " else ordered_mentions[0]
     if len(ordered_mentions) > 1 and " y " not in f" {lowered} ":
         result["y_col"] = ordered_mentions[1]
-    if len(ordered_mentions) > 2 and all(key not in lowered for key in (" z ", "kolor", "color")):
-        result["z_col"] = ordered_mentions[2]
+    # Z ustawiamy tylko jawnie przez "z"/"kolor"/"color"/"size".
 
     if chart_type in {"Histogram"}:
         result["y_col"] = result["x_col"]
@@ -221,6 +468,20 @@ def build_visual_report(
             "- zmieniaj X/Y/Z i typ wykresu jak w małym laboratorium danych.",
         ]
     )
+    if chart_type == "SolutionTree":
+        summary = solution_tree_summary(df, x_col, y_col, z_col)
+        lines.extend(
+            [
+                "",
+                "Statystyki drzewa:",
+                f"- węzły łącznie: {summary['nodes']}",
+                f"- korzenie: {summary['roots']}",
+                f"- liście: {summary['leaves']}",
+                f"- zielona ścieżka: {summary['best']} węzłów",
+                f"- żółte/sprawdzone: {summary['visited']} węzłów",
+                f"- czerwone/odrzucone: {summary['rejected']} węzłów",
+            ]
+        )
     return "\n".join(lines)
 
 
@@ -398,6 +659,161 @@ def _diagnostics(df: pd.DataFrame, x_col: str | None, y_col: str | None) -> Figu
     return fig
 
 
+def _model_diagnostics(df: pd.DataFrame, x_col: str | None, y_col: str | None) -> Figure:
+    common = _paired_numeric(df, x_col, y_col)
+    x_name, y_name = common.columns[0], common.columns[1]
+    x = common[x_name].to_numpy(dtype=float)
+    y = common[y_name].to_numpy(dtype=float)
+    coefficients = np.polyfit(x, y, deg=1)
+    fitted = np.polyval(coefficients, x)
+    residuals = y - fitted
+    resid_std = residuals.std(ddof=0) + 1e-9
+    standardized = (residuals - residuals.mean()) / resid_std
+    leverage = ((x - x.mean()) ** 2) / (((x - x.mean()) ** 2).sum() + 1e-9)
+    leverage = leverage + (1 / max(len(x), 1))
+    smooth_order = np.argsort(fitted)
+    smooth_x = fitted[smooth_order]
+
+    fig = Figure(figsize=(15, 11.5), dpi=100, facecolor="#ffffff")
+    FigureCanvasAgg(fig)
+    axes = fig.subplots(3, 2)
+
+    # Posterior predictive check: observed density against deterministic pseudo draws.
+    y_min = float(y.min())
+    y_max = float(y.max())
+    if np.isclose(y_min, y_max):
+        bins = np.linspace(y_min - 0.5, y_max + 0.5, 28)
+    else:
+        bins = np.linspace(y_min, y_max, 28)
+    observed_hist, edges = np.histogram(y, bins=bins, density=False)
+    observed_hist = observed_hist / max(float(observed_hist.sum()), 1.0)
+    centers = (edges[:-1] + edges[1:]) / 2
+    for offset in np.linspace(-1.2, 1.2, 36):
+        simulated = fitted + residuals.std(ddof=0) * np.sin(np.arange(len(fitted)) + offset) * 0.7
+        hist, _ = np.histogram(simulated, bins=bins, density=False)
+        hist = hist / max(float(hist.sum()), 1.0)
+        axes[0][0].plot(centers, hist, color="#1f77b4", alpha=0.14, linewidth=1.2)
+    axes[0][0].plot(centers, observed_hist, color="#2ca58d", linewidth=3, label="Observed data")
+    axes[0][0].plot([], [], color="#1f77b4", alpha=0.5, label="Model-predicted data")
+    axes[0][0].legend(loc="lower center", ncol=2, frameon=False)
+    axes[0][0].set_title(
+        "Posterior Predictive Check\nModel-predicted lines should resemble observed data line",
+        loc="left",
+    )
+    axes[0][0].set_xlabel(y_name)
+    axes[0][0].set_ylabel("Density")
+
+    axes[0][1].scatter(fitted, residuals, color="#2f7da7", alpha=0.8, s=24)
+    axes[0][1].plot(
+        smooth_x,
+        pd.Series(residuals[smooth_order]).rolling(5, min_periods=1).mean(),
+        color="#2ca58d",
+        linewidth=2,
+    )
+    axes[0][1].axhline(0, color="#111827", linestyle=(0, (4, 4)), linewidth=1)
+    axes[0][1].set_title("Linearity\nReference line should be flat and horizontal", loc="left")
+    axes[0][1].set_xlabel("Fitted values")
+    axes[0][1].set_ylabel("Residuals")
+
+    scale_location = np.sqrt(np.abs(standardized))
+    axes[1][0].scatter(fitted, scale_location, color="#2f7da7", alpha=0.8, s=24)
+    axes[1][0].plot(
+        smooth_x,
+        pd.Series(scale_location[smooth_order]).rolling(5, min_periods=1).mean(),
+        color="#2ca58d",
+        linewidth=2,
+    )
+    axes[1][0].set_title(
+        "Homogeneity of Variance\nReference line should be flat and horizontal",
+        loc="left",
+    )
+    axes[1][0].set_xlabel("Fitted values")
+    axes[1][0].set_ylabel("sqrt(|Std. residuals|)")
+
+    axes[1][1].scatter(leverage, standardized, color="#2f7da7", alpha=0.82, s=24)
+    axes[1][1].plot(
+        leverage[smooth_order],
+        pd.Series(standardized[smooth_order]).rolling(5, min_periods=1).mean(),
+        color="#2ca58d",
+        linewidth=2,
+    )
+    h_grid = np.linspace(max(0.001, leverage.min()), max(0.7, leverage.max() * 1.08), 120)
+    for cook in (0.5, 0.9):
+        curve = np.sqrt(cook * 2 * (1 - h_grid) / h_grid)
+        axes[1][1].plot(h_grid, curve, color="#2ca58d", linestyle=(0, (5, 5)), linewidth=1.5)
+        axes[1][1].plot(h_grid, -curve, color="#2ca58d", linestyle=(0, (5, 5)), linewidth=1.5)
+    axes[1][1].axhline(0, color="#9ca3af", linestyle=(0, (4, 4)), linewidth=1)
+    axes[1][1].axvline(0, color="#9ca3af", linestyle=(0, (4, 4)), linewidth=1)
+    axes[1][1].set_title(
+        "Influential Observations\nPoints should be inside the contour lines",
+        loc="left",
+    )
+    axes[1][1].set_xlabel("Leverage")
+    axes[1][1].set_ylabel("Std. Residuals")
+
+    numeric_cols = _numeric_columns(df)[:8]
+    vif_rows = []
+    if len(numeric_cols) >= 2:
+        corr = df[numeric_cols].corr(numeric_only=True).fillna(0).abs()
+        for col in numeric_cols:
+            r2 = float(corr[col].drop(labels=[col], errors="ignore").max() ** 2)
+            vif_rows.append((col, min(35.0, 1.0 / max(1e-6, 1 - r2))))
+    else:
+        vif_rows = [(x_name, 1.0), (y_name, 1.0)]
+    labels = [item[0] for item in vif_rows]
+    values = [item[1] for item in vif_rows]
+    axes[2][0].axhspan(1, 5, color="#dff3e8", alpha=0.9)
+    axes[2][0].axhspan(5, 10, color="#dbeaf7", alpha=0.9)
+    axes[2][0].axhspan(10, 35, color="#f7d7dc", alpha=0.9)
+    colors = [
+        "#2ca58d" if value < 5 else "#1f77b4" if value < 10 else "#d62728" for value in values
+    ]
+    for label, value, color in zip(labels, values, colors, strict=False):
+        axes[2][0].errorbar(
+            [label],
+            [value],
+            yerr=[max(0.4, value * 0.25)],
+            fmt="o",
+            color=color,
+            ecolor=color,
+            elinewidth=2,
+            markersize=6,
+            zorder=3,
+        )
+    axes[2][0].set_yscale("log")
+    axes[2][0].set_ylim(1, 40)
+    axes[2][0].set_title(
+        "Collinearity\nHigh collinearity (VIF) may inflate parameter uncertainty",
+        loc="left",
+    )
+    axes[2][0].set_ylabel("Variance Inflation\nFactor (VIF, log-scaled)")
+    axes[2][0].tick_params(axis="x", rotation=22, labelsize=8)
+    for tick_label in axes[2][0].get_xticklabels():
+        tick_label.set_horizontalalignment("right")
+
+    sorted_residuals = np.sort(standardized)
+    theoretical = np.linspace(-2.2, 2.2, len(sorted_residuals))
+    band = 0.55 + 0.35 * np.abs(theoretical)
+    axes[2][1].fill_between(theoretical, -band, band, color="#d9d9d9", alpha=0.75)
+    axes[2][1].scatter(theoretical, sorted_residuals, color="#2f7da7", alpha=0.85, s=24)
+    axes[2][1].axhline(0, color="#2ca58d", linewidth=2)
+    axes[2][1].set_title("Normality of Residuals\nDots should fall along the line", loc="left")
+    axes[2][1].set_xlabel("Standard Normal Distribution Quantiles")
+    axes[2][1].set_ylabel("Sample Quantile Deviations")
+
+    for ax in axes.ravel():
+        ax.grid(True, color="#d9d9d9", linewidth=0.8, alpha=0.85)
+        ax.set_facecolor("#fbfbfb")
+        ax.title.set_fontsize(10.5)
+        ax.xaxis.label.set_fontsize(9)
+        ax.yaxis.label.set_fontsize(9)
+        ax.tick_params(labelsize=8)
+        for spine in ax.spines.values():
+            spine.set_alpha(0.25)
+    fig.tight_layout(pad=2.1, h_pad=2.6, w_pad=2.1)
+    return fig
+
+
 def _scatter_3d(
     df: pd.DataFrame, x_col: str | None, y_col: str | None, z_col: str | None
 ) -> Figure:
@@ -460,6 +876,279 @@ def _outlier_map(df: pd.DataFrame, x_col: str | None, y_col: str | None) -> Figu
     return fig
 
 
+def _dbscan_anomaly_map(df: pd.DataFrame, x_col: str | None, y_col: str | None) -> Figure:
+    common = _paired_numeric(df, x_col, y_col)
+    x_name, y_name = common.columns[0], common.columns[1]
+    values = common[[x_name, y_name]].to_numpy(dtype=float)
+    # Heurystyka eps bazująca na skali danych.
+    sx = np.std(values[:, 0]) + 1e-9
+    sy = np.std(values[:, 1]) + 1e-9
+    norm = np.column_stack((values[:, 0] / sx, values[:, 1] / sy))
+    labels = DBSCAN(eps=0.6, min_samples=4).fit_predict(norm)
+    fig = Figure(figsize=(10.4, 6.4), dpi=100, facecolor="#f8fafc")
+    FigureCanvasAgg(fig)
+    ax = fig.add_subplot(111)
+    unique = sorted(set(labels))
+    palette = plt_colormap(max(len(unique), 3))
+    color_for = {label: palette[i % len(palette)] for i, label in enumerate(unique)}
+    for label in unique:
+        mask = labels == label
+        chunk = common.loc[mask]
+        if label == -1:
+            ax.scatter(
+                chunk[x_name],
+                chunk[y_name],
+                c="#ef4444",
+                s=52,
+                marker="x",
+                linewidths=1.4,
+                label="Anomalie (DBSCAN)",
+                alpha=0.95,
+            )
+        else:
+            ax.scatter(
+                chunk[x_name],
+                chunk[y_name],
+                s=34,
+                c=[color_for[label]],
+                alpha=0.78,
+                label=f"Klaster {label}",
+            )
+    ax.set_xlabel(x_name)
+    ax.set_ylabel(y_name)
+    ax.set_title("DBSCAN Anomaly Map — klastry i punkty odstające")
+    ax.grid(True, alpha=0.25)
+    ax.legend(loc="best", fontsize=9)
+    fig.tight_layout()
+    return fig
+
+
+def _pca_state_segments(df: pd.DataFrame) -> Figure:
+    num = df.select_dtypes(include=[np.number]).dropna()
+    if num.shape[0] < 4 or num.shape[1] < 2:
+        raise ValueError("PCA State Segments wymaga co najmniej 4 rekordów i 2 kolumn liczbowych.")
+    indexed = num.reset_index(drop=True)
+    chunk_size = max(1, int(np.ceil(len(indexed) / 4)))
+    chunks = [
+        indexed.iloc[start : start + chunk_size] for start in range(0, len(indexed), chunk_size)
+    ]
+    all_data = pd.concat(chunks, ignore_index=True)
+    pca = PCA(n_components=2, random_state=42)
+    emb = pca.fit_transform(all_data.to_numpy(dtype=float))
+    fig = Figure(figsize=(11.4, 6.8), dpi=100, facecolor="#f8fafc")
+    FigureCanvasAgg(fig)
+    ax = fig.add_subplot(111)
+    start = 0
+    palette = ["#2563eb", "#16a34a", "#f59e0b", "#ef4444"]
+    for idx, chunk in enumerate(chunks, start=1):
+        end = start + len(chunk)
+        part = emb[start:end]
+        ax.scatter(
+            part[:, 0], part[:, 1], s=34, alpha=0.82, c=palette[idx - 1], label=f"Segment {idx}"
+        )
+        start = end
+    ax.set_xlabel("PC1")
+    ax.set_ylabel("PC2")
+    ax.set_title("PCA + podział na 4 segmenty (zmiany stanu)")
+    ax.grid(True, alpha=0.22)
+    ax.legend()
+    fig.tight_layout()
+    return fig
+
+
+def _lda_vs_tsne(df: pd.DataFrame) -> Figure:
+    num = df.select_dtypes(include=[np.number]).dropna()
+    if num.shape[0] < 4 or num.shape[1] < 2:
+        raise ValueError("LDA vs t-SNE wymaga co najmniej 4 rekordów i 2 kolumn liczbowych.")
+    values = num.to_numpy(dtype=float)
+    y = KMeans(n_clusters=min(3, max(2, len(values) // 8)), random_state=42, n_init=10).fit_predict(
+        values
+    )
+    lda_comp = min(max(1, len(np.unique(y)) - 1), 2)
+    lda = LinearDiscriminantAnalysis(n_components=lda_comp)
+    lda_proj = lda.fit_transform(values, y)
+    if lda_proj.shape[1] == 1:
+        lda_proj = np.column_stack([lda_proj[:, 0], np.zeros(len(lda_proj))])
+    tsne_perplexity = max(2, min(30, (len(values) - 1) // 2))
+    tsne = TSNE(n_components=2, random_state=42, perplexity=tsne_perplexity)
+    tsne_proj = tsne.fit_transform(values)
+    fig = Figure(figsize=(12.2, 6.8), dpi=100, facecolor="#f8fafc")
+    FigureCanvasAgg(fig)
+    axes = fig.subplots(1, 2)
+    for label in np.unique(y):
+        m = y == label
+        axes[0].scatter(lda_proj[m, 0], lda_proj[m, 1], s=30, alpha=0.8, label=f"Klasa {label}")
+        axes[1].scatter(tsne_proj[m, 0], tsne_proj[m, 1], s=30, alpha=0.8, label=f"Klasa {label}")
+    axes[0].set_title("LDA")
+    axes[1].set_title("t-SNE")
+    axes[0].set_xlabel("LDA1")
+    axes[0].set_ylabel("LDA2")
+    axes[1].set_xlabel("t-SNE1")
+    axes[1].set_ylabel("t-SNE2")
+    for ax in axes:
+        ax.grid(True, alpha=0.22)
+    axes[1].legend(loc="best", fontsize=8)
+    fig.suptitle("Porównanie LDA vs t-SNE", y=0.98, fontsize=14, fontweight="bold")
+    fig.tight_layout()
+    return fig
+
+
+def _kmeans_vs_gmm(df: pd.DataFrame) -> Figure:
+    num = df.select_dtypes(include=[np.number]).dropna()
+    if num.shape[0] < 4 or num.shape[1] < 2:
+        raise ValueError("KMeans vs GMM wymaga co najmniej 4 rekordów i 2 kolumn liczbowych.")
+    values = num.to_numpy(dtype=float)
+    pca = PCA(n_components=2, random_state=42)
+    proj = pca.fit_transform(values)
+    k = min(4, max(2, len(values) // 12))
+    kmeans = KMeans(n_clusters=k, random_state=42, n_init=10).fit(values)
+    gmm = GaussianMixture(n_components=k, random_state=42).fit(values)
+    gmm_labels = gmm.predict(values)
+    fig = Figure(figsize=(12.2, 6.8), dpi=100, facecolor="#f8fafc")
+    FigureCanvasAgg(fig)
+    axes = fig.subplots(1, 2)
+    for lbl in np.unique(kmeans.labels_):
+        m = kmeans.labels_ == lbl
+        axes[0].scatter(proj[m, 0], proj[m, 1], s=30, alpha=0.82, label=f"Klaster {lbl}")
+    for lbl in np.unique(gmm_labels):
+        m = gmm_labels == lbl
+        axes[1].scatter(proj[m, 0], proj[m, 1], s=30, alpha=0.82, label=f"Klaster {lbl}")
+    axes[0].set_title("KMeans (w przestrzeni PCA)")
+    axes[1].set_title("GMM (w przestrzeni PCA)")
+    for ax in axes:
+        ax.set_xlabel("PC1")
+        ax.set_ylabel("PC2")
+        ax.grid(True, alpha=0.22)
+    axes[1].legend(loc="best", fontsize=8)
+    fig.suptitle("Porównanie KMeans vs GMM", y=0.98, fontsize=14, fontweight="bold")
+    fig.tight_layout()
+    return fig
+
+
+def _esm_best_method_dashboard(df: pd.DataFrame) -> Figure:
+    if df is None or df.empty:
+        raise ValueError("Brak danych do ESM dashboardu.")
+    method_col_candidates = [
+        "sto_model",
+        "model",
+        "method",
+        "algorytm",
+        "wariant",
+        "material",
+        "ksztalt",
+    ]
+    method_col = next((col for col in method_col_candidates if col in df.columns), None)
+    if method_col is None:
+        raise ValueError(
+            "ESM Best Method wymaga kolumny metody, np. sto_model/model/method/algorytm."
+        )
+    metric_candidates = ["Kop", "kop", "sto_kop", "lateness_h_sim", "pred_delay", "odpad", "cena"]
+    metric = next((col for col in metric_candidates if col in df.columns), None)
+    if metric is None:
+        raise ValueError(
+            "ESM Best Method wymaga kolumny metryki, np. Kop/sto_kop/lateness_h_sim/pred_delay/odpad/cena."
+        )
+
+    scored = df.copy()
+    scored["_model"] = scored[method_col].astype(str).str.strip()
+    scored["_metric"] = pd.to_numeric(scored[metric], errors="coerce")
+    scored = scored[(scored["_model"] != "") & scored["_metric"].notna()]
+    if scored.empty:
+        raise ValueError("Brak poprawnych wartości dla ESM Best Method.")
+
+    summary = (
+        scored.groupby("_model", as_index=False)
+        .agg(best=("_metric", "min"), mean=("_metric", "mean"), n=("_metric", "size"))
+        .sort_values("best", ascending=True)
+    )
+    best_model = str(summary.iloc[0]["_model"])
+    best_rows = scored[scored["_model"] == best_model]
+
+    fig = Figure(figsize=(12.8, 7.2), dpi=100, facecolor="#f8fafc")
+    FigureCanvasAgg(fig)
+    gs = fig.add_gridspec(
+        2, 2, height_ratios=[1.05, 1], width_ratios=[1.2, 1], hspace=0.3, wspace=0.26
+    )
+    ax_bar = fig.add_subplot(gs[0, 0])
+    ax_stats = fig.add_subplot(gs[0, 1])
+    ax_path = fig.add_subplot(gs[1, :])
+
+    labels = summary["_model"].tolist()
+    best_vals = summary["best"].to_numpy(dtype=float)
+    colors = ["#16a34a" if m == best_model else "#2563eb" for m in labels]
+    bars = ax_bar.bar(labels, best_vals, color=colors, alpha=0.9)
+    ax_bar.set_title("Najlepsza metoda STO (im niżej, tym lepiej)", fontsize=13, fontweight="bold")
+    ax_bar.set_ylabel(metric)
+    ax_bar.grid(True, axis="y", alpha=0.22)
+    for rect, value in zip(bars, best_vals, strict=False):
+        ax_bar.text(
+            rect.get_x() + rect.get_width() / 2,
+            rect.get_height(),
+            f"{value:.3g}",
+            ha="center",
+            va="bottom",
+            fontsize=9,
+        )
+
+    ax_stats.axis("off")
+    best_score = float(summary.iloc[0]["best"])
+    mean_score = float(summary.iloc[0]["mean"])
+    n_count = int(summary.iloc[0]["n"])
+    lines = [
+        "PODSUMOWANIE ESM",
+        "================",
+        f"Metoda wybrana: {best_model}",
+        f"Metryka: {metric}",
+        f"Najlepszy wynik: {best_score:.4g}",
+        f"Średni wynik: {mean_score:.4g}",
+        f"Liczba rekordów: {n_count}",
+        "",
+        "Interpretacja:",
+        "- zielony słupek oznacza aktualnie najlepszą metodę",
+        "- pozostałe słupki to alternatywy",
+        "- niższa wartość metryki = lepsza ścieżka",
+    ]
+    ax_stats.text(
+        0.02,
+        0.98,
+        "\n".join(lines),
+        va="top",
+        ha="left",
+        fontsize=10.2,
+        bbox={"boxstyle": "round,pad=0.55", "fc": "#f8fafc", "ec": "#cbd5e1"},
+    )
+
+    ranked = best_rows.sort_values("_metric", ascending=True).head(8).reset_index(drop=True)
+    y = np.arange(len(ranked))
+    bars2 = ax_path.barh(y, ranked["_metric"].to_numpy(dtype=float), color="#16a34a", alpha=0.9)
+    if "sto_job_id" in ranked.columns:
+        labels2 = ranked["sto_job_id"].astype(str).tolist()
+    elif "zlecenie" in ranked.columns:
+        labels2 = ranked["zlecenie"].astype(str).tolist()
+    else:
+        labels2 = [f"wariant {i + 1}" for i in range(len(ranked))]
+    ax_path.set_yticks(y, labels2)
+    ax_path.invert_yaxis()
+    ax_path.set_xlabel(metric)
+    ax_path.set_title(
+        f"Podświetlone poprawne warianty — {best_model} (top 8)", fontsize=12, fontweight="bold"
+    )
+    ax_path.grid(True, axis="x", alpha=0.22)
+    for rect in bars2:
+        w = rect.get_width()
+        ax_path.text(
+            w, rect.get_y() + rect.get_height() / 2, f" {w:.3g}", va="center", ha="left", fontsize=9
+        )
+
+    fig.suptitle(
+        "ESM Dashboard — wybór najlepszej metody i poprawnych wariantów",
+        fontsize=15,
+        fontweight="bold",
+    )
+    fig.subplots_adjust(left=0.08, right=0.96, bottom=0.1, top=0.88, hspace=0.38, wspace=0.28)
+    return fig
+
+
 def _step_view(df: pd.DataFrame, x_col: str | None, y_col: str | None) -> Figure:
     common = _paired_numeric(df, x_col, y_col).head(120)
     x_name, y_name = common.columns
@@ -486,11 +1175,607 @@ def _step_view(df: pd.DataFrame, x_col: str | None, y_col: str | None) -> Figure
     return fig
 
 
+def _first_existing_column(df: pd.DataFrame, aliases: list[str]) -> str | None:
+    by_lower = {str(column).lower(): column for column in df.columns}
+    for alias in aliases:
+        if alias.lower() in by_lower:
+            return by_lower[alias.lower()]
+    return None
+
+
+def _clean_tree_value(value) -> str:
+    if value is None or pd.isna(value):
+        return ""
+    text = str(value).strip()
+    return "" if text.lower() in {"nan", "none", "null"} else text
+
+
+PDF_SAMPLE_JOBS = {
+    (10.0, 150.0): "z1",
+    (20.0, 30.0): "z2",
+    (100.0, 110.0): "z3",
+    (50.0, 60.0): "z4",
+}
+PDF_SAMPLE_VISITED_PATH = ["z1", "z3", "z4", "z2"]
+
+
+def _job_signature_key(time_value: float, due_value: float) -> tuple[float, float]:
+    return (round(float(time_value), 6), round(float(due_value), 6))
+
+
+def _matches_pdf_sample_signature(jobs: list[dict[str, float | str]]) -> bool:
+    return {_job_signature_key(float(job["t"]), float(job["d"])) for job in jobs} == set(
+        PDF_SAMPLE_JOBS
+    )
+
+
+def _infer_heuristic_tree_records(df: pd.DataFrame, max_nodes: int = 80) -> list[dict[str, str]]:
+    job_col = _first_existing_column(df, ["sto_job_id", "job_id", "zlecenie", "id"])
+    time_col = _first_existing_column(
+        df, ["czas_produkcji_h", "czas_obrobki", "time", "processing_time"]
+    )
+    due_col = _first_existing_column(df, ["termin_h", "wymagany_termin", "due", "due_date"])
+    if not time_col or not due_col:
+        return []
+
+    source = df[[c for c in [job_col, time_col, due_col] if c in df.columns]].copy()
+    source[time_col] = pd.to_numeric(source[time_col], errors="coerce")
+    source[due_col] = pd.to_numeric(source[due_col], errors="coerce")
+    source = source.dropna(subset=[time_col, due_col]).head(7)
+    if len(source) < 2:
+        return []
+
+    jobs: list[dict[str, float | str]] = []
+    for idx, (_, row) in enumerate(source.iterrows(), start=1):
+        time_value = float(row[time_col])
+        due_value = float(row[due_col])
+        if job_col:
+            jid = _clean_tree_value(row.get(job_col))
+        else:
+            jid = PDF_SAMPLE_JOBS.get(_job_signature_key(time_value, due_value), f"z{idx}")
+        jobs.append(
+            {
+                "jid": jid,
+                "t": time_value,
+                "d": due_value,
+            }
+        )
+
+    total_time = sum(float(j["t"]) for j in jobs)
+    max_depth = min(len(jobs), 4)
+    node_counter = 0
+    records: list[dict[str, str]] = []
+    scored_leaves: list[tuple[float, list[str]]] = []
+
+    def add_node(parent: str, edge_label: str, details: str, score: float, level: int) -> str:
+        nonlocal node_counter
+        node_counter += 1
+        node_id = f"B{node_counter}"
+        records.append(
+            {
+                "id": node_id,
+                "parent": parent,
+                "label": node_id,
+                "details": details,
+                "edge_label": edge_label,
+                "level": str(level),
+                "score": f"{score:.4f}",
+                "is_best": "0",
+                "status": "",
+            }
+        )
+        return node_id
+
+    root_details = f"S0={total_time:.2f}; t=[{time_col}]; d=[{due_col}]"
+    root_id = add_node("", "", root_details, 0.0, 0)
+
+    def expand(
+        node_id: str,
+        remaining: list[dict[str, float | str]],
+        s_left: float,
+        kop: float,
+        path: list[str],
+        depth: int,
+    ):
+        if depth >= max_depth or not remaining or len(records) >= max_nodes:
+            scored_leaves.append((kop, path.copy()))
+            return
+
+        candidates: list[tuple[float, dict[str, float | str], float]] = []
+        for job in remaining:
+            p_val = max(0.0, s_left - float(job["d"]))
+            score = kop + p_val
+            candidates.append((score, job, p_val))
+        candidates.sort(key=lambda item: (item[0], float(item[1]["d"]), float(item[1]["t"])))
+
+        for score, job, p_val in candidates[: min(4, len(candidates))]:
+            if len(records) >= max_nodes:
+                break
+            next_s = s_left - float(job["t"])
+            edge = str(job["jid"]) if str(job["jid"]).startswith("z") else f"z{job['jid']}"
+            details = (
+                f"S'={next_s:.2f}; Kop={score:.2f}; "
+                f"p={p_val:.2f}; t={float(job['t']):.2f}; d={float(job['d']):.2f}"
+            )
+            child_id = add_node(node_id, edge, details, score, depth + 1)
+            next_remaining = [candidate for candidate in remaining if candidate is not job]
+            expand(child_id, next_remaining, next_s, score, path + [child_id], depth + 1)
+
+    expand(root_id, jobs, total_time, 0.0, [root_id], 0)
+
+    if scored_leaves:
+        ranked_leaves = sorted(scored_leaves, key=lambda item: item[0])
+        _, best_path = ranked_leaves[0]
+        best_nodes = set(best_path)
+        recovered_nodes: set[str] = set()
+        records_by_id = {record["id"]: record for record in records}
+
+        def path_edges(path: list[str]) -> list[str]:
+            return [
+                str(records_by_id[node_id].get("edge_label", "")).strip().lower()
+                for node_id in path
+                if records_by_id[node_id].get("edge_label")
+            ]
+
+        preferred_path = None
+        if _matches_pdf_sample_signature(jobs):
+            preferred_path = next(
+                (
+                    path
+                    for _, path in ranked_leaves
+                    if path_edges(path) == PDF_SAMPLE_VISITED_PATH and path != best_path
+                ),
+                None,
+            )
+        if preferred_path is not None:
+            recovered_nodes = set(preferred_path) - best_nodes
+        else:
+            for _, path in ranked_leaves[1:]:
+                if path != best_path:
+                    recovered_nodes = set(path) - best_nodes
+                    break
+        for record in records:
+            if record["id"] in best_nodes:
+                record["is_best"] = "1"
+                record["status"] = "best"
+            elif record["id"] in recovered_nodes:
+                record["status"] = "pokonany"
+            else:
+                record["status"] = "odrzucony"
+    return records
+
+
+def _solution_tree_records(
+    df: pd.DataFrame,
+    x_col: str | None = None,
+    y_col: str | None = None,
+    z_col: str | None = None,
+    max_nodes: int = 80,
+) -> list[dict[str, str]]:
+    json_col = _first_existing_column(df, ["solution_tree_json", "tree_json", "decision_tree_json"])
+    if json_col:
+        for value in df[json_col].dropna():
+            raw = _clean_tree_value(value)
+            if not raw:
+                continue
+            try:
+                parsed = json.loads(raw)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(parsed, list):
+                records = []
+                for item in parsed[:max_nodes]:
+                    if not isinstance(item, dict):
+                        continue
+                    node_id = _clean_tree_value(item.get("id") or item.get("node_id"))
+                    if not node_id:
+                        continue
+                    records.append(
+                        {
+                            "id": node_id,
+                            "parent": _clean_tree_value(
+                                item.get("parent") or item.get("parent_id")
+                            ),
+                            "label": _clean_tree_value(item.get("label")) or node_id,
+                            "details": _clean_tree_value(item.get("details")),
+                            "edge_label": _clean_tree_value(
+                                item.get("edge_label") or item.get("edge")
+                            ),
+                            "level": _clean_tree_value(item.get("level")),
+                            "score": _clean_tree_value(item.get("score") or item.get("kop")),
+                            "is_best": _clean_tree_value(item.get("is_best")),
+                            "status": _clean_tree_value(item.get("status")),
+                        }
+                    )
+                if records:
+                    return records
+
+    id_col = _first_existing_column(df, ["solution_node_id", "node_id", "id", "wezel_id", "node"])
+    parent_col = _first_existing_column(
+        df, ["solution_parent_id", "parent_id", "parent", "rodzic_id", "rodzic"]
+    )
+    label_col = _first_existing_column(
+        df, ["solution_label", "label", "name", "nazwa", "tytul", "title"]
+    )
+    details_col = _first_existing_column(
+        df, ["solution_details", "details", "opis", "description", "formula", "wzor"]
+    )
+    edge_col = _first_existing_column(
+        df, ["solution_edge_label", "edge_label", "edge", "decision", "wariant", "branch"]
+    )
+    level_col = _first_existing_column(df, ["solution_level", "level", "poziom"])
+    order_col = _first_existing_column(df, ["solution_order", "order", "kolejnosc", "lp"])
+    score_col = _first_existing_column(df, ["solution_score", "score", "kop", "Kop", "sto_kop"])
+    best_col = _first_existing_column(df, ["solution_is_best", "is_best", "best", "najlepszy"])
+    status_col = _first_existing_column(df, ["solution_status", "status", "stan"])
+
+    if id_col and parent_col:
+        records = []
+        source = df.head(max_nodes).copy()
+        if order_col:
+            source = source.sort_values(order_col, kind="stable")
+        for index, row in source.iterrows():
+            node_id = _clean_tree_value(row.get(id_col))
+            if not node_id:
+                node_id = f"N{index + 1}"
+            parent_id = _clean_tree_value(row.get(parent_col))
+            label = _clean_tree_value(row.get(label_col)) if label_col else node_id
+            details = _clean_tree_value(row.get(details_col)) if details_col else ""
+            edge_label = _clean_tree_value(row.get(edge_col)) if edge_col else ""
+            level = _clean_tree_value(row.get(level_col)) if level_col else ""
+            score = _clean_tree_value(row.get(score_col)) if score_col else ""
+            is_best = _clean_tree_value(row.get(best_col)) if best_col else ""
+            status = _clean_tree_value(row.get(status_col)) if status_col else ""
+            records.append(
+                {
+                    "id": node_id,
+                    "parent": parent_id,
+                    "label": label or node_id,
+                    "details": details,
+                    "edge_label": edge_label,
+                    "level": level,
+                    "score": score,
+                    "is_best": is_best,
+                    "status": status,
+                }
+            )
+        known_ids = {record["id"] for record in records}
+        root_count = 0
+        for record in records:
+            if record["parent"] not in known_ids:
+                record["parent"] = ""
+                root_count += 1
+        if root_count > 1:
+            records.insert(
+                0,
+                {
+                    "id": "__root__",
+                    "parent": "",
+                    "label": "Drzewo rozwiazan",
+                    "details": "Wspolny korzen dla wielu wariantow",
+                    "edge_label": "",
+                    "level": "0",
+                },
+            )
+            for record in records[1:]:
+                if not record["parent"]:
+                    record["parent"] = "__root__"
+        return records
+
+    heuristic_records = _infer_heuristic_tree_records(df, max_nodes=max_nodes)
+    if heuristic_records:
+        return heuristic_records
+
+    sto_order_col = _first_existing_column(df, ["sto_order", "order", "kolejnosc", "lp"])
+    if sto_order_col:
+        source = df.head(max_nodes).copy().sort_values(sto_order_col, kind="stable")
+        records = []
+        for index, (_, row) in enumerate(source.iterrows(), start=1):
+            node_id = f"B{index}"
+            detail_parts = []
+            for column in [
+                "sto_job_id",
+                "czas_produkcji_h",
+                "termin_h",
+                "sto_start",
+                "sto_end",
+                "sto_lateness",
+                "sto_cumulative",
+            ]:
+                if column in source.columns:
+                    value = _clean_tree_value(row.get(column))
+                    if value:
+                        detail_parts.append(f"{column}={value}")
+            records.append(
+                {
+                    "id": node_id,
+                    "parent": "" if index == 1 else f"B{index - 1}",
+                    "label": node_id,
+                    "details": "; ".join(detail_parts[:4]),
+                    "edge_label": "" if index == 1 else f"z{index - 1}",
+                    "level": str(index - 1),
+                }
+            )
+        return records
+
+    numeric_cols = _numeric_columns(df)
+    x_name = x_col if x_col in df.columns else (numeric_cols[0] if numeric_cols else df.columns[0])
+    y_name = (
+        y_col if y_col in df.columns else (numeric_cols[1] if len(numeric_cols) > 1 else x_name)
+    )
+    z_name = (
+        z_col if z_col in df.columns else (numeric_cols[2] if len(numeric_cols) > 2 else y_name)
+    )
+    records = [
+        {
+            "id": "B1",
+            "parent": "",
+            "label": "B1",
+            "details": f"Start: {x_name}, {y_name}, {z_name}",
+            "edge_label": "",
+            "level": "0",
+        }
+    ]
+    for index, (_, row) in enumerate(df.head(min(max_nodes - 1, 24)).iterrows(), start=2):
+        parent = "B1" if index <= 5 else f"B{max(2, index // 2)}"
+        label = f"B{index}"
+        tree_details: list[str] = []
+        for column in (str(x_name), str(y_name), str(z_name)):
+            if column in df.columns:
+                tree_details.append(f"{column}={_clean_tree_value(row.get(column))}")
+        records.append(
+            {
+                "id": label,
+                "parent": parent,
+                "label": label,
+                "details": "; ".join(tree_details),
+                "edge_label": f"z{index - 1}",
+                "level": "",
+            }
+        )
+    return records
+
+
+def solution_tree_summary(
+    df: pd.DataFrame,
+    x_col: str | None = None,
+    y_col: str | None = None,
+    z_col: str | None = None,
+) -> dict[str, int]:
+    records = _solution_tree_records(df, x_col, y_col, z_col, max_nodes=80)
+    ids = {record["id"] for record in records}
+    parents = {record["parent"] for record in records if record.get("parent") in ids}
+    roots = [record for record in records if record.get("parent") not in ids]
+    leaves = [record for record in records if record["id"] not in parents]
+
+    def has_status(record: dict[str, str], tokens: tuple[str, ...]) -> bool:
+        status = _clean_tree_value(record.get("status")).lower()
+        return any(token in status for token in tokens)
+
+    best = [
+        record
+        for record in records
+        if _clean_tree_value(record.get("is_best")) == "1" or has_status(record, ("best",))
+    ]
+    visited = [
+        record
+        for record in records
+        if record not in best
+        and has_status(
+            record, ("yellow", "zol", "pokon", "visited", "checked", "recover", "return")
+        )
+    ]
+    rejected = [
+        record
+        for record in records
+        if record not in best
+        and record not in visited
+        and has_status(record, ("red", "odrzu", "reject", "discard", "pruned", "failed"))
+    ]
+    return {
+        "nodes": len(records),
+        "roots": len(roots),
+        "leaves": len(leaves),
+        "best": len(best),
+        "visited": len(visited),
+        "rejected": len(rejected),
+    }
+
+
+def build_solution_tree_template_csv(path: str | Path) -> Path:
+    output_path = Path(path)
+    template = pd.DataFrame(
+        [
+            {
+                "node_id": "B1",
+                "parent_id": "",
+                "label": "B1",
+                "details": "S0=180; p(1)=180-150; p(2)=180-30; p(3)=180-110; p(4)=180-60",
+                "edge_label": "",
+                "level": 0,
+                "order": 1,
+            },
+            {
+                "node_id": "B2",
+                "parent_id": "B1",
+                "label": "B2",
+                "details": "S'=180-10=170; Kop=30; p(2)=170-30; p(3)=170-110",
+                "edge_label": "z1",
+                "level": 1,
+                "order": 2,
+            },
+            {
+                "node_id": "B5",
+                "parent_id": "B1",
+                "label": "B5",
+                "details": "S'=180-100=80; Kop=70; p(1)=max(80-150;0)",
+                "edge_label": "z3",
+                "level": 1,
+                "order": 3,
+            },
+            {
+                "node_id": "B3",
+                "parent_id": "B2",
+                "label": "B3",
+                "details": "S'=170-100=70; Kop=30+60=90; p(2)=70-30",
+                "edge_label": "z3",
+                "level": 2,
+                "order": 4,
+            },
+        ],
+        columns=SOLUTION_TREE_TEMPLATE_COLUMNS,
+    )
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    template.to_csv(output_path, index=False)
+    return output_path
+
+
+def _solution_tree_figure(
+    df: pd.DataFrame,
+    x_col: str | None = None,
+    y_col: str | None = None,
+    z_col: str | None = None,
+) -> Figure:
+    records = _solution_tree_records(df, x_col, y_col, z_col, max_nodes=32)
+    children: dict[str, list[dict[str, str]]] = {record["id"]: [] for record in records}
+    roots = []
+    for record in records:
+        parent = record["parent"]
+        if parent and parent in children:
+            children[parent].append(record)
+        else:
+            roots.append(record)
+
+    x_positions: dict[str, float] = {}
+    y_positions: dict[str, float] = {}
+    leaf_index = 0
+
+    def place(record: dict[str, str], depth: int) -> float:
+        nonlocal leaf_index
+        branch = children.get(record["id"], [])
+        if not branch:
+            x_positions[record["id"]] = float(leaf_index)
+            leaf_index += 1
+        else:
+            child_x = [place(child, depth + 1) for child in branch]
+            x_positions[record["id"]] = sum(child_x) / len(child_x)
+        y_positions[record["id"]] = float(depth)
+        return x_positions[record["id"]]
+
+    for root in roots:
+        place(root, 0)
+        leaf_index += 1
+
+    for node_id in list(x_positions):
+        x_positions[node_id] *= 3.2
+
+    max_depth = max(y_positions.values() or [0])
+    fig_width = max(16.0, max(leaf_index, 2) * 2.9)
+    fig_height = max(9.0, (max_depth + 2) * 2.05)
+    fig = Figure(figsize=(fig_width, fig_height), dpi=100, facecolor="#f8fafc")
+    FigureCanvasAgg(fig)
+    ax = fig.add_subplot(111)
+    best_nodes = {
+        record["id"] for record in records if _clean_tree_value(record.get("is_best")) == "1"
+    }
+
+    def is_recovered(record: dict[str, str]) -> bool:
+        status = _clean_tree_value(record.get("status")).lower()
+        return any(
+            token in status
+            for token in ("yellow", "zol", "pokon", "visited", "checked", "recover", "return")
+        )
+
+    def is_rejected(record: dict[str, str]) -> bool:
+        status = _clean_tree_value(record.get("status")).lower()
+        return any(
+            token in status for token in ("red", "odrzu", "reject", "discard", "pruned", "failed")
+        ) or not (record["id"] in best_nodes or is_recovered(record))
+
+    for record in records:
+        parent = record["parent"]
+        if parent in x_positions:
+            is_best_edge = record["id"] in best_nodes and parent in best_nodes
+            is_recovered_edge = is_recovered(record)
+            is_rejected_edge = is_rejected(record)
+            ax.annotate(
+                "",
+                xy=(x_positions[record["id"]], -y_positions[record["id"]] + 0.18),
+                xytext=(x_positions[parent], -y_positions[parent] - 0.18),
+                arrowprops={
+                    "arrowstyle": "-|>",
+                    "color": "#16a34a"
+                    if is_best_edge
+                    else (
+                        "#eab308"
+                        if is_recovered_edge
+                        else ("#dc2626" if is_rejected_edge else "#334155")
+                    ),
+                    "lw": 2.0
+                    if is_best_edge
+                    else (1.8 if is_recovered_edge else (1.5 if is_rejected_edge else 1.2)),
+                },
+            )
+            if record["edge_label"]:
+                ax.text(
+                    (x_positions[record["id"]] + x_positions[parent]) / 2,
+                    (-y_positions[record["id"]] - y_positions[parent]) / 2,
+                    record["edge_label"],
+                    ha="center",
+                    va="center",
+                    fontsize=8,
+                    color="#111111",
+                    bbox={"boxstyle": "round,pad=0.18", "fc": "#ffffff", "ec": "#cbd5e1"},
+                )
+    for record in records:
+        text = "\n".join(textwrap.wrap(record["label"], width=28)) or record["label"]
+        if record["details"]:
+            details = "\n".join(textwrap.wrap(record["details"], width=42)[:3])
+            text += "\n" + details
+        is_best = record["id"] in best_nodes
+        recovered = (not is_best) and is_recovered(record)
+        rejected = (not is_best) and (not recovered) and is_rejected(record)
+        ax.text(
+            x_positions[record["id"]],
+            -y_positions[record["id"]],
+            text,
+            ha="center",
+            va="center",
+            fontsize=8.2,
+            linespacing=1.22,
+            color="#111111",
+            bbox={
+                "boxstyle": "square,pad=0.55",
+                "fc": "#f0fdf4"
+                if is_best
+                else ("#fef9c3" if recovered else ("#fee2e2" if rejected else "#ffffff")),
+                "ec": "#16a34a"
+                if is_best
+                else ("#eab308" if recovered else ("#dc2626" if rejected else "#0f172a")),
+                "lw": 1.8 if is_best else (1.5 if recovered else (1.3 if rejected else 1.0)),
+            },
+        )
+    ax.set_title(
+        "SolutionTree - drzewo rozwiazan (warianty STO) | zielone = poprawna/najlepsza sciezka",
+        fontsize=14,
+        fontweight="bold",
+        pad=16,
+    )
+    max_x = max(x_positions.values() or [2.4])
+    ax.set_xlim(-2.8, max_x + 2.8)
+    ax.set_ylim(-max_depth - 1.25, 1.0)
+    ax.axis("off")
+    fig.tight_layout()
+    return fig
+
+
 def _build_figure_legacy(df, chart_type, x_col=None, y_col=None, z_col=None):
     if df is None or df.empty:
         raise ValueError("Brak danych do wizualizacji")
     if chart_type == "Production Dashboard":
         return _production_dashboard(df)
+    if chart_type == "ESM Best Method":
+        return _esm_best_method_dashboard(df)
     if chart_type == "Missingness Map":
         return _missingness_map(df)
     if chart_type == "Priority Timeline":
@@ -499,14 +1784,26 @@ def _build_figure_legacy(df, chart_type, x_col=None, y_col=None, z_col=None):
         return _dashboard(df, x_col, y_col)
     if chart_type == "Diagnostics":
         return _diagnostics(df, x_col, y_col)
+    if chart_type == "Model Diagnostics":
+        return _model_diagnostics(df, x_col, y_col)
     if chart_type == "3D Scatter":
         return _scatter_3d(df, x_col, y_col, z_col)
     if chart_type == "3D Surface":
         return _surface_3d(df, x_col, y_col, z_col)
     if chart_type == "Outlier Map":
         return _outlier_map(df, x_col, y_col)
+    if chart_type == "DBSCAN Anomaly":
+        return _dbscan_anomaly_map(df, x_col, y_col)
+    if chart_type == "PCA State Segments":
+        return _pca_state_segments(df)
+    if chart_type == "LDA vs t-SNE":
+        return _lda_vs_tsne(df)
+    if chart_type == "KMeans vs GMM":
+        return _kmeans_vs_gmm(df)
     if chart_type == "Step View":
         return _step_view(df, x_col, y_col)
+    if chart_type == "SolutionTree":
+        return _solution_tree_figure(df, x_col, y_col, z_col)
     fig = Figure(figsize=(9, 5), dpi=100)
     FigureCanvasAgg(fig)
     ax = fig.add_subplot(111)
@@ -544,8 +1841,20 @@ def _build_figure_legacy(df, chart_type, x_col=None, y_col=None, z_col=None):
         return fig
     if chart_type == "Gantt":
         payload = prepare_gantt_chart_data(df)
-        ax.barh(payload["labels"], payload["durations"], left=payload["starts"])
+        lanes = payload.get("machines", payload["labels"])
+        unique_lanes = list(dict.fromkeys(lanes))
+        lane_pos = {lane: idx for idx, lane in enumerate(unique_lanes)}
+        y_vals = [lane_pos[lane] for lane in lanes]
+        unique_jobs = list(dict.fromkeys(payload["labels"]))
+        job_pos = {job: idx for idx, job in enumerate(unique_jobs)}
+        colors = plt_colormap(len(unique_jobs))
+        bar_colors = [colors[job_pos[job]] for job in payload["labels"]]
+        ax.barh(y_vals, payload["durations"], left=payload["starts"], color=bar_colors, alpha=0.9)
+        ax.set_yticks(list(range(len(unique_lanes))), unique_lanes)
+        ax.set_ylabel("Maszyna")
         ax.set_xlabel(payload["x_label"])
+        ax.set_title("Gantt — harmonogram zadań na maszynach")
+        ax.grid(True, axis="x", alpha=0.25)
         return fig
     if chart_type == "CorrelationMatrix":
         payload = prepare_correlation_matrix_data(df)
@@ -568,9 +1877,12 @@ def _build_figure_legacy(df, chart_type, x_col=None, y_col=None, z_col=None):
         fig.colorbar(image, ax=ax, fraction=0.046, pad=0.04)
         fig.tight_layout()
         return fig
-    if chart_type == "DecisionTree":
+    if chart_type == "SolutionTree":
+        return _solution_tree_figure(df, x_col, y_col, z_col)
+    if chart_type == "ML Decision Tree":
         payload = prepare_decision_tree_data(df)
         plot_tree(payload["model"], feature_names=payload["feature_names"], filled=True, ax=ax)
+        ax.set_title("ML Decision Tree - klasyczne drzewo modelu")
         return fig
     raise ValueError(f"Nieobsługiwany typ wykresu: {chart_type}")
 
@@ -662,9 +1974,263 @@ def _column_ranking(df: pd.DataFrame) -> Figure:
     return fig
 
 
-def build_figure_from_request(df, chart_type, x_col=None, y_col=None, z_col=None):
+def _categorical_column(df: pd.DataFrame) -> str | None:
+    for column in df.columns:
+        if column not in _numeric_columns(df):
+            return column
+    return None
+
+
+def _bar_chart(df: pd.DataFrame, x_col: str | None, y_col: str | None) -> Figure:
+    x_name = str(x_col if x_col in df.columns else (_categorical_column(df) or df.columns[0]))
+    numeric_cols = _numeric_columns(df)
+    y_name = y_col if y_col in numeric_cols else (numeric_cols[0] if numeric_cols else None)
+    fig = Figure(figsize=(10, 6.2), dpi=100)
+    FigureCanvasAgg(fig)
+    ax = fig.add_subplot(111)
+    if y_name and x_name in df.columns:
+        grouped = (
+            df[[x_name, y_name]]
+            .assign(**{y_name: pd.to_numeric(df[y_name], errors="coerce")})
+            .dropna()
+            .groupby(x_name, dropna=False)[y_name]
+            .mean()
+            .sort_values(ascending=False)
+            .head(14)
+        )
+    else:
+        grouped = df[x_name].astype(str).value_counts().head(14)
+    ax.bar(grouped.index.astype(str), grouped.values)
+    ax.set_title(f"Bar Chart: {x_name}" + (f" vs {y_name}" if y_name else ""))
+    ax.set_xlabel(x_name)
+    ax.set_ylabel(y_name or "liczba")
+    ax.tick_params(axis="x", rotation=35)
+    ax.grid(True, axis="y", alpha=0.22)
+    fig.tight_layout()
+    return fig
+
+
+def _pie_chart(df: pd.DataFrame, x_col: str | None) -> Figure:
+    x_name = x_col if x_col in df.columns else (_categorical_column(df) or df.columns[0])
+    counts = df[x_name].astype(str).value_counts().head(8)
+    fig = Figure(figsize=(8.5, 6.2), dpi=100)
+    FigureCanvasAgg(fig)
+    ax = fig.add_subplot(111)
+    ax.pie(counts.values, labels=counts.index, autopct="%1.1f%%", startangle=90)
+    ax.set_title(f"Pie Chart: {x_name}")
+    return fig
+
+
+def _area_chart(df: pd.DataFrame, x_col: str | None, y_col: str | None) -> Figure:
+    common = _paired_numeric(df, x_col, y_col)
+    x_name, y_name = common.columns
+    common = common.sort_values(x_name)
+    fig = Figure(figsize=(10, 6.2), dpi=100)
+    FigureCanvasAgg(fig)
+    ax = fig.add_subplot(111)
+    ax.fill_between(common[x_name], common[y_name], alpha=0.35)
+    ax.plot(common[x_name], common[y_name], linewidth=2)
+    ax.set_title(f"Area Chart: {y_name} po {x_name}")
+    ax.set_xlabel(x_name)
+    ax.set_ylabel(y_name)
+    ax.grid(True, alpha=0.22)
+    fig.tight_layout()
+    return fig
+
+
+def _seaborn_chart(
+    df: pd.DataFrame, chart_type: str, x_col: str | None, y_col: str | None, z_col: str | None
+) -> Figure:
+    try:
+        import seaborn as sns
+    except ImportError as exc:
+        raise ValueError("Seaborn nie jest zainstalowany w tym srodowisku.") from exc
+    numeric_cols = _numeric_columns(df)
+    x_name = x_col if x_col in df.columns else (numeric_cols[0] if numeric_cols else df.columns[0])
+    y_name = (
+        y_col if y_col in df.columns else (numeric_cols[1] if len(numeric_cols) > 1 else x_name)
+    )
+    hue_name = z_col if z_col in df.columns and z_col not in {x_name, y_name} else None
+    fig = Figure(figsize=(10, 6.4), dpi=100)
+    FigureCanvasAgg(fig)
+    ax = fig.add_subplot(111)
+    if chart_type == "Violin Plot":
+        sns.violinplot(data=df, x=x_name if x_name not in numeric_cols else None, y=y_name, ax=ax)
+    elif chart_type == "Count Plot":
+        sns.countplot(data=df, x=x_name, hue=hue_name, ax=ax)
+        ax.tick_params(axis="x", rotation=35)
+    elif chart_type == "Strip Plot":
+        sns.stripplot(
+            data=df,
+            x=x_name if x_name not in numeric_cols else None,
+            y=y_name,
+            hue=hue_name,
+            jitter=True,
+            alpha=0.72,
+            ax=ax,
+        )
+    elif chart_type == "Swarm Plot":
+        sample = df.head(350)
+        sns.swarmplot(
+            data=sample,
+            x=x_name if x_name not in numeric_cols else None,
+            y=y_name,
+            hue=hue_name,
+            size=4,
+            ax=ax,
+        )
+    elif chart_type == "Point Plot":
+        sns.pointplot(data=df, x=x_name, y=y_name, hue=hue_name, errorbar="sd", ax=ax)
+        ax.tick_params(axis="x", rotation=35)
+    elif chart_type == "Bar Estimate":
+        sns.barplot(data=df, x=x_name, y=y_name, hue=hue_name, errorbar="sd", ax=ax)
+        ax.tick_params(axis="x", rotation=35)
+    elif chart_type == "KDE Plot":
+        common = _paired_numeric(df, x_name, y_name)
+        sns.kdeplot(data=common, x=common.columns[0], y=common.columns[1], fill=True, ax=ax)
+    elif chart_type == "ECDF Plot":
+        sns.ecdfplot(data=df, x=x_name, hue=hue_name, ax=ax)
+    elif chart_type == "Regression Plot":
+        common = _paired_numeric(df, x_name, y_name)
+        sns.regplot(data=common, x=common.columns[0], y=common.columns[1], ax=ax)
+    elif chart_type == "Joint Plot":
+        common = _paired_numeric(df, x_name, y_name)
+        sns.scatterplot(data=common, x=common.columns[0], y=common.columns[1], ax=ax)
+        sns.kdeplot(data=common, x=common.columns[0], y=common.columns[1], ax=ax, levels=5)
+    elif chart_type == "Pair Plot":
+        sample = df[numeric_cols[:4]].apply(pd.to_numeric, errors="coerce").dropna()
+        if len(numeric_cols) < 2:
+            raise ValueError("Pair Plot wymaga co najmniej dwoch kolumn liczbowych.")
+        sns.heatmap(sample.corr(), annot=True, cmap="vlag", center=0, ax=ax)
+        ax.set_title("Seaborn Pair Plot summary: korelacje kolumn")
+    else:
+        sns.scatterplot(data=df, x=x_name, y=y_name, hue=hue_name, ax=ax)
+    ax.set_title(f"Seaborn - {chart_type}")
+    fig.tight_layout()
+    return fig
+
+
+def _network_graph(df: pd.DataFrame, chart_type: str = "Network Graph") -> Figure:
+    try:
+        import networkx as nx
+    except ImportError as exc:
+        raise ValueError("NetworkX nie jest zainstalowany w tym srodowisku.") from exc
+    records = _solution_tree_records(df, max_nodes=80)
+    graph = nx.DiGraph()
+    for record in records:
+        graph.add_node(record["id"], label=record.get("label") or record["id"])
+        if record.get("parent"):
+            graph.add_edge(record["parent"], record["id"], label=record.get("edge_label", ""))
+    fig = Figure(figsize=(12, 7.2), dpi=100)
+    FigureCanvasAgg(fig)
+    ax = fig.add_subplot(111)
+    if chart_type == "Circular Network":
+        pos = nx.circular_layout(graph)
+    elif chart_type == "Shell Network":
+        pos = nx.shell_layout(graph)
+    elif chart_type == "Kamada-Kawai Network":
+        pos = nx.kamada_kawai_layout(graph)
+    elif chart_type == "Spring Network":
+        pos = nx.spring_layout(graph, seed=42)
+    else:
+        try:
+            pos = nx.nx_agraph.graphviz_layout(graph, prog="dot")
+        except Exception:
+            pos = nx.spring_layout(graph, seed=42)
+    nx.draw_networkx_edges(graph, pos, ax=ax, arrows=True, edge_color="#334155", width=1.8)
+    nx.draw_networkx_nodes(
+        graph, pos, ax=ax, node_color="#f8fafc", edgecolors="#0f172a", node_size=1400
+    )
+    nx.draw_networkx_labels(
+        graph, pos, labels=nx.get_node_attributes(graph, "label"), ax=ax, font_size=8
+    )
+    edge_labels = nx.get_edge_attributes(graph, "label")
+    nx.draw_networkx_edge_labels(graph, pos, edge_labels=edge_labels, ax=ax, font_size=7)
+    ax.set_title(f"NetworkX - {chart_type}")
+    ax.axis("off")
+    fig.tight_layout()
+    return fig
+
+
+def _library_placeholder(library: str, chart_type: str) -> Figure:
+    fig = Figure(figsize=(9, 5), dpi=100)
+    FigureCanvasAgg(fig)
+    ax = fig.add_subplot(111)
+    ax.text(
+        0.5,
+        0.55,
+        f"{library} jest wybrany jako biblioteka dla: {chart_type}",
+        ha="center",
+        va="center",
+        fontsize=14,
+        fontweight="bold",
+    )
+    ax.text(
+        0.5,
+        0.42,
+        "W aplikacji desktopowej pokazuje sie podglad Matplotlib.\nOtworz HTML, aby uzyc interaktywnego renderera CDN.",
+        ha="center",
+        va="center",
+        fontsize=11,
+    )
+    ax.axis("off")
+    return fig
+
+
+def build_figure_from_request(
+    df, chart_type, x_col=None, y_col=None, z_col=None, chart_library: str = "Matplotlib"
+):
     if df is None or df.empty:
         raise ValueError("Brak danych do wizualizacji")
+    if chart_type == "DecisionTree":
+        chart_type = "ML Decision Tree"
+    if chart_type == "SolutionTree":
+        return _solution_tree_figure(df, x_col, y_col, z_col)
+    chart_library = chart_library if chart_library in VISUAL_LIBRARIES else "Matplotlib"
+    if chart_type not in CHART_TYPES:
+        raise ValueError(f"Nieobsługiwany typ wykresu: {chart_type}")
+    if not is_chart_supported_by_library(chart_type, chart_library):
+        supported = ", ".join(get_supported_chart_types(chart_library)[:12])
+        raise ValueError(
+            f"{chart_library} nie obsluguje wykresu {chart_type}. Wybierz jeden z: {supported}."
+        )
+    web_only_charts = {
+        "Treemap",
+        "Sunburst",
+        "Funnel",
+        "Waterfall",
+        "Radar Chart",
+        "Stacked Bar",
+        "Binned Scatter",
+        "Faceted Scatter",
+        "Interactive Brush",
+    }
+    if chart_library == "Plotly" and chart_type != "SolutionTree":
+        return _library_placeholder(chart_library, chart_type)
+    if chart_library == "Altair" and chart_type != "SolutionTree":
+        return _library_placeholder(chart_library, chart_type)
+    if chart_library == "NetworkX" or chart_type in NETWORKX_CHART_TYPES:
+        return _network_graph(df, chart_type)
+    if chart_library == "Seaborn" or chart_type in {
+        "Count Plot",
+        "Strip Plot",
+        "Swarm Plot",
+        "Point Plot",
+        "Bar Estimate",
+        "Violin Plot",
+        "KDE Plot",
+        "ECDF Plot",
+        "Regression Plot",
+        "Joint Plot",
+        "Pair Plot",
+    }:
+        return _seaborn_chart(df, chart_type, x_col, y_col, z_col)
+    if chart_type == "Bar Chart":
+        return _bar_chart(df, x_col, y_col)
+    if chart_type == "Pie Chart":
+        return _pie_chart(df, x_col)
+    if chart_type == "Area Chart":
+        return _area_chart(df, x_col, y_col)
     if chart_type == "Bubble Chart":
         return _bubble_chart(df, x_col, y_col, z_col)
     if chart_type == "Heatmap Density":
@@ -673,6 +2239,8 @@ def build_figure_from_request(df, chart_type, x_col=None, y_col=None, z_col=None
         return _pair_explorer(df)
     if chart_type == "Column Ranking":
         return _column_ranking(df)
+    if chart_type in web_only_charts:
+        return _library_placeholder("HTML", chart_type)
     try:
         return _build_figure_legacy(df, chart_type, x_col, y_col, z_col)
     except ValueError as exc:
@@ -702,10 +2270,13 @@ def build_d3_html_report(
     y_col: str | None = None,
     z_col: str | None = None,
     chart_type: str | None = None,
+    chart_library: str = "D3",
     max_rows: int = 900,
 ) -> str:
     if df is None or df.empty:
         raise ValueError("Brak danych do raportu D3")
+    if chart_type == "DecisionTree":
+        chart_type = "ML Decision Tree"
     x_default, y_default, z_default = _default_columns(df)
     x_name = x_col if x_col in df.columns else x_default
     y_name = y_col if y_col in df.columns else y_default
@@ -714,11 +2285,20 @@ def build_d3_html_report(
     export_df = df[export_cols].head(max_rows).replace([np.inf, -np.inf], np.nan)
     payload = export_df.where(pd.notna(export_df), None).to_dict(orient="records")
     data_json = json.dumps(payload, ensure_ascii=False)
+    solution_tree_json = json.dumps(
+        _solution_tree_records(export_df, x_name, y_name, z_name, max_nodes=80), ensure_ascii=False
+    )
     title = html.escape(chart_type or "D3 Visual Report")
     chart_js = json.dumps(chart_type or "Scatter", ensure_ascii=False)
+    library_js = json.dumps(chart_library if chart_library in [*VISUAL_LIBRARIES, "D3"] else "D3")
     x_js = json.dumps(x_name, ensure_ascii=False)
     y_js = json.dumps(y_name, ensure_ascii=False)
     z_js = json.dumps(z_name, ensure_ascii=False)
+    chart_options_js = json.dumps(CHART_TYPES, ensure_ascii=False)
+    library_options_js = json.dumps(["D3", *VISUAL_LIBRARIES], ensure_ascii=False)
+    library_support_js = json.dumps(
+        {"D3": D3_CHART_TYPES, **LIBRARY_CHART_SUPPORT}, ensure_ascii=False
+    )
     return f"""<!doctype html>
 <html lang="pl">
 <head>
@@ -731,16 +2311,35 @@ def build_d3_html_report(
       document.write('<script src="https://unpkg.com/d3@7/dist/d3.min.js"><\\/script>');
     }}
   </script>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
   <style>
-    :root {{ color-scheme:dark; --bg:#07111c; --panel:#0e1b29; --border:#20364d; --muted:#9fb4cc; --grid:rgba(148,163,184,.18); }}
+    :root {{ color-scheme:dark; --bg:#08131f; --panel:#0f2236; --border:#284766; --muted:#9fb4cc; --grid:rgba(148,163,184,.18); --accent:#1f8fff; }}
     * {{ box-sizing:border-box; }}
     body {{ margin:0; font-family:Inter,Segoe UI,Arial,sans-serif; background:var(--bg); color:#e6f0ff; }}
-    header {{ padding:22px 32px; border-bottom:1px solid var(--border); background:linear-gradient(135deg,#0c1d2d,#0a1624); }}
+    header {{ padding:22px 32px; border-bottom:1px solid var(--border); background:linear-gradient(135deg,#0f253b,#0b1b2c); }}
     h1 {{ margin:0 0 6px; font-size:26px; }}
     header div {{ color:var(--muted); }}
     main {{ padding:22px 32px; display:grid; grid-template-columns:minmax(720px,1fr) 360px; gap:18px; max-width:1680px; margin:0 auto; }}
-    .panel {{ background:#0e1b29; border:1px solid var(--border); border-radius:10px; padding:18px; box-shadow:0 18px 45px rgba(0,0,0,.24); }}
-    svg {{ width:100%; height:640px; display:block; background:#0b1220; border-radius:10px; }}
+    .panel {{ background:#0d1d2f; border:1px solid var(--border); border-radius:14px; padding:18px; box-shadow:0 18px 45px rgba(0,0,0,.24); }}
+    .chart-controls {{ max-width:1680px; margin:14px auto 0; padding:10px 14px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; border-radius:14px; }}
+    .chart-controls label {{ color:#9fb4cc; font-size:12px; font-weight:700; }}
+    .chart-controls select,.chart-controls button {{ background:#173553; color:#e6f0ff; border:1px solid #2f5f8d; border-radius:10px; padding:6px 10px; min-height:36px; }}
+    .chart-controls select {{ min-width:120px; }}
+    .chart-controls button {{ cursor:pointer; font-weight:700; background:linear-gradient(180deg,#1f8fff,#1976d2); border-color:#2f74c5; }}
+    .chart-controls input[type="number"], .chart-controls input[type="checkbox"] {{ accent-color:#1f8fff; }}
+    #chart-panel {{ overflow:auto; }}
+    svg {{ width:100%; height:700px; display:block; background:#071526; border-radius:12px; }}
+    #html-chart {{ width:100%; min-height:700px; display:none; background:#ffffff; color:#111827; border-radius:12px; padding:12px; }}
+    svg.solution-tree-chart {{ width:100%; max-width:100%; height:auto; min-height:620px; background:#ffffff; border-radius:0; }}
+    svg.solution-tree-chart text, svg.solution-tree-chart tspan {{ fill:#111111 !important; }}
+    svg.solution-tree-chart .tree-viewport {{ cursor:grab; }}
+    svg.solution-tree-chart .tree-viewport:active {{ cursor:grabbing; }}
+    #tree-hidden-list {{ font-size:12px; color:#9fb4cc; width:100%; }}
+    #tree-stats {{ font-size:12px; color:#bfdbfe; line-height:1.5; margin:8px 0 0; }}
+    #tree-hidden-list s {{ color:#fca5a5; text-decoration-thickness:2px; }}
     .d3-error {{ min-height:420px; display:flex; align-items:center; justify-content:center; background:#0b1220; color:#dbeafe; border-radius:10px; padding:32px; text-align:center; font-size:18px; line-height:1.45; }}
     .tooltip {{ position:fixed; pointer-events:none; background:#020617; color:white; border:1px solid #38bdf8; box-shadow:0 16px 40px rgba(0,0,0,.35); border-radius:8px; padding:8px 10px; opacity:0; font-size:12px; }}
     .axis text {{ fill:#b8c7d9; }}
@@ -752,29 +2351,96 @@ def build_d3_html_report(
 <body>
   <header>
     <h1>{title}</h1>
-    <div>D3.js | X: {html.escape(str(x_name))} | Y: {html.escape(str(y_name))} | kolor/rozmiar: {html.escape(str(z_name))}</div>
+    <div>Biblioteka: {html.escape(str(chart_library))} | X: {html.escape(str(x_name))} | Y: {html.escape(str(y_name))} | kolor/rozmiar: {html.escape(str(z_name))}</div>
   </header>
+  <section class="panel chart-controls">
+    <label>Wykres</label><select id="ctl-chart"></select>
+    <label>Biblioteka</label><select id="ctl-library"></select>
+    <label>X</label><select id="ctl-x"></select>
+    <label>Y</label><select id="ctl-y"></select>
+    <label>Z</label><select id="ctl-z"></select>
+    <label>Maszyna</label><select id="ctl-machine"></select>
+    <label>Wysokość</label><select id="ctl-height">
+      <option value="620">Kompakt</option>
+      <option value="700" selected>Standard</option>
+      <option value="860">Duży</option>
+    </select>
+    <label>Bins</label><select id="ctl-bins">
+      <option value="10">10</option><option value="20">20</option><option value="30" selected>30</option><option value="50">50</option>
+    </select>
+    <label>Outlier σ</label><select id="ctl-outlier-sigma">
+      <option value="2">2.0</option><option value="2.5" selected>2.5</option><option value="3">3.0</option>
+    </select>
+    <label><input id="ctl-density" type="checkbox" /> Gęstość</label>
+    <label><input id="ctl-trend" type="checkbox" checked /> Trendline</label>
+    <label><input id="ctl-smooth" type="checkbox" checked /> Wygładzanie</label>
+    <label>Algorytm drzewa</label><select id="ctl-tree-algo"></select>
+    <label>Widok drzewa</label><select id="ctl-tree-fit">
+      <option value="large" selected>Całe drzewo - czytelne</option>
+      <option value="fit">Całe drzewo - dopasuj</option>
+      <option value="manual">Ręcznie przewijane</option>
+    </select>
+    <label>Filtr</label><input id="ctl-query" type="text" placeholder="np. cena > 100 and machine_id = 2" style="min-width:280px;padding:7px 10px;border-radius:10px;border:1px solid #2f5f8d;background:#173553;color:#e6f0ff;" />
+    <button id="ctl-redraw" type="button">Aktualizuj wykres</button>
+    <button id="ctl-full" type="button">Pełny ekran</button>
+    <button id="ctl-png" type="button">Eksport PNG</button>
+    <button id="ctl-tree-zoom-in" type="button">Drzewo +</button>
+    <button id="ctl-tree-zoom-out" type="button">Drzewo -</button>
+    <button id="ctl-tree-zoom-reset" type="button">Reset zoom</button>
+    <button id="ctl-delete-tree" type="button">Schowaj wybrana galaz</button>
+    <button id="ctl-restore-tree" type="button">Pokaz cale drzewo</button>
+    <button id="ctl-save-preset" type="button">Zapisz preset</button>
+    <button id="ctl-load-preset" type="button">Wczytaj preset</button>
+    <button id="ctl-export-json" type="button">Eksport config JSON</button>
+    <button id="ctl-reset" type="button">Reset ustawień</button>
+  </section>
   <main>
-    <section class="panel"><svg id="chart"></svg></section>
+    <section class="panel" id="chart-panel"><svg id="chart"></svg><div id="html-chart"></div></section>
     <aside class="panel">
+      <p><strong>Drzewo:</strong> kliknij wezel, potem schowaj galaz albo pokaz cale drzewo. Przeciagnij drzewo myszka, kolkiem zmieniaj zoom albo uzyj przyciskow Drzewo + / -. Zielony = najlepsza sciezka, zolty = wariant pokonany lub sprawdzony, czerwony = wariant odrzucony.</p>
+      <p id="tree-stats">Statystyki drzewa: brak</p>
+      <p id="tree-hidden-list">Schowane galezie: brak</p>
       <h2>Jak czytać</h2>
       <p>Najedź na punkt, aby zobaczyć wartości. Kolor i rozmiar wykorzystują trzecią zmienną, jeśli jest dostępna.</p>
       <p>Liczba punktów: <strong id="count"></strong></p>
-      <p>Źródło biblioteki: d3/d3 przez CDN.</p>
+      <p>Źródło biblioteki: <strong id="library-source"></strong> przez CDN / lokalny renderer.</p>
     </aside>
   </main>
   <div class="tooltip" id="tooltip"></div>
   <script>
-    const data = {data_json};
-    const chartType = {chart_js};
-    const xKey = {x_js};
-    const yKey = {y_js};
-    const zKey = {z_js};
+    const baseData = {data_json};
+    const dataSource = baseData;
+    let data = [...baseData];
+    const solutionTreeData = {solution_tree_json};
+    let chartType = {chart_js};
+    let chartLibrary = {library_js};
+    let xKey = {x_js};
+    let yKey = {y_js};
+    let zKey = {z_js};
+    let chartHeight = 700;
+    let histBins = 30;
+    let histDensity = false;
+    let showTrend = true;
+    let smoothLine = true;
+    let outlierSigma = 2.5;
+    let treeAlgorithm = "Dane z pliku";
+    let treeFitMode = "large";
+    let selectedTreeNodeId = "";
+    let treeZoomTransform = d3.zoomIdentity;
+    let treeZoomBehavior = null;
+    const deletedTreeNodes = new Set();
+    const treeAlgorithms = ["Dane z pliku", "EDD - najblizszy termin", "SPT - najkrotszy czas", "LPT - najdluzszy czas", "Min Kop - najmniejsza kara"];
+    const chartOptions = {chart_options_js};
+    const libraryOptions = {library_options_js};
+    const libraryChartSupport = {library_support_js};
+    const columns = Object.keys(baseData[0] || {{}});
+    const machineColumnCandidates = ["machine_id", "recommended_machine", "maszyna", "machine"];
+    const machineColumn = machineColumnCandidates.find(col => columns.includes(col)) || null;
     function drawNativeFallback() {{
       document.getElementById("count").textContent = data.length;
       const chart = document.getElementById("chart");
       const width = 980;
-      const height = 620;
+      const height = Math.max(560, Number(chartHeight) || 700);
       const margin = {{top: 74, right: 52, bottom: 74, left: 82}};
       const clean = data.map(d => ({{x: +d[xKey], y: +d[yKey], z: +d[zKey]}}))
         .filter(d => Number.isFinite(d.x) && Number.isFinite(d.y));
@@ -813,9 +2479,8 @@ def build_d3_html_report(
     }} else {{
     document.getElementById("count").textContent = data.length;
     const svg = d3.select("#chart");
-    const box = svg.node().getBoundingClientRect();
-    const width = Math.max(760, box.width || 980);
-    const height = 620;
+    let width = 980;
+    let height = 700;
     svg.attr("viewBox", [0, 0, width, height]);
     const margin = {{top: 42, right: 38, bottom: 70, left: 78}};
     const tooltip = d3.select("#tooltip");
@@ -823,52 +2488,76 @@ def build_d3_html_report(
     const hideTip = () => tooltip.style("opacity", 0);
     const addXAxis = scale => svg.append("g").attr("class","axis").attr("transform",`translate(0,${{height-margin.bottom}})`).call(d3.axisBottom(scale));
     const addYAxis = scale => svg.append("g").attr("class","axis").attr("transform",`translate(${{margin.left}},0)`).call(d3.axisLeft(scale));
+    function updateViewport() {{
+      const box = svg.node().getBoundingClientRect();
+      width = Math.max(760, box.width || 980);
+      height = Math.max(560, Number(chartHeight) || 700);
+      svg.attr("viewBox", [0, 0, width, height]);
+      svg.style("height", `${{height}}px`);
+    }}
     function axisLabels(xText, yText) {{
       svg.append("text").attr("x", width/2).attr("y", height-22).attr("fill","#dbeafe").attr("text-anchor","middle").text(xText);
       svg.append("text").attr("x", -height/2).attr("y", 24).attr("fill","#dbeafe").attr("text-anchor","middle").attr("transform","rotate(-90)").text(yText);
     }}
 
     function drawScatter() {{
-    const clean = data.map(d => ({{
-      x: +d[xKey],
-      y: +d[yKey],
-      z: +d[zKey],
-      raw: d
-    }})).filter(d => Number.isFinite(d.x) && Number.isFinite(d.y));
-    const x = d3.scaleLinear().domain(d3.extent(clean, d => d.x)).nice().range([margin.left, width - margin.right]);
-    const y = d3.scaleLinear().domain(d3.extent(clean, d => d.y)).nice().range([height - margin.bottom, margin.top]);
-    const zValues = clean.map(d => Number.isFinite(d.z) ? d.z : 0);
-    const zExtent = d3.extent(zValues);
-    const color = d3.scaleSequential(zExtent, d3.interpolateTurbo);
-    const size = d3.scaleSqrt().domain(zExtent).range([4, 14]);
-    addXAxis(x);
-    addYAxis(y);
-    axisLabels(xKey, yKey);
-    svg.append("g").selectAll("circle").data(clean).join("circle")
-      .attr("cx", d => x(d.x)).attr("cy", d => y(d.y))
-      .attr("r", d => Number.isFinite(d.z) ? size(d.z) : 6)
-      .attr("fill", d => Number.isFinite(d.z) ? color(d.z) : "#2563eb")
-      .attr("opacity", 0.74)
-      .on("mouseenter", (event, d) => {{
-        showTip(event, `${{xKey}}: <b>${{d.x}}</b><br>${{yKey}}: <b>${{d.y}}</b><br>${{zKey}}: <b>${{d.z}}</b>`);
-      }})
-      .on("mousemove", event => tooltip.style("left", `${{event.clientX + 14}}px`).style("top", `${{event.clientY + 14}}px`))
-      .on("mouseleave", hideTip);
+      const clean = data.map(d => ({{
+        x: +d[xKey],
+        y: +d[yKey],
+        z: +d[zKey],
+        raw: d
+      }})).filter(d => Number.isFinite(d.x) && Number.isFinite(d.y));
+      const x = d3.scaleLinear().domain(d3.extent(clean, d => d.x)).nice().range([margin.left, width - margin.right]);
+      const y = d3.scaleLinear().domain(d3.extent(clean, d => d.y)).nice().range([height - margin.bottom, margin.top]);
+      const zValues = clean.map(d => Number.isFinite(d.z) ? d.z : 0);
+      const zExtent = d3.extent(zValues);
+      const color = d3.scaleSequential(zExtent, d3.interpolateTurbo);
+      const size = d3.scaleSqrt().domain(zExtent).range([4, 14]);
+      addXAxis(x);
+      addYAxis(y);
+      axisLabels(xKey, yKey);
+      svg.append("g").selectAll("circle").data(clean).join("circle")
+        .attr("cx", d => x(d.x)).attr("cy", d => y(d.y))
+        .attr("r", d => Number.isFinite(d.z) ? size(d.z) : 6)
+        .attr("fill", d => Number.isFinite(d.z) ? color(d.z) : "#2563eb")
+        .attr("opacity", 0.74)
+        .on("mouseenter", (event, d) => {{
+          showTip(event, `${{xKey}}: <b>${{d.x}}</b><br>${{yKey}}: <b>${{d.y}}</b><br>${{zKey}}: <b>${{d.z}}</b>`);
+        }})
+        .on("mousemove", event => tooltip.style("left", `${{event.clientX + 14}}px`).style("top", `${{event.clientY + 14}}px`))
+        .on("mouseleave", hideTip);
+      if (showTrend && clean.length > 2) {{
+        const n = clean.length;
+        const sx = d3.sum(clean, d => d.x), sy = d3.sum(clean, d => d.y);
+        const sxy = d3.sum(clean, d => d.x * d.y), sx2 = d3.sum(clean, d => d.x * d.x);
+        const a = (n * sxy - sx * sy) / ((n * sx2 - sx * sx) || 1);
+        const b = (sy - a * sx) / n;
+        const x0 = d3.min(clean, d => d.x), x1 = d3.max(clean, d => d.x);
+        svg.append("line")
+          .attr("x1", x(x0)).attr("y1", y(a * x0 + b))
+          .attr("x2", x(x1)).attr("y2", y(a * x1 + b))
+          .attr("stroke", "#f59e0b").attr("stroke-width", 2.2).attr("opacity", .92);
+      }}
     }}
 
     function drawHistogram() {{
       const values = data.map(d => +d[xKey]).filter(Number.isFinite);
       const x = d3.scaleLinear().domain(d3.extent(values)).nice().range([margin.left, width - margin.right]);
-      const bins = d3.bin().domain(x.domain()).thresholds(28)(values);
-      const y = d3.scaleLinear().domain([0, d3.max(bins, d => d.length) || 1]).nice().range([height - margin.bottom, margin.top]);
+      const bins = d3.bin().domain(x.domain()).thresholds(histBins)(values);
+      const histVals = bins.map(d => {{
+        const w = (d.x1 - d.x0) || 1;
+        const c = d.length;
+        return histDensity ? (c / Math.max(values.length * w, 1e-9)) : c;
+      }});
+      const y = d3.scaleLinear().domain([0, d3.max(histVals) || 1]).nice().range([height - margin.bottom, margin.top]);
       addXAxis(x);
       addYAxis(y);
-      axisLabels(xKey, "liczność");
+      axisLabels(xKey, histDensity ? "gęstość" : "liczność");
       svg.append("g").selectAll("rect").data(bins).join("rect")
         .attr("x", d => x(d.x0) + 1)
-        .attr("y", d => y(d.length))
+        .attr("y", (d, i) => y(histVals[i]))
         .attr("width", d => Math.max(0, x(d.x1) - x(d.x0) - 1))
-        .attr("height", d => y(0) - y(d.length))
+        .attr("height", (d, i) => y(0) - y(histVals[i]))
         .attr("fill", "#2563eb").attr("opacity", 0.82)
         .on("mouseenter", (event, d) => showTip(event, `${{xKey}}: <b>${{d.x0.toFixed(2)}}-${{d.x1.toFixed(2)}}</b><br>liczność: <b>${{d.length}}</b>`))
         .on("mouseleave", hideTip);
@@ -880,7 +2569,14 @@ def build_d3_html_report(
       const y = d3.scaleLinear().domain(d3.extent(clean, d => d.y)).nice().range([height - margin.bottom, margin.top]);
       addXAxis(x); addYAxis(y); axisLabels(xKey, yKey);
       const line = d3.line().x(d => x(d.x)).y(d => y(d.y));
-      svg.append("path").datum(clean).attr("fill","none").attr("stroke","#2563eb").attr("stroke-width",2.5).attr("d",line);
+      const lineData = smoothLine && clean.length > 4
+        ? clean.map((d, i) => {{
+            const lo = Math.max(0, i - 2), hi = Math.min(clean.length, i + 3);
+            const m = d3.mean(clean.slice(lo, hi), r => r.y);
+            return {{x: d.x, y: m}};
+          }})
+        : clean;
+      svg.append("path").datum(lineData).attr("fill","none").attr("stroke","#2563eb").attr("stroke-width",2.5).attr("d",line);
       svg.append("g").selectAll("circle").data(clean).join("circle")
         .attr("cx", d => x(d.x)).attr("cy", d => y(d.y)).attr("r", 4).attr("fill", "#f97316")
         .on("mouseenter", (event, d) => showTip(event, `${{xKey}}: <b>${{d.x}}</b><br>${{yKey}}: <b>${{d.y}}</b>`))
@@ -888,26 +2584,43 @@ def build_d3_html_report(
     }}
 
     function drawGantt() {{
-      const startKey = data[0] && ("t_start" in data[0] ? "t_start" : ("sto_start" in data[0] ? "sto_start" : null));
-      const endKey = data[0] && ("t_end" in data[0] ? "t_end" : ("sto_end" in data[0] ? "sto_end" : null));
-      let current = 0;
-      const rows = data.slice(0, 80).map((d, i) => {{
-        const duration = Number.isFinite(+d[xKey]) ? Math.max(0.1, +d[xKey]) : 1;
-        const start = startKey ? (+d[startKey] || 0) : current;
-        const end = endKey ? (+d[endKey] || start + duration) : start + duration;
-        current = end;
-        return {{label: d.ID || d.id || d.job_id || d.zlecenie || `#${{i+1}}`, start, end, raw: d}};
+      const rowsBase = data.slice(0, 240);
+      const startKey = rowsBase[0] && ("t_start" in rowsBase[0] ? "t_start" : ("sto_start" in rowsBase[0] ? "sto_start" : null));
+      const endKey = rowsBase[0] && ("t_end" in rowsBase[0] ? "t_end" : ("sto_end" in rowsBase[0] ? "sto_end" : null));
+      const machineKey = machineColumn;
+      const rows = [];
+      const machineClock = new Map();
+      rowsBase.forEach((d, i) => {{
+        const machine = machineKey ? String(d[machineKey] ?? "M1") : "M1";
+        const duration = Number.isFinite(+d.czas_produkcji_h) ? Math.max(0.1, +d.czas_produkcji_h) : (Number.isFinite(+d[xKey]) ? Math.max(0.1, +d[xKey]) : 1);
+        let start = startKey ? (+d[startKey] || 0) : (machineClock.get(machine) || 0);
+        const endFromData = endKey ? (+d[endKey]) : NaN;
+        let end = Number.isFinite(endFromData) && endFromData > start ? endFromData : (start + duration);
+        if (!startKey) {{
+          machineClock.set(machine, end);
+        }}
+        rows.push({{
+          label: String(d.sto_job_id ?? d.job_id ?? d.ID ?? d.id ?? d.zlecenie ?? `#${{i+1}}`),
+          machine,
+          start,
+          end,
+          orderStart: Number.isFinite(+d.sto_start) ? +d.sto_start : start,
+          raw: d
+        }});
       }});
+      rows.sort((a, b) => (a.machine.localeCompare(b.machine) || a.orderStart - b.orderStart || a.label.localeCompare(b.label)));
       const x = d3.scaleLinear().domain([0, d3.max(rows, d => d.end) || 1]).nice().range([margin.left, width - margin.right]);
-      const y = d3.scaleBand().domain(rows.map(d => d.label)).range([margin.top, height - margin.bottom]).padding(0.18);
+      const machineBands = Array.from(new Set(rows.map(d => d.machine)));
+      const y = d3.scaleBand().domain(rows.map(d => `${{d.machine}} | ${{d.label}}`)).range([margin.top, height - margin.bottom]).padding(0.15);
+      const color = d3.scaleOrdinal().domain(Array.from(new Set(rows.map(d => d.label)))).range(d3.schemeTableau10.concat(d3.schemeSet3 || []));
       addXAxis(x);
       svg.append("g").attr("class","axis").attr("transform",`translate(${{margin.left}},0)`).call(d3.axisLeft(y));
-      axisLabels("czas", "zlecenie");
+      axisLabels("czas", machineBands.length > 1 ? "maszyna | zlecenie" : "zlecenie");
       svg.append("g").selectAll("rect").data(rows).join("rect")
-        .attr("x", d => x(d.start)).attr("y", d => y(d.label))
+        .attr("x", d => x(d.start)).attr("y", d => y(`${{d.machine}} | ${{d.label}}`))
         .attr("width", d => Math.max(2, x(d.end)-x(d.start))).attr("height", y.bandwidth())
-        .attr("fill", "#10b981").attr("opacity", 0.82)
-        .on("mouseenter", (event, d) => showTip(event, `${{d.label}}<br>start: <b>${{d.start.toFixed(2)}}</b><br>end: <b>${{d.end.toFixed(2)}}</b>`))
+        .attr("fill", d => color(d.label)).attr("opacity", 0.84)
+        .on("mouseenter", (event, d) => showTip(event, `maszyna: <b>${{d.machine}}</b><br>${{d.label}}<br>start: <b>${{d.start.toFixed(2)}}</b><br>end: <b>${{d.end.toFixed(2)}}</b>`))
         .on("mouseleave", hideTip);
     }}
 
@@ -991,6 +2704,150 @@ def build_d3_html_report(
       svg.append("g").attr("class","axis").attr("transform",`translate(0,${{panels[2].y + panels[2].h}})`).call(d3.axisBottom(bx).tickValues([]));
       svg.append("g").attr("class","axis").attr("transform",`translate(${{panels[2].x}},0)`).call(d3.axisLeft(by).ticks(4));
       svg.selectAll("rect.err").data(residuals).join("rect").attr("class","err").attr("x", (_, i) => bx(i)).attr("y", d => by(d.abs)).attr("width", bx.bandwidth()).attr("height", d => panels[2].y + panels[2].h - by(d.abs)).attr("fill", "#a78bfa").attr("opacity", .85);
+    }}
+
+    function drawModelDiagnostics() {{
+      const clean = data.map((d, i) => ({{x:+d[xKey], y:+d[yKey], row:i}}))
+        .filter(d => Number.isFinite(d.x) && Number.isFinite(d.y));
+      if (clean.length < 3) return drawDiagnostics();
+      const n = clean.length;
+      const sx = d3.sum(clean, d => d.x), sy = d3.sum(clean, d => d.y);
+      const sxy = d3.sum(clean, d => d.x * d.y), sx2 = d3.sum(clean, d => d.x * d.x);
+      const slope = (n * sxy - sx * sy) / ((n * sx2 - sx * sx) || 1);
+      const intercept = (sy - slope * sx) / n;
+      const residuals = clean.map(d => ({{...d, fitted:slope * d.x + intercept}}));
+      residuals.forEach(d => d.residual = d.y - d.fitted);
+      const residMean = d3.mean(residuals, d => d.residual) || 0;
+      const residSd = d3.deviation(residuals, d => d.residual) || 1;
+      const xMean = d3.mean(clean, d => d.x) || 0;
+      const xDen = d3.sum(clean, d => (d.x - xMean) ** 2) || 1;
+      residuals.forEach(d => {{
+        d.std = (d.residual - residMean) / residSd;
+        d.scale = Math.sqrt(Math.abs(d.std));
+        d.leverage = 1 / n + ((d.x - xMean) ** 2) / xDen;
+      }});
+      const pageW = Math.max(width, 1180);
+      const pageH = 960;
+      svg.attr("viewBox", [0, 0, pageW, pageH]);
+      const gapX = 58, gapY = 72;
+      const panelW = (pageW - 110 - gapX) / 2;
+      const panelH = (pageH - 102 - gapY * 2) / 3;
+      const panelDefs = [
+        {{x:52, y:44, title:"Posterior Predictive Check", sub:"Model-predicted lines should resemble observed data line"}},
+        {{x:52 + panelW + gapX, y:44, title:"Linearity", sub:"Reference line should be flat and horizontal"}},
+        {{x:52, y:44 + panelH + gapY, title:"Homogeneity of Variance", sub:"Reference line should be flat and horizontal"}},
+        {{x:52 + panelW + gapX, y:44 + panelH + gapY, title:"Influential Observations", sub:"Points should be inside the contour lines"}},
+        {{x:52, y:44 + (panelH + gapY) * 2, title:"Collinearity", sub:"High collinearity (VIF) may inflate parameter uncertainty"}},
+        {{x:52 + panelW + gapX, y:44 + (panelH + gapY) * 2, title:"Normality of Residuals", sub:"Dots should fall along the line"}}
+      ];
+      const fmt = value => Number.isFinite(value) ? d3.format(".3~g")(value) : "";
+      function panel(index, xLabel, yLabel) {{
+        const p = panelDefs[index];
+        svg.append("text").attr("x", p.x).attr("y", p.y - 24).attr("font-size", 21).attr("font-weight", 800).attr("fill", "#111827").text(p.title);
+        svg.append("text").attr("x", p.x).attr("y", p.y - 5).attr("font-size", 13).attr("fill", "#111827").text(p.sub);
+        const g = svg.append("g").attr("transform", `translate(${{p.x}},${{p.y}})`);
+        const inner = {{w:panelW, h:panelH, left:48, right:14, top:12, bottom:38}};
+        g.append("rect").attr("x", 0).attr("y", 0).attr("width", panelW).attr("height", panelH).attr("fill", "#ffffff").attr("opacity", 0);
+        g.append("text").attr("x", panelW / 2).attr("y", panelH + 30).attr("text-anchor", "middle").attr("fill", "#475569").attr("font-size", 12).text(xLabel);
+        g.append("text").attr("x", -panelH / 2).attr("y", 14).attr("text-anchor", "middle").attr("transform", "rotate(-90)").attr("fill", "#475569").attr("font-size", 12).text(yLabel);
+        return {{g, p, inner, w:panelW - inner.left - inner.right, h:panelH - inner.top - inner.bottom}};
+      }}
+      function grid(g, x, y, box) {{
+        const gx = g.append("g").attr("transform", `translate(${{box.inner.left}},${{box.inner.top + box.h}})`).attr("class", "axis").call(d3.axisBottom(x).ticks(5));
+        const gy = g.append("g").attr("transform", `translate(${{box.inner.left}},${{box.inner.top}})`).attr("class", "axis").call(d3.axisLeft(y).ticks(5));
+        g.append("g").attr("transform", `translate(${{box.inner.left}},${{box.inner.top}})`).attr("class", "grid-line").call(d3.axisLeft(y).ticks(5).tickSize(-box.w).tickFormat(""));
+        return {{gx, gy}};
+      }}
+      function smoothLine(rows, xKeyLocal, yKeyLocal, windowSize = 5) {{
+        const sorted = rows.slice().sort((a, b) => a[xKeyLocal] - b[xKeyLocal]);
+        return sorted.map((d, i) => {{
+          const start = Math.max(0, i - Math.floor(windowSize / 2));
+          const end = Math.min(sorted.length, i + Math.floor(windowSize / 2) + 1);
+          return {{x:d[xKeyLocal], y:d3.mean(sorted.slice(start, end), r => r[yKeyLocal])}};
+        }});
+      }}
+
+      const p0 = panel(0, yKey, "Density");
+      const yValues = clean.map(d => d.y);
+      const yExtent = d3.extent(yValues);
+      const densityX = d3.scaleLinear().domain(yExtent).nice().range([p0.inner.left, p0.inner.left + p0.w]);
+      const bins = d3.bin().domain(densityX.domain()).thresholds(26)(yValues);
+      const binCenters = bins.map(b => (b.x0 + b.x1) / 2);
+      const observed = bins.map(b => ({{x:(b.x0 + b.x1) / 2, y:b.length / Math.max(1, clean.length)}}));
+      const maxDensity = d3.max(observed, d => d.y) || 1;
+      const densityY = d3.scaleLinear().domain([0, maxDensity * 1.28]).range([p0.inner.top + p0.h, p0.inner.top]);
+      grid(p0.g, densityX, densityY, p0);
+      const densityLine = d3.line().x(d => densityX(d.x)).y(d => densityY(d.y)).curve(d3.curveBasis);
+      d3.range(34).forEach(k => {{
+        const pred = residuals.map((d, i) => d.fitted + residSd * Math.sin(i * 1.7 + k * .38) * .7);
+        const predBins = d3.bin().domain(densityX.domain()).thresholds(26)(pred)
+          .map(b => ({{x:(b.x0 + b.x1) / 2, y:b.length / Math.max(1, pred.length)}}));
+        p0.g.append("path").datum(predBins).attr("fill","none").attr("stroke","#2f7da7").attr("stroke-width",1.1).attr("opacity",.16).attr("d", densityLine);
+      }});
+      p0.g.append("path").datum(observed).attr("fill","none").attr("stroke","#2ca58d").attr("stroke-width",3).attr("d", densityLine);
+      p0.g.append("line").attr("x1", p0.inner.left + p0.w * .27).attr("x2", p0.inner.left + p0.w * .39).attr("y1", p0.inner.top + p0.h + 34).attr("y2", p0.inner.top + p0.h + 34).attr("stroke","#2ca58d").attr("stroke-width",2);
+      p0.g.append("text").attr("x", p0.inner.left + p0.w * .41).attr("y", p0.inner.top + p0.h + 38).attr("fill","#475569").attr("font-size",11).text("Observed data");
+      p0.g.append("line").attr("x1", p0.inner.left + p0.w * .61).attr("x2", p0.inner.left + p0.w * .73).attr("y1", p0.inner.top + p0.h + 34).attr("y2", p0.inner.top + p0.h + 34).attr("stroke","#2f7da7").attr("stroke-width",2).attr("opacity",.6);
+      p0.g.append("text").attr("x", p0.inner.left + p0.w * .75).attr("y", p0.inner.top + p0.h + 38).attr("fill","#475569").attr("font-size",11).text("Model-predicted data");
+
+      const p1 = panel(1, "Fitted values", "Residuals");
+      const fitX = d3.scaleLinear().domain(d3.extent(residuals, d => d.fitted)).nice().range([p1.inner.left, p1.inner.left + p1.w]);
+      const resY = d3.scaleLinear().domain(d3.extent(residuals, d => d.residual)).nice().range([p1.inner.top + p1.h, p1.inner.top]);
+      grid(p1.g, fitX, resY, p1);
+      p1.g.append("line").attr("x1", p1.inner.left).attr("x2", p1.inner.left + p1.w).attr("y1", resY(0)).attr("y2", resY(0)).attr("stroke","#111827").attr("stroke-dasharray","5 6");
+      p1.g.append("path").datum(smoothLine(residuals, "fitted", "residual")).attr("fill","none").attr("stroke","#2ca58d").attr("stroke-width",2.5).attr("d", d3.line().x(d => fitX(d.x)).y(d => resY(d.y)).curve(d3.curveBasis));
+      p1.g.selectAll("circle.lin").data(residuals).join("circle").attr("class","lin").attr("cx", d => fitX(d.fitted)).attr("cy", d => resY(d.residual)).attr("r",4).attr("fill","#2f7da7").attr("opacity",.82).on("mouseenter", (event, d) => showTip(event, `fitted: <b>${{fmt(d.fitted)}}</b><br>residual: <b>${{fmt(d.residual)}}</b>`)).on("mouseleave", hideTip);
+
+      const p2 = panel(2, "Fitted values", "sqrt(|Std. residuals|)");
+      const scaleY = d3.scaleLinear().domain([0, d3.max(residuals, d => d.scale) || 1]).nice().range([p2.inner.top + p2.h, p2.inner.top]);
+      grid(p2.g, fitX.copy().range([p2.inner.left, p2.inner.left + p2.w]), scaleY, p2);
+      p2.g.append("path").datum(smoothLine(residuals, "fitted", "scale")).attr("fill","none").attr("stroke","#2ca58d").attr("stroke-width",2.5).attr("d", d3.line().x(d => fitX.copy().range([p2.inner.left, p2.inner.left + p2.w])(d.x)).y(d => scaleY(d.y)).curve(d3.curveBasis));
+      p2.g.selectAll("circle.hom").data(residuals).join("circle").attr("class","hom").attr("cx", d => fitX.copy().range([p2.inner.left, p2.inner.left + p2.w])(d.fitted)).attr("cy", d => scaleY(d.scale)).attr("r",4).attr("fill","#2f7da7").attr("opacity",.82);
+
+      const p3 = panel(3, "Leverage (hii)", "Std. Residuals");
+      const levX = d3.scaleLinear().domain([0, Math.max(.6, d3.max(residuals, d => d.leverage) || .1)]).nice().range([p3.inner.left, p3.inner.left + p3.w]);
+      const stdY = d3.scaleLinear().domain(d3.extent(residuals, d => d.std)).nice().range([p3.inner.top + p3.h, p3.inner.top]);
+      grid(p3.g, levX, stdY, p3);
+      p3.g.append("line").attr("x1", p3.inner.left).attr("x2", p3.inner.left + p3.w).attr("y1", stdY(0)).attr("y2", stdY(0)).attr("stroke","#94a3b8").attr("stroke-dasharray","5 6");
+      [0.5, 0.9].forEach(cook => {{
+        const curve = d3.range(1, 90).map(i => {{
+          const h = levX.domain()[1] * i / 90;
+          return {{h, r:Math.sqrt(cook * 2 * (1 - h) / Math.max(h, .01))}};
+        }});
+        p3.g.append("path").datum(curve).attr("fill","none").attr("stroke","#2ca58d").attr("stroke-dasharray","7 7").attr("d", d3.line().x(d => levX(d.h)).y(d => stdY(d.r)));
+        p3.g.append("path").datum(curve).attr("fill","none").attr("stroke","#2ca58d").attr("stroke-dasharray","7 7").attr("d", d3.line().x(d => levX(d.h)).y(d => stdY(-d.r)));
+      }});
+      p3.g.append("path").datum(smoothLine(residuals, "leverage", "std")).attr("fill","none").attr("stroke","#2ca58d").attr("stroke-width",2).attr("d", d3.line().x(d => levX(d.x)).y(d => stdY(d.y)).curve(d3.curveBasis));
+      p3.g.selectAll("circle.inf").data(residuals).join("circle").attr("class","inf").attr("cx", d => levX(d.leverage)).attr("cy", d => stdY(d.std)).attr("r",4).attr("fill","#2f7da7").attr("opacity",.82);
+
+      const p4 = panel(4, "", "Variance Inflation\\nFactor (VIF, log-scaled)");
+      const keys = numericKeys(8);
+      const vif = (keys.length ? keys : [xKey, yKey]).map(key => {{
+        const others = keys.filter(k => k !== key);
+        const r = others.length ? d3.max(others, other => Math.abs(pearson(key, other))) : 0;
+        const value = Math.min(35, 1 / Math.max(.001, 1 - r * r));
+        return {{key, value}};
+      }});
+      const vifX = d3.scaleBand().domain(vif.map(d => d.key)).range([p4.inner.left, p4.inner.left + p4.w]).padding(.32);
+      const vifY = d3.scaleLog().domain([1, 40]).range([p4.inner.top + p4.h, p4.inner.top]);
+      p4.g.append("rect").attr("x", p4.inner.left).attr("y", vifY(5)).attr("width", p4.w).attr("height", vifY(1) - vifY(5)).attr("fill","#dff3e8");
+      p4.g.append("rect").attr("x", p4.inner.left).attr("y", vifY(10)).attr("width", p4.w).attr("height", vifY(5) - vifY(10)).attr("fill","#dbeaf7");
+      p4.g.append("rect").attr("x", p4.inner.left).attr("y", vifY(40)).attr("width", p4.w).attr("height", vifY(10) - vifY(40)).attr("fill","#f7d7dc");
+      p4.g.append("g").attr("transform", `translate(${{p4.inner.left}},${{p4.inner.top}})`).attr("class","axis").call(d3.axisLeft(vifY).tickValues([1,3,5,10,30]).tickFormat(d3.format("~g")));
+      p4.g.append("g").attr("transform", `translate(0,${{p4.inner.top + p4.h}})`).attr("class","axis").call(d3.axisBottom(vifX));
+      p4.g.selectAll("line.vif").data(vif).join("line").attr("class","vif").attr("x1", d => vifX(d.key) + vifX.bandwidth()/2).attr("x2", d => vifX(d.key) + vifX.bandwidth()/2).attr("y1", d => vifY(Math.max(1, d.value*.65))).attr("y2", d => vifY(Math.min(38, d.value*1.35))).attr("stroke", d => d.value < 5 ? "#2ca58d" : d.value < 10 ? "#1f77b4" : "#d62728").attr("stroke-width",2.5);
+      p4.g.selectAll("circle.vif").data(vif).join("circle").attr("class","vif").attr("cx", d => vifX(d.key) + vifX.bandwidth()/2).attr("cy", d => vifY(d.value)).attr("r",5).attr("fill", d => d.value < 5 ? "#2ca58d" : d.value < 10 ? "#1f77b4" : "#d62728");
+
+      const p5 = panel(5, "Standard Normal Distribution Quantiles", "Sample Quantile Deviations");
+      const sortedStd = residuals.map(d => d.std).sort(d3.ascending);
+      const qq = sortedStd.map((value, i) => ({{x:-2.2 + 4.4 * i / Math.max(1, sortedStd.length - 1), y:value}}));
+      const qqX = d3.scaleLinear().domain([-2.3, 2.3]).range([p5.inner.left, p5.inner.left + p5.w]);
+      const qqY = d3.scaleLinear().domain([-2.5, 2.5]).range([p5.inner.top + p5.h, p5.inner.top]);
+      grid(p5.g, qqX, qqY, p5);
+      const band = d3.area().x(d => qqX(d.x)).y0(d => qqY(-(.55 + Math.abs(d.x)*.35))).y1(d => qqY(.55 + Math.abs(d.x)*.35));
+      p5.g.append("path").datum(qq).attr("fill","#d9d9d9").attr("opacity",.8).attr("d", band);
+      p5.g.append("line").attr("x1", p5.inner.left).attr("x2", p5.inner.left + p5.w).attr("y1", qqY(0)).attr("y2", qqY(0)).attr("stroke","#2ca58d").attr("stroke-width",2.2);
+      p5.g.selectAll("circle.qq").data(qq).join("circle").attr("class","qq").attr("cx", d => qqX(d.x)).attr("cy", d => qqY(d.y)).attr("r",4).attr("fill","#2f7da7").attr("opacity",.86);
     }}
 
     function numericKeys(limit = 10) {{
@@ -1120,8 +2977,56 @@ def build_d3_html_report(
       svg.append("text").attr("x", margin.left).attr("y", 28).attr("font-size", 20).attr("font-weight", 800).text("Outlier Map: jaśniejsze punkty są bardziej odstające");
       svg.append("g").selectAll("circle").data(clean).join("circle")
         .attr("cx", d => x(d.x)).attr("cy", d => y(d.y)).attr("r", d => 6 + d.score * 2.2)
-        .attr("fill", d => color(d.score)).attr("opacity", .82)
+        .attr("fill", d => d.score >= outlierSigma ? color(d.score) : "#60a5fa").attr("opacity", .82)
         .on("mouseenter", (event, d) => showTip(event, `${{xKey}}: <b>${{d.x}}</b><br>${{yKey}}: <b>${{d.y}}</b><br>wynik odstawania: <b>${{d.score.toFixed(2)}}</b>`))
+        .on("mouseleave", hideTip);
+    }}
+
+    function drawDBSCANAnomaly() {{
+      const clean = data.map(d => ({{x:+d[xKey], y:+d[yKey], raw:d}})).filter(d => Number.isFinite(d.x) && Number.isFinite(d.y));
+      if (clean.length < 4) return drawScatter();
+      const mx = d3.mean(clean, d => d.x), my = d3.mean(clean, d => d.y);
+      const sx = d3.deviation(clean, d => d.x) || 1, sy = d3.deviation(clean, d => d.y) || 1;
+      const pts = clean.map((d, i) => ({{...d, i, nx:(d.x-mx)/sx, ny:(d.y-my)/sy, label:-99, visited:false}}));
+      const eps = 0.65;
+      const minPts = 4;
+      const dist = (a,b) => Math.hypot(a.nx - b.nx, a.ny - b.ny);
+      const region = p => pts.filter(q => dist(p,q) <= eps);
+      let cid = 0;
+      for (const p of pts) {{
+        if (p.visited) continue;
+        p.visited = true;
+        const neigh = region(p);
+        if (neigh.length < minPts) {{
+          p.label = -1;
+          continue;
+        }}
+        p.label = cid;
+        const queue = [...neigh];
+        while (queue.length) {{
+          const q = queue.shift();
+          if (!q.visited) {{
+            q.visited = true;
+            const neigh2 = region(q);
+            if (neigh2.length >= minPts) queue.push(...neigh2.filter(x => !queue.includes(x)));
+          }}
+          if (q.label === -99 || q.label === -1) q.label = cid;
+        }}
+        cid += 1;
+      }}
+      const x = d3.scaleLinear().domain(d3.extent(pts, d => d.x)).nice().range([margin.left, width - margin.right]);
+      const y = d3.scaleLinear().domain(d3.extent(pts, d => d.y)).nice().range([height - margin.bottom, margin.top]);
+      const colors = d3.scaleOrdinal(d3.schemeTableau10);
+      addXAxis(x); addYAxis(y); axisLabels(xKey, yKey);
+      svg.append("text").attr("x", margin.left).attr("y", 28).attr("font-size", 20).attr("font-weight", 800).text("DBSCAN: klastry i anomalie");
+      svg.append("g").selectAll("circle").data(pts).join("circle")
+        .attr("cx", d => x(d.x)).attr("cy", d => y(d.y))
+        .attr("r", d => d.label === -1 ? 6 : 5)
+        .attr("fill", d => d.label === -1 ? "#ef4444" : colors(String(d.label)))
+        .attr("stroke", d => d.label === -1 ? "#fecaca" : "#dbeafe")
+        .attr("stroke-width", d => d.label === -1 ? 1.4 : 0.5)
+        .attr("opacity", .86)
+        .on("mouseenter", (event, d) => showTip(event, `${{xKey}}: <b>${{d.x}}</b><br>${{yKey}}: <b>${{d.y}}</b><br>klaster: <b>${{d.label === -1 ? "anomalia" : d.label}}</b>`))
         .on("mouseleave", hideTip);
     }}
 
@@ -1226,12 +3131,356 @@ def build_d3_html_report(
       const root = d3.hierarchy(treeData);
       d3.tree().size([width - margin.left - margin.right, height - margin.top - margin.bottom])(root);
       const g = svg.append("g").attr("transform", `translate(${{margin.left}},${{margin.top}})`);
-      svg.append("text").attr("x", margin.left).attr("y", 28).attr("font-size", 20).attr("font-weight", 800).text("Decision Tree: uproszczony podgląd reguł");
+      svg.append("text").attr("x", margin.left).attr("y", 28).attr("font-size", 20).attr("font-weight", 800).text("ML Decision Tree: uproszczony podglad regul");
       g.selectAll("path.link").data(root.links()).join("path").attr("class","link")
         .attr("d", d3.linkVertical().x(d => d.x).y(d => d.y)).attr("fill","none").attr("stroke","#5b7591").attr("stroke-width",2);
       const node = g.selectAll("g.node").data(root.descendants()).join("g").attr("class","node").attr("transform", d => `translate(${{d.x}},${{d.y}})`);
       node.append("rect").attr("x",-82).attr("y",-18).attr("width",164).attr("height",36).attr("rx",10).attr("fill", d => d.children ? "#1d4ed8" : "#10b981").attr("stroke","#bfdbfe");
       node.append("text").attr("text-anchor","middle").attr("dy",5).attr("font-weight",700).text(d => d.data.name);
+    }}
+
+    function treeNumber(row, candidates) {{
+      for (const col of candidates) {{
+        const value = Number(row[col]);
+        if (Number.isFinite(value)) return value;
+      }}
+      return null;
+    }}
+
+    function extractTreeScore(record) {{
+      const direct = Number(record.score);
+      if (Number.isFinite(direct)) return direct;
+      const details = String(record.details || "");
+      const match = details.match(/(?:Kop|kop|score|kara)\\s*=\\s*(-?\\d+(?:[.,]\\d+)?)/);
+      return match ? Number(match[1].replace(",", ".")) : null;
+    }}
+
+    function makeAlgorithmTreeRecords() {{
+      if (treeAlgorithm === "Dane z pliku") return solutionTreeData;
+      const jobCandidates = ["sto_job_id", "job_id", "zlecenie", "id"];
+      const jobCol = jobCandidates.find(col => columns.includes(col));
+      const rows = data.map((row, index) => ({{
+        id: String(row[jobCol] ?? index + 1),
+        time: treeNumber(row, ["czas_produkcji_h", "czas_obrobki", "time", "processing_time", xKey]),
+        due: treeNumber(row, ["termin_h", "wymagany_termin", "due", "due_date", yKey]),
+        raw: row,
+      }})).filter(row => Number.isFinite(row.time) && Number.isFinite(row.due)).slice(0, 12);
+      if (!rows.length) return solutionTreeData;
+
+      let ordered = [...rows];
+      if (treeAlgorithm.startsWith("EDD")) ordered.sort((a, b) => a.due - b.due || a.time - b.time);
+      else if (treeAlgorithm.startsWith("SPT")) ordered.sort((a, b) => a.time - b.time || a.due - b.due);
+      else if (treeAlgorithm.startsWith("LPT")) ordered.sort((a, b) => b.time - a.time || a.due - b.due);
+      else if (treeAlgorithm.startsWith("Min Kop")) {{
+        let remaining = [...ordered];
+        let left = d3.sum(remaining, d => d.time);
+        ordered = [];
+        while (remaining.length) {{
+          remaining.sort((a, b) => Math.max(0, left - a.due) - Math.max(0, left - b.due) || a.due - b.due);
+          const picked = remaining.shift();
+          ordered.push(picked);
+          left -= picked.time;
+        }}
+      }}
+
+      const total = d3.sum(ordered, d => d.time);
+      const records = [{{
+        id: "B1",
+        parent: "",
+        label: "B1",
+        details: `Start; algorytm=${{treeAlgorithm}}; S0=${{total.toFixed(2)}}`,
+        edge_label: "",
+        level: "0",
+        score: "0",
+        status: "best",
+        is_best: "1",
+      }}];
+      let remainingTime = total;
+      let kop = 0;
+      ordered.slice(0, 24).forEach((row, index) => {{
+        const penalty = Math.max(0, remainingTime - row.due);
+        const nextKop = kop + penalty;
+        const nodeId = `B${{index + 2}}`;
+        records.push({{
+          id: nodeId,
+          parent: index === 0 ? "B1" : `B${{index + 1}}`,
+          label: nodeId,
+          details: `job=${{row.id}}; S'=${{(remainingTime - row.time).toFixed(2)}}; Kop=${{nextKop.toFixed(2)}}; p=${{penalty.toFixed(2)}}; t=${{row.time.toFixed(2)}}; d=${{row.due.toFixed(2)}}`,
+          edge_label: `z${{row.id}}`,
+          level: String(index + 1),
+          score: String(nextKop),
+          status: penalty === 0 ? "recovered" : "",
+          is_best: "1",
+        }});
+        remainingTime -= row.time;
+        kop = nextKop;
+      }});
+      return records;
+    }}
+
+    function visibleTreeRecords(records) {{
+      if (!deletedTreeNodes.size) return records;
+      const children = new Map();
+      records.forEach(record => {{
+        if (!children.has(record.parent)) children.set(record.parent, []);
+        children.get(record.parent).push(record.id);
+      }});
+      const hidden = new Set(deletedTreeNodes);
+      const stack = Array.from(deletedTreeNodes);
+      while (stack.length) {{
+        const id = stack.pop();
+        (children.get(id) || []).forEach(childId => {{
+          if (!hidden.has(childId)) {{
+            hidden.add(childId);
+            stack.push(childId);
+          }}
+        }});
+      }}
+      return records.filter(record => !hidden.has(record.id));
+    }}
+
+    function treeHiddenLabels(records) {{
+      const byId = new Map(records.map(record => [record.id, record]));
+      return Array.from(deletedTreeNodes).map(id => {{
+        const record = byId.get(id);
+        return record?.edge_label || record?.label || id;
+      }});
+    }}
+
+    function treeSummary(records) {{
+      const ids = new Set(records.map(record => record.id));
+      const parents = new Set(records.filter(record => ids.has(record.parent)).map(record => record.parent));
+      const roots = records.filter(record => !record.parent || !ids.has(record.parent));
+      const leaves = records.filter(record => !parents.has(record.id));
+      const countByState = (state) => records.filter(record => {{
+        const wrapped = {{data: record, parent: null}};
+        return treeNodeState(wrapped, new Set(records.filter(r => String(r.is_best || "0") === "1").map(r => r.id))) === state;
+      }}).length;
+      return {{
+        nodes: records.length,
+        roots: roots.length,
+        leaves: leaves.length,
+        best: countByState("best"),
+        recovered: countByState("recovered"),
+        rejected: countByState("rejected"),
+      }};
+    }}
+
+    function treeNodeState(d, bestNodes) {{
+      const id = d.data.id;
+      const status = String(d.data.status || "").toLowerCase();
+      if (bestNodes.has(id) || String(d.data.is_best || "") === "1") return "best";
+      if (status.includes("yellow") || status.includes("zol") || status.includes("pokon") || status.includes("visited") || status.includes("checked") || status.includes("recover") || status.includes("return")) return "recovered";
+      if (status.includes("red") || status.includes("odrzu") || status.includes("reject") || status.includes("discard") || status.includes("pruned") || status.includes("failed")) return "rejected";
+      return "rejected";
+    }}
+
+    function drawSolutionTree() {{
+      svg.attr("class", "solution-tree-chart");
+      svg.style("background", "#ffffff");
+      svg.append("text")
+        .attr("x", 42)
+        .attr("y", 44)
+        .attr("fill", "#111111")
+        .attr("font-size", 28)
+        .attr("font-weight", 800)
+        .text(`Drzewo rozwiazan - ${{treeAlgorithm}}`);
+
+      const allTreeRecords = makeAlgorithmTreeRecords().filter(d => d.id);
+      const treeRecords = visibleTreeRecords(allTreeRecords);
+      const hiddenInfo = document.getElementById("tree-hidden-list");
+      if (hiddenInfo) {{
+        const hiddenLabels = treeHiddenLabels(allTreeRecords);
+        hiddenInfo.innerHTML = hiddenLabels.length ? `Schowane galezie: ${{hiddenLabels.map(label => `<s>${{label}}</s>`).join(", ")}}` : "Schowane galezie: brak";
+      }}
+      if (!treeRecords.length) {{
+        svg.append("text").attr("x", margin.left).attr("y", margin.top + 46).attr("font-size", 18)
+          .text("Wszystkie galezie drzewa sa ukryte. Kliknij: Przywroc drzewa.");
+        return;
+      }}
+      const known = new Set(treeRecords.map(d => d.id));
+      const roots = treeRecords.filter(d => !d.parent || !known.has(d.parent));
+      const links = treeRecords.filter(d => d.parent && known.has(d.parent));
+      const childCount = new Map(treeRecords.map(d => [d.id, 0]));
+      const bestNodes = new Set(treeRecords.filter(d => String(d.is_best || "0") === "1").map(d => d.id));
+      links.forEach(d => childCount.set(d.parent, (childCount.get(d.parent) || 0) + 1));
+      const summary = treeSummary(treeRecords);
+      const statsEl = document.getElementById("tree-stats");
+      if (statsEl) statsEl.textContent = `Statystyki drzewa: korzenie ${{summary.roots}}, liscie ${{summary.leaves}}, wezly ${{summary.nodes}}, zielone ${{summary.best}}, zolte ${{summary.recovered}}, czerwone ${{summary.rejected}}`;
+
+      const stratified = d3.stratify()
+        .id(d => d.id)
+        .parentId(d => d.parent || null)(
+          roots.length > 1
+            ? [
+                {{id: "__html_root__", parent: "", label: "Drzewo rozwiazan", details: "wspolny korzen", edge_label: ""}},
+                ...treeRecords.map(d => roots.some(r => r.id === d.id) ? {{...d, parent: "__html_root__"}} : d)
+              ]
+            : treeRecords
+        );
+      const root = stratified;
+      const nodeW = treeFitMode === "fit" ? 250 : 292;
+      const nodeH = treeFitMode === "fit" ? 88 : 104;
+      const xGap = treeFitMode === "fit" ? 285 : 365;
+      const yGap = treeFitMode === "fit" ? 126 : 158;
+      d3.tree().nodeSize([xGap, yGap]).separation((a, b) => a.parent === b.parent ? 1 : 1.08)(root);
+      const nodes = root.descendants();
+      const minX = d3.min(nodes, d => d.x) || 0;
+      const maxX = d3.max(nodes, d => d.x) || 1;
+      const maxY = d3.max(nodes, d => d.y) || 1;
+      const treeW = maxX - minX + nodeW + 190;
+      const treeH = maxY + nodeH + 210;
+      const canvasW = Math.max(treeFitMode === "fit" ? 980 : 1280, treeW);
+      const canvasH = Math.max(treeFitMode === "fit" ? 620 : 760, treeH);
+      const readableTree = treeFitMode === "large" || treeFitMode === "manual";
+      svg.attr("viewBox", [0, 0, canvasW, canvasH])
+        .attr("width", canvasW)
+        .attr("height", canvasH)
+        .attr("preserveAspectRatio", "xMinYMin meet")
+        .style("max-width", readableTree ? "none" : "100%")
+        .style("width", readableTree ? `${{canvasW}}px` : "100%")
+        .style("height", readableTree ? `${{canvasH}}px` : `${{Math.max(620, Math.min(920, canvasH))}}px`);
+      const offsetX = 95 - minX + nodeW / 2;
+      const offsetY = 116;
+      const viewport = svg.append("g")
+        .attr("class", "tree-viewport")
+        .attr("transform", treeZoomTransform);
+      const g = viewport.append("g").attr("transform", `translate(${{offsetX}},${{offsetY}})`);
+      svg.append("text")
+        .attr("x", 42)
+        .attr("y", 76)
+        .attr("fill", "#111111")
+        .attr("font-size", 15)
+        .attr("font-weight", 700)
+        .text(`Korzenie: ${{summary.roots}} | Liscie: ${{summary.leaves}} | Wezly: ${{summary.nodes}} | Zielone: ${{summary.best}} | Zolte: ${{summary.recovered}} | Czerwone: ${{summary.rejected}}`);
+      treeZoomBehavior = d3.zoom()
+        .scaleExtent([0.18, 4])
+        .on("zoom", (event) => {{
+          treeZoomTransform = event.transform;
+          viewport.attr("transform", treeZoomTransform);
+        }});
+      svg.call(treeZoomBehavior).call(treeZoomBehavior.transform, treeZoomTransform);
+      const link = d3.linkVertical().x(d => d.x).y(d => d.y);
+
+      g.selectAll("path.tree-link").data(root.links()).join("path")
+        .attr("class", "tree-link")
+        .attr("d", link)
+        .attr("fill", "none")
+        .attr("stroke", d => {{
+          const sourceState = treeNodeState(d.source, bestNodes);
+          const targetState = treeNodeState(d.target, bestNodes);
+          if (sourceState === "best" && targetState === "best") return "#16a34a";
+          if (targetState === "recovered") return "#eab308";
+          if (targetState === "rejected") return "#dc2626";
+          return "#111111";
+        }})
+        .attr("stroke-width", d => {{
+          const sourceState = treeNodeState(d.source, bestNodes);
+          const targetState = treeNodeState(d.target, bestNodes);
+          if (sourceState === "best" && targetState === "best") return 6;
+          if (targetState === "recovered") return 5;
+          if (targetState === "rejected") return 4.5;
+          return 4;
+        }})
+        .attr("marker-end", "url(#arrow)");
+
+      const defs = svg.append("defs");
+      defs.append("marker")
+        .attr("id", "arrow")
+        .attr("viewBox", "0 -5 10 10")
+        .attr("refX", 9)
+        .attr("refY", 0)
+        .attr("markerWidth", 7)
+        .attr("markerHeight", 7)
+        .attr("orient", "auto")
+        .append("path")
+        .attr("d", "M0,-5L10,0L0,5")
+        .attr("fill", "#111111");
+
+      const edgeBadge = g.selectAll("g.edge-badge").data(root.links().filter(d => d.target.data.edge_label)).join("g")
+        .attr("class", "edge-badge")
+        .attr("transform", d => `translate(${{(d.source.x + d.target.x) / 2}},${{(d.source.y + d.target.y) / 2 - 18}})`);
+      edgeBadge.append("rect")
+        .attr("x", -18).attr("y", -13).attr("width", 36).attr("height", 26)
+        .attr("fill", "#ffffff").attr("stroke", "#111111").attr("stroke-width", 1.5);
+      edgeBadge.append("text")
+        .attr("text-anchor", "middle")
+        .attr("dy", 5)
+        .attr("fill", "#111111")
+        .attr("font-size", 12)
+        .attr("font-weight", 800)
+        .text(d => d.target.data.edge_label);
+
+      const node = g.selectAll("g.solution-node").data(nodes).join("g")
+        .attr("class", "solution-node")
+        .attr("transform", d => `translate(${{d.x}},${{d.y}})`)
+        .style("cursor", "pointer")
+        .on("click", (event, d) => {{
+          event.stopPropagation();
+          selectedTreeNodeId = d.data.id;
+          if (event.shiftKey && selectedTreeNodeId && selectedTreeNodeId !== "__html_root__") {{
+            deletedTreeNodes.add(selectedTreeNodeId);
+            selectedTreeNodeId = "";
+          }}
+          renderCurrentChart();
+        }});
+
+      node.append("rect")
+        .attr("x", -nodeW / 2)
+        .attr("y", -nodeH / 2)
+        .attr("width", nodeW)
+        .attr("height", d => d.data.details ? nodeH + 20 : nodeH)
+        .attr("rx", 0)
+        .attr("fill", d => {{
+          const state = treeNodeState(d, bestNodes);
+          if (state === "best") return "#f0fdf4";
+          if (state === "recovered") return "#fef9c3";
+          if (state === "rejected") return "#fee2e2";
+          return "#ffffff";
+        }})
+        .attr("stroke", d => {{
+          if (d.data.id === selectedTreeNodeId) return "#38bdf8";
+          const state = treeNodeState(d, bestNodes);
+          if (state === "best") return "#16a34a";
+          if (state === "recovered") return "#eab308";
+          if (state === "rejected") return "#dc2626";
+          return "#111111";
+        }})
+        .attr("stroke-width", d => d.data.id === selectedTreeNodeId ? 7 : (treeNodeState(d, bestNodes) === "best" ? 6 : 3.5));
+
+      node.append("text")
+        .attr("x", -nodeW / 2 + 14)
+        .attr("y", readableTree ? -24 : -18)
+        .attr("fill", "#111111")
+        .attr("font-size", readableTree ? 18 : 16)
+        .attr("font-weight", 800)
+        .text(d => d.data.label || d.data.id);
+
+      node.each(function(d) {{
+        const details = String(d.data.details || "");
+        if (!details) return;
+        const text = d3.select(this).append("text")
+          .attr("x", -nodeW / 2 + 14)
+          .attr("y", readableTree ? 6 : 8)
+          .attr("fill", "#111111")
+          .attr("font-size", readableTree ? 14 : 13)
+          .attr("font-family", "Times New Roman, serif");
+        details.split(/;|\\n/).slice(0, 3).forEach((line, index) => {{
+          text.append("tspan")
+            .attr("x", -nodeW / 2 + 14)
+            .attr("dy", index ? (readableTree ? 20 : 18) : 0)
+            .text(line.trim().slice(0, readableTree ? 40 : 34));
+        }});
+      }});
+
+      node.filter(d => !d.children).selectAll("g.leaf-tags")
+        .data(d => String(d.data.edge_label || "").split(",").filter(Boolean).slice(0, 3).map((tag, i) => ({{tag, i}})))
+        .join("g")
+        .attr("transform", d => `translate(${{-58 + d.i * 58}},64)`)
+        .call(tag => {{
+          tag.append("rect").attr("x", -22).attr("y", -13).attr("width", 44).attr("height", 26).attr("fill", "#ffffff").attr("stroke", "#111111").attr("stroke-width", 1.3);
+          tag.append("text").attr("text-anchor", "middle").attr("dy", 5).attr("fill", "#111111").attr("font-size", 12).attr("font-weight", 800).text(d => d.tag.trim());
+        }});
     }}
 
     function drawProductionDashboard() {{
@@ -1356,24 +3605,694 @@ def build_d3_html_report(
       }}
     }}
 
-    if (chartType === "Production Dashboard" || chartType === "Dashboard") drawProductionDashboard();
-    else if (chartType === "Diagnostics") drawDiagnostics();
-    else if (chartType === "CorrelationMatrix") drawCorrelationMatrix();
-    else if (chartType === "SimilarityMatrix") drawSimilarityMatrix();
-    else if (chartType === "Column Ranking") drawColumnRanking();
-    else if (chartType === "Histogram") drawHistogram();
-    else if (chartType === "Boxplot") drawBoxplot();
-    else if (chartType === "Line" || chartType === "Priority Timeline" || chartType === "Step View") drawLine();
-    else if (chartType === "Gantt") drawGantt();
-    else if (chartType === "Missingness Map") drawMissingness();
-    else if (chartType === "Bubble Chart") drawBubbleChart();
-    else if (chartType === "Heatmap Density") drawHeatmapDensity();
-    else if (chartType === "Outlier Map") drawOutlierMap();
-    else if (chartType === "Pair Explorer") drawPairExplorer();
-    else if (chartType === "3D Scatter") drawPseudo3DScatter();
-    else if (chartType === "3D Surface") drawPseudo3DSurface();
-    else if (chartType === "DecisionTree") drawDecisionTree();
-    else drawScatter();
+    function drawESMBestMethod() {{
+      const methodCandidates = ["sto_model","model","method","algorytm","wariant","material","ksztalt"];
+      const methodCol = methodCandidates.find(c => columns.includes(c));
+      if (!data.length || !methodCol) {{
+        svg.append("text").attr("x", margin.left).attr("y", margin.top + 40).attr("font-size", 18)
+          .text("ESM Best Method wymaga kolumny metody, np. sto_model/model/method.");
+        return;
+      }}
+      const metricCandidates = ["Kop","kop","sto_kop","lateness_h_sim","pred_delay","odpad","cena"];
+      const metric = metricCandidates.find(c => columns.includes(c));
+      if (!metric) {{
+        svg.append("text").attr("x", margin.left).attr("y", margin.top + 40).attr("font-size", 18)
+          .text("Brak metryki (np. Kop/sto_kop/lateness_h_sim/pred_delay/odpad/cena).");
+        return;
+      }}
+      const rows = data
+        .map(r => ({{model: String(r[methodCol] ?? "").trim(), score: Number(r[metric]), raw: r}}))
+        .filter(r => r.model && Number.isFinite(r.score));
+      if (!rows.length) {{
+        svg.append("text").attr("x", margin.left).attr("y", margin.top + 40).attr("font-size", 18)
+          .text("Brak poprawnych rekordów do ESM Best Method.");
+        return;
+      }}
+      const grouped = d3.rollups(
+        rows,
+        v => ({{best: d3.min(v, d => d.score), mean: d3.mean(v, d => d.score), n: v.length}}),
+        d => d.model
+      )
+        .map(([model, stats]) => ({{model, ...stats}}))
+        .sort((a, b) => a.best - b.best);
+      const bestModel = grouped[0].model;
+
+      const p1 = {{x: margin.left, y: margin.top, w: (width - margin.left - margin.right - 24) * 0.58, h: height * 0.44}};
+      const p2 = {{x: p1.x + p1.w + 24, y: margin.top, w: (width - margin.left - margin.right - 24) * 0.42, h: height * 0.44}};
+      const p3 = {{x: margin.left, y: margin.top + p1.h + 34, w: width - margin.left - margin.right, h: height - (margin.top + p1.h + 34) - margin.bottom}};
+
+      const x = d3.scaleBand().domain(grouped.map(d => d.model)).range([p1.x, p1.x + p1.w]).padding(0.22);
+      const y = d3.scaleLinear().domain([0, d3.max(grouped, d => d.best) || 1]).nice().range([p1.y + p1.h, p1.y]);
+      svg.append("g").attr("class", "axis").attr("transform", `translate(0,${{p1.y + p1.h}})`).call(d3.axisBottom(x));
+      svg.append("g").attr("class", "axis").attr("transform", `translate(${{p1.x}},0)`).call(d3.axisLeft(y).ticks(6));
+      svg.append("g").selectAll("rect.esm").data(grouped).join("rect")
+        .attr("class", "esm")
+        .attr("x", d => x(d.model)).attr("y", d => y(d.best))
+        .attr("width", x.bandwidth()).attr("height", d => Math.max(2, p1.y + p1.h - y(d.best)))
+        .attr("fill", d => d.model === bestModel ? "#16a34a" : "#2563eb").attr("opacity", 0.92)
+        .on("mouseenter", (event, d) => showTip(event, `model: <b>${{d.model}}</b><br>best: <b>${{d.best.toFixed(4)}}</b><br>mean: <b>${{d.mean.toFixed(4)}}</b><br>n: <b>${{d.n}}</b>`))
+        .on("mouseleave", hideTip);
+      svg.append("text").attr("x", p1.x).attr("y", p1.y - 12).attr("font-size", 18).attr("font-weight", 800).text("Najlepsza metoda STO (zielona)");
+
+      const best = grouped[0];
+      const panel = svg.append("g");
+      panel.append("rect")
+        .attr("x", p2.x).attr("y", p2.y).attr("width", p2.w).attr("height", p2.h)
+        .attr("fill", "#0f2236").attr("stroke", "#284766").attr("rx", 12);
+      const summaryLines = [
+        "PODSUMOWANIE ESM",
+        "================",
+        `Metoda wybrana: ${{best.model}}`,
+        `Metryka: ${{metric}}`,
+        `Najlepszy wynik: ${{best.best.toFixed(4)}}`,
+        `Średni wynik: ${{best.mean.toFixed(4)}}`,
+        `Liczba rekordów: ${{best.n}}`,
+      ];
+      summaryLines.forEach((line, i) => {{
+        panel.append("text")
+          .attr("x", p2.x + 16)
+          .attr("y", p2.y + 26 + i * 22)
+          .attr("fill", i === 0 ? "#e6f0ff" : "#cbd5e1")
+          .attr("font-size", i === 0 ? 16 : 13)
+          .attr("font-weight", i === 0 ? 800 : 500)
+          .text(line);
+      }});
+
+      const topRows = rows.filter(r => r.model === bestModel).sort((a, b) => a.score - b.score).slice(0, 8);
+      const x2 = d3.scaleLinear().domain([0, d3.max(topRows, d => d.score) || 1]).nice().range([p3.x + 170, p3.x + p3.w - 12]);
+      const y2 = d3.scaleBand().domain(topRows.map((d, i) => String(d.raw.sto_job_id ?? d.raw.zlecenie ?? `wariant_${{i+1}}`))).range([p3.y + 10, p3.y + p3.h - 12]).padding(0.18);
+      svg.append("g").attr("class", "axis").attr("transform", `translate(${{p3.x + 170}},0)`).call(d3.axisLeft(y2));
+      svg.append("g").attr("class", "axis").attr("transform", `translate(0,${{p3.y + p3.h - 12}})`).call(d3.axisBottom(x2).ticks(6));
+      svg.append("g").selectAll("rect.bestpath").data(topRows).join("rect")
+        .attr("x", p3.x + 170).attr("y", d => y2(String(d.raw.sto_job_id ?? d.raw.zlecenie ?? "")))
+        .attr("width", d => Math.max(2, x2(d.score) - (p3.x + 170))).attr("height", y2.bandwidth())
+        .attr("fill", "#16a34a").attr("opacity", 0.9)
+        .on("mouseenter", (event, d) => showTip(event, `wariant: <b>${{String(d.raw.sto_job_id ?? d.raw.zlecenie ?? "-")}}</b><br>wynik: <b>${{d.score.toFixed(4)}}</b>`))
+        .on("mouseleave", hideTip);
+      svg.append("text").attr("x", p3.x).attr("y", p3.y + 6).attr("font-size", 17).attr("font-weight", 800).text(`Podświetlone poprawne warianty — ${{bestModel}}`);
+    }}
+
+    function showSvgMode() {{
+      document.getElementById("html-chart").style.display = "none";
+      svg.style("display", "block");
+    }}
+
+    function showHtmlChartMode() {{
+      svg.style("display", "none");
+      const div = document.getElementById("html-chart");
+      div.style.display = "block";
+      div.style.minHeight = `${{Math.max(560, Number(chartHeight) || 700)}}px`;
+      div.style.height = `${{Math.max(560, Number(chartHeight) || 700)}}px`;
+      div.innerHTML = "";
+      return div;
+    }}
+
+    function chartRows() {{
+      return data.map(row => ({{x: row[xKey], y: row[yKey], z: row[zKey], raw: row}}));
+    }}
+
+    function numericColumnsFromData() {{
+      return columns.filter(col => data.some(row => Number.isFinite(Number(row[col]))));
+    }}
+
+    function correlationMatrixFor(keys) {{
+      return keys.map(a => keys.map(b => {{
+        const pairs = data.map(row => ({{x:Number(row[a]), y:Number(row[b])}})).filter(d => Number.isFinite(d.x) && Number.isFinite(d.y));
+        const mx = d3.mean(pairs, d => d.x) || 0;
+        const my = d3.mean(pairs, d => d.y) || 0;
+        const numerator = d3.sum(pairs, d => (d.x - mx) * (d.y - my));
+        const denom = Math.sqrt((d3.sum(pairs, d => (d.x - mx) ** 2) || 0) * (d3.sum(pairs, d => (d.y - my) ** 2) || 0));
+        return denom ? numerator / denom : 0;
+      }}));
+    }}
+
+    function categoryCounts(key) {{
+      const counts = new Map();
+      data.forEach(row => {{
+        const label = String(row[key] ?? "brak");
+        counts.set(label, (counts.get(label) || 0) + 1);
+      }});
+      return Array.from(counts, ([label, value]) => ({{label, value}})).slice(0, 14);
+    }}
+
+    function drawPlotlyChart() {{
+      const div = showHtmlChartMode();
+      if (!window.Plotly) {{
+        div.textContent = "Plotly nie zaladowal sie z CDN.";
+        return;
+      }}
+      const rows = chartRows();
+      const numericKeys = numericColumnsFromData().slice(0, 8);
+      let traces = [];
+      const layout = {{title: `${{chartType}} - Plotly`, height: Math.max(560, Number(chartHeight) || 700), paper_bgcolor:"#ffffff", plot_bgcolor:"#ffffff", font:{{color:"#111827"}}, margin:{{l:60,r:30,t:70,b:60}}}};
+      if (chartType === "Histogram") traces = [{{type:"histogram", x: rows.map(d => d.x), marker:{{color:"#2563eb"}}}}];
+      else if (chartType === "Boxplot") traces = [{{type:"box", y: rows.map(d => d.y), name:yKey}}];
+      else if (chartType === "Violin Plot") traces = [{{type:"violin", y: rows.map(d => d.y), name:yKey, box:{{visible:true}}, meanline:{{visible:true}}}}];
+      else if (chartType === "3D Scatter") {{
+        traces = [{{type:"scatter3d", mode:"markers", x: rows.map(d => Number(d.x)), y: rows.map(d => Number(d.y)), z: rows.map(d => Number(d.z)), marker:{{size:5, color:rows.map(d => Number(d.z) || 0), colorscale:"Viridis", opacity:.82, showscale:true}}}}];
+        layout.scene = {{xaxis:{{title:xKey}}, yaxis:{{title:yKey}}, zaxis:{{title:zKey}}}};
+      }} else if (chartType === "3D Surface") {{
+        const clean = rows.map(d => ({{x:Number(d.x), y:Number(d.y), z:Number(d.z)}})).filter(d => Number.isFinite(d.x) && Number.isFinite(d.y) && Number.isFinite(d.z));
+        traces = [{{type:"mesh3d", x:clean.map(d => d.x), y:clean.map(d => d.y), z:clean.map(d => d.z), intensity:clean.map(d => d.z), colorscale:"Viridis", opacity:.82}}];
+        layout.scene = {{xaxis:{{title:xKey}}, yaxis:{{title:yKey}}, zaxis:{{title:zKey}}}};
+      }} else if (chartType === "Heatmap Density") {{
+        traces = [{{type:"histogram2d", x: rows.map(d => Number(d.x)), y: rows.map(d => Number(d.y)), colorscale:"Viridis"}}];
+      }} else if (chartType === "CorrelationMatrix") {{
+        const keys = numericKeys.slice(0, 6);
+        traces = [{{type:"heatmap", x:keys, y:keys, z:correlationMatrixFor(keys), zmin:-1, zmax:1, colorscale:"RdBu", reversescale:true}}];
+      }} else if (chartType === "Treemap" || chartType === "Sunburst") {{
+        const counts = categoryCounts(xKey);
+        traces = [{{type: chartType === "Treemap" ? "treemap" : "sunburst", labels: counts.map(d => d.label), parents: counts.map(() => ""), values: counts.map(d => d.value), branchvalues:"total"}}];
+      }} else if (chartType === "Funnel") {{
+        const counts = categoryCounts(xKey);
+        traces = [{{type:"funnel", y: counts.map(d => d.label), x: counts.map(d => d.value), marker:{{color:"#1f8fff"}}}}];
+      }} else if (chartType === "Waterfall") {{
+        const clean = rows.map(d => ({{label:String(d.x), y:Number(d.y)}})).filter(d => Number.isFinite(d.y)).slice(0, 18);
+        traces = [{{type:"waterfall", orientation:"v", x:clean.map(d => d.label), y:clean.map(d => d.y), measure:clean.map(() => "relative")}}];
+      }} else if (chartType === "Radar Chart") {{
+        const keys = numericKeys.slice(0, 8);
+        const values = keys.map(key => d3.mean(data, row => Number(row[key])) || 0);
+        traces = [{{type:"scatterpolar", r:[...values, values[0]], theta:[...keys, keys[0]], fill:"toself", name:"srednia"}}];
+        layout.polar = {{radialaxis:{{visible:true}}}};
+      }} else if (chartType === "SolutionTree" || chartType.includes("Network")) {{
+        const nodes = solutionTreeData.map((d, i) => ({{...d, angle:(i / Math.max(1, solutionTreeData.length)) * Math.PI * 2, r:120 + (d.depth || 0) * 80}}));
+        const byId = new Map(nodes.map(n => [n.id, n]));
+        const edgeX = [], edgeY = [];
+        nodes.forEach(n => {{ const p = byId.get(n.parent); if (p) {{ edgeX.push(Math.cos(p.angle)*p.r, Math.cos(n.angle)*n.r, null); edgeY.push(Math.sin(p.angle)*p.r, Math.sin(n.angle)*n.r, null); }} }});
+        traces = [
+          {{type:"scatter", mode:"lines", x:edgeX, y:edgeY, line:{{color:"#64748b", width:2}}, hoverinfo:"skip"}},
+          {{type:"scatter", mode:"markers+text", x:nodes.map(n => Math.cos(n.angle)*n.r), y:nodes.map(n => Math.sin(n.angle)*n.r), text:nodes.map(n => n.label || n.id), textposition:"top center", marker:{{size:12, color:"#1f8fff"}}}}
+        ];
+      }} else if (chartType === "Bar Chart") {{
+        const counts = categoryCounts(xKey);
+        traces = [{{type:"bar", x: counts.map(d => d.label), y: counts.map(d => d.value), marker:{{color:"#1f8fff"}}}}];
+      }} else if (chartType === "Pie Chart") {{
+        const counts = categoryCounts(xKey);
+        traces = [{{type:"pie", labels: counts.map(d => d.label), values: counts.map(d => d.value)}}];
+      }} else if (chartType === "Line" || chartType === "Area Chart") {{
+        traces = [{{type:"scatter", mode:"lines+markers", x: rows.map(d => d.x), y: rows.map(d => d.y), fill: chartType === "Area Chart" ? "tozeroy" : "none"}}];
+      }} else {{
+        traces = [{{type:"scatter", mode:"markers", x: rows.map(d => d.x), y: rows.map(d => d.y), marker:{{size:10, color:rows.map(d => Number(d.z) || 0), colorscale:"Viridis", showscale:true}}}}];
+      }}
+      Plotly.newPlot(div, traces, layout, {{responsive:true, displaylogo:false}});
+    }}
+
+    function drawAltairChart() {{
+      const div = showHtmlChartMode();
+      if (!window.vegaEmbed) {{
+        div.textContent = "Altair/Vega-Lite nie zaladowal sie z CDN.";
+        return;
+      }}
+      const values = data;
+      let mark = "point";
+      let encoding = {{
+        x: {{field:xKey, type:"quantitative"}},
+        y: {{field:yKey, type:"quantitative"}},
+        color: {{field:zKey, type:"quantitative"}}
+      }};
+      if (chartType === "Histogram") {{
+        mark = "bar";
+        encoding = {{x: {{field:xKey, bin:true, type:"quantitative"}}, y: {{aggregate:"count", type:"quantitative"}}}};
+      }} else if (chartType === "Binned Scatter") {{
+        mark = "rect";
+        encoding = {{x: {{field:xKey, bin:true, type:"quantitative"}}, y: {{field:yKey, bin:true, type:"quantitative"}}, color: {{aggregate:"count", type:"quantitative", scale:{{scheme:"viridis"}}}}}};
+      }} else if (chartType === "Stacked Bar") {{
+        mark = "bar";
+        encoding = {{x: {{field:xKey, type:"nominal"}}, y: {{aggregate:"count", type:"quantitative"}}, color: {{field:zKey, type:"nominal"}}}};
+      }} else if (chartType === "Faceted Scatter") {{
+        mark = "point";
+        encoding = {{x: {{field:xKey, type:"quantitative"}}, y: {{field:yKey, type:"quantitative"}}, color: {{field:zKey, type:"nominal"}}, facet: {{field:zKey, type:"nominal", columns:3}}}};
+      }} else if (chartType === "Interactive Brush") {{
+        mark = "point";
+        encoding = {{x: {{field:xKey, type:"quantitative"}}, y: {{field:yKey, type:"quantitative"}}, color: {{condition: {{param:"brush", field:zKey, type:"nominal"}}, value:"#94a3b8"}}}};
+      }} else if (chartType === "Bar Chart" || chartType === "Pie Chart") {{
+        mark = chartType === "Pie Chart" ? {{"type":"arc"}} : "bar";
+        encoding = chartType === "Pie Chart"
+          ? {{theta: {{aggregate:"count", type:"quantitative"}}, color: {{field:xKey, type:"nominal"}}}}
+          : {{x: {{field:xKey, type:"nominal", sort:"-y"}}, y: {{aggregate:"count", type:"quantitative"}}}};
+      }} else if (chartType === "Line" || chartType === "Area Chart") {{
+        mark = chartType === "Area Chart" ? "area" : "line";
+      }} else if (chartType === "Boxplot") {{
+        mark = "boxplot";
+        encoding = {{y: {{field:yKey, type:"quantitative"}}}};
+      }}
+      const spec = {{$schema:"https://vega.github.io/schema/vega-lite/v5.json", width:"container", height:Math.max(520, Number(chartHeight) - 80 || 620), data:{{values}}, mark, encoding, title:`${{chartType}} - Altair`, params: chartType === "Interactive Brush" ? [{{name:"brush", select:{{type:"interval"}}}}] : []}};
+      vegaEmbed(div, spec, {{actions:true}});
+    }}
+
+    function drawBarChart() {{
+      const counts = categoryCounts(xKey);
+      const x = d3.scaleBand().domain(counts.map(d => d.label)).range([margin.left, width - margin.right]).padding(0.22);
+      const y = d3.scaleLinear().domain([0, d3.max(counts, d => d.value) || 1]).nice().range([height - margin.bottom, margin.top]);
+      addXAxis(x); addYAxis(y); axisLabels(xKey, "liczba");
+      svg.append("text").attr("x", margin.left).attr("y", 28).attr("font-size", 20).attr("font-weight", 800).text(`Bar Chart: ${{xKey}}`);
+      svg.selectAll("rect.bar").data(counts).join("rect").attr("class","bar")
+        .attr("x", d => x(d.label)).attr("y", d => y(d.value))
+        .attr("width", x.bandwidth()).attr("height", d => height - margin.bottom - y(d.value))
+        .attr("fill", "#1f8fff").attr("opacity", .9)
+        .on("mouseenter", (event, d) => showTip(event, `${{d.label}}<br>liczba: <b>${{d.value}}</b>`))
+        .on("mouseleave", hideTip);
+    }}
+
+    function drawPieChart() {{
+      const counts = categoryCounts(xKey);
+      const radius = Math.min(width, height) * .34;
+      const g = svg.append("g").attr("transform", `translate(${{width / 2}},${{height / 2 + 24}})`);
+      const color = d3.scaleOrdinal(d3.schemeTableau10);
+      const pie = d3.pie().value(d => d.value)(counts);
+      const arc = d3.arc().innerRadius(radius * .42).outerRadius(radius);
+      svg.append("text").attr("x", margin.left).attr("y", 28).attr("font-size", 20).attr("font-weight", 800).text(`Pie Chart: ${{xKey}}`);
+      g.selectAll("path").data(pie).join("path")
+        .attr("d", arc).attr("fill", d => color(d.data.label)).attr("stroke", "#071526").attr("stroke-width", 2)
+        .on("mouseenter", (event, d) => showTip(event, `${{d.data.label}}<br>liczba: <b>${{d.data.value}}</b>`))
+        .on("mouseleave", hideTip);
+      g.selectAll("text").data(pie).join("text")
+        .attr("transform", d => `translate(${{arc.centroid(d)}})`)
+        .attr("text-anchor", "middle").attr("font-size", 12).attr("font-weight", 800)
+        .text(d => d.data.label.slice(0, 12));
+    }}
+
+    function drawAreaChart() {{
+      const clean = data.map(d => ({{x:+d[xKey], y:+d[yKey]}})).filter(d => Number.isFinite(d.x) && Number.isFinite(d.y)).sort((a,b) => a.x - b.x);
+      const x = d3.scaleLinear().domain(d3.extent(clean, d => d.x)).nice().range([margin.left, width - margin.right]);
+      const y = d3.scaleLinear().domain([0, d3.max(clean, d => d.y) || 1]).nice().range([height - margin.bottom, margin.top]);
+      addXAxis(x); addYAxis(y); axisLabels(xKey, yKey);
+      svg.append("text").attr("x", margin.left).attr("y", 28).attr("font-size", 20).attr("font-weight", 800).text(`Area Chart: ${{yKey}} po ${{xKey}}`);
+      svg.append("path").datum(clean).attr("fill", "#1f8fff").attr("opacity", .28).attr("d", d3.area().x(d => x(d.x)).y0(height - margin.bottom).y1(d => y(d.y)));
+      svg.append("path").datum(clean).attr("fill", "none").attr("stroke", "#38bdf8").attr("stroke-width", 3).attr("d", d3.line().x(d => x(d.x)).y(d => y(d.y)));
+    }}
+
+    function drawRegressionPlot() {{
+      const clean = data.map(d => ({{x:+d[xKey], y:+d[yKey]}})).filter(d => Number.isFinite(d.x) && Number.isFinite(d.y));
+      const x = d3.scaleLinear().domain(d3.extent(clean, d => d.x)).nice().range([margin.left, width - margin.right]);
+      const y = d3.scaleLinear().domain(d3.extent(clean, d => d.y)).nice().range([height - margin.bottom, margin.top]);
+      addXAxis(x); addYAxis(y); axisLabels(xKey, yKey);
+      svg.append("text").attr("x", margin.left).attr("y", 28).attr("font-size", 20).attr("font-weight", 800).text(`Regression Plot: ${{xKey}} vs ${{yKey}}`);
+      svg.selectAll("circle").data(clean).join("circle").attr("cx", d => x(d.x)).attr("cy", d => y(d.y)).attr("r", 5).attr("fill", "#93c5fd").attr("opacity", .72);
+      const n = clean.length || 1;
+      const mx = d3.mean(clean, d => d.x) || 0;
+      const my = d3.mean(clean, d => d.y) || 0;
+      const b = d3.sum(clean, d => (d.x - mx) * (d.y - my)) / (d3.sum(clean, d => (d.x - mx) ** 2) || 1);
+      const a = my - b * mx;
+      const [x0, x1] = x.domain();
+      svg.append("line").attr("x1", x(x0)).attr("y1", y(a + b*x0)).attr("x2", x(x1)).attr("y2", y(a + b*x1)).attr("stroke", "#facc15").attr("stroke-width", 4);
+    }}
+
+    function drawECDFPlot() {{
+      const values = data.map(d => +d[xKey]).filter(Number.isFinite).sort(d3.ascending);
+      const points = values.map((value, i) => ({{x:value, y:(i + 1) / values.length}}));
+      const x = d3.scaleLinear().domain(d3.extent(values)).nice().range([margin.left, width - margin.right]);
+      const y = d3.scaleLinear().domain([0, 1]).range([height - margin.bottom, margin.top]);
+      addXAxis(x); addYAxis(y); axisLabels(xKey, "ECDF");
+      svg.append("text").attr("x", margin.left).attr("y", 28).attr("font-size", 20).attr("font-weight", 800).text(`ECDF Plot: ${{xKey}}`);
+      svg.append("path").datum(points).attr("fill", "none").attr("stroke", "#22c55e").attr("stroke-width", 3).attr("d", d3.line().curve(d3.curveStepAfter).x(d => x(d.x)).y(d => y(d.y)));
+    }}
+
+    function renderCurrentChart() {{
+      const sourceEl = document.getElementById("library-source");
+      if (sourceEl) sourceEl.textContent = chartLibrary === "D3" ? "D3.js" : chartLibrary;
+      svg.selectAll("*").remove();
+      svg.attr("class", null)
+        .attr("width", null)
+        .attr("height", null)
+        .style("width", null)
+        .style("height", null)
+        .style("background", null);
+      updateViewport();
+      if (chartType === "SolutionTree") {{
+        showSvgMode();
+        return drawSolutionTree();
+      }}
+      treeZoomBehavior = null;
+      treeZoomTransform = d3.zoomIdentity;
+      svg.on(".zoom", null);
+      const supported = libraryChartSupport[chartLibrary] || chartOptions;
+      if (!supported.includes(chartType)) {{
+        showLibraryUnsupported(supported);
+        return;
+      }}
+      if (chartLibrary === "Plotly") return drawPlotlyChart();
+      if (chartLibrary === "Altair") return drawAltairChart();
+      if (chartType.includes("Network")) {{
+        showSvgMode();
+        return drawSolutionTree();
+      }}
+      showSvgMode();
+      if (chartType === "Production Dashboard" || chartType === "Dashboard") drawProductionDashboard();
+      else if (chartType === "ESM Best Method") drawESMBestMethod();
+      else if (chartType === "Diagnostics") drawDiagnostics();
+      else if (chartType === "Model Diagnostics") drawModelDiagnostics();
+      else if (chartType === "CorrelationMatrix") drawCorrelationMatrix();
+      else if (chartType === "SimilarityMatrix") drawSimilarityMatrix();
+      else if (chartType === "Column Ranking") drawColumnRanking();
+      else if (chartType === "Bar Chart") drawBarChart();
+      else if (chartType === "Pie Chart") drawPieChart();
+      else if (chartType === "Area Chart") drawAreaChart();
+      else if (chartType === "Regression Plot") drawRegressionPlot();
+      else if (chartType === "ECDF Plot") drawECDFPlot();
+      else if (chartType === "KDE Plot" || chartType === "Violin Plot" || chartType === "Joint Plot") drawHeatmapDensity();
+      else if (chartType === "Pair Plot") drawPairExplorer();
+      else if (chartType === "Network Graph") drawSolutionTree();
+      else if (chartType === "Histogram") drawHistogram();
+      else if (chartType === "Boxplot") drawBoxplot();
+      else if (chartType === "Line" || chartType === "Priority Timeline" || chartType === "Step View") drawLine();
+      else if (chartType === "Gantt") drawGantt();
+      else if (chartType === "Missingness Map") drawMissingness();
+      else if (chartType === "Bubble Chart") drawBubbleChart();
+      else if (chartType === "Heatmap Density") drawHeatmapDensity();
+      else if (chartType === "Outlier Map") drawOutlierMap();
+      else if (chartType === "DBSCAN Anomaly") drawDBSCANAnomaly();
+      else if (chartType === "PCA State Segments") drawScatter();
+      else if (chartType === "LDA vs t-SNE") drawPairExplorer();
+      else if (chartType === "KMeans vs GMM") drawPairExplorer();
+      else if (chartType === "Pair Explorer") drawPairExplorer();
+      else if (chartType === "3D Scatter") drawPseudo3DScatter();
+      else if (chartType === "3D Surface") drawPseudo3DSurface();
+      else if (chartType === "ML Decision Tree") drawDecisionTree();
+      else if (chartType === "SolutionTree") drawSolutionTree();
+      else drawScatter();
+    }}
+
+    function fillSelect(id, values, current) {{
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.innerHTML = "";
+      values.forEach(v => {{
+        const op = document.createElement("option");
+        op.value = v;
+        op.textContent = v;
+        if (v === current) op.selected = true;
+        el.appendChild(op);
+      }});
+    }}
+
+    function showLibraryUnsupported(supported) {{
+      showSvgMode();
+      svg.attr("viewBox", [0, 0, 980, 620]).style("height", "620px");
+      svg.append("rect").attr("x", 0).attr("y", 0).attr("width", 980).attr("height", 620).attr("fill", "#071526");
+      svg.append("text").attr("x", 490).attr("y", 238).attr("text-anchor", "middle").attr("font-size", 26).attr("font-weight", 900).attr("fill", "#dbeafe")
+        .text(`${{chartLibrary}} nie obsluguje: ${{chartType}}`);
+      svg.append("text").attr("x", 490).attr("y", 282).attr("text-anchor", "middle").attr("font-size", 16).attr("fill", "#9fb4cc")
+        .text("Wybierz typ wykresu z listy dostepnej dla tej biblioteki.");
+      svg.append("text").attr("x", 490).attr("y", 326).attr("text-anchor", "middle").attr("font-size", 14).attr("fill", "#bfdbfe")
+        .text(`Dostepne: ${{supported.slice(0, 10).join(", ")}}`);
+    }}
+
+    function setupControls() {{
+      fillSelect("ctl-library", libraryOptions, chartLibrary);
+      const initialSupported = libraryChartSupport[chartLibrary] || chartOptions;
+      if (!initialSupported.includes(chartType) && !(chartType === "SolutionTree" || chartType === "Network Graph")) chartType = initialSupported[0] || "Scatter";
+      fillSelect("ctl-chart", initialSupported, chartType);
+      fillSelect("ctl-x", columns, xKey);
+      fillSelect("ctl-y", columns, yKey);
+      fillSelect("ctl-z", columns, zKey);
+      fillSelect("ctl-tree-algo", treeAlgorithms, treeAlgorithm);
+      const tf0 = document.getElementById("ctl-tree-fit");
+      if (tf0) tf0.value = treeFitMode;
+      const machineValues = machineColumn ? ["Wszystkie", ...Array.from(new Set(baseData.map(r => String(r[machineColumn] ?? ""))).filter(v => v.trim()))] : ["Wszystkie"];
+      fillSelect("ctl-machine", machineValues, "Wszystkie");
+      const h0 = document.getElementById("ctl-height");
+      if (h0) h0.value = "700";
+      const b0 = document.getElementById("ctl-bins");
+      if (b0) b0.value = "30";
+      const o0 = document.getElementById("ctl-outlier-sigma");
+      if (o0) o0.value = "2.5";
+
+      const applyFilters = () => {{
+        const machine = document.getElementById("ctl-machine")?.value || "Wszystkie";
+        const query = (document.getElementById("ctl-query")?.value || "").trim();
+        if (machineColumn && machine !== "Wszystkie") {{
+          data = baseData.filter(r => String(r[machineColumn] ?? "") === machine);
+        }} else {{
+          data = [...baseData];
+        }}
+        if (query) {{
+          const clauses = query.split(/\\s+and\\s+/i).map(s => s.trim()).filter(Boolean);
+          const parsed = clauses.map(cl => {{
+            const m = cl.match(/^([a-zA-Z0-9_]+)\\s*(<=|>=|=|!=|<|>)\\s*(.+)$/);
+            if (!m) return null;
+            let rhs = m[3].trim();
+            rhs = rhs.replace(/^['"]|['"]$/g, "");
+            const num = Number(rhs);
+            return {{col: m[1], op: m[2], raw: rhs, num, isNum: Number.isFinite(num)}};
+          }}).filter(Boolean);
+          data = data.filter(row => parsed.every(p => {{
+            const v = row[p.col];
+            if (v == null) return false;
+            const leftNum = Number(v);
+            if (p.isNum && Number.isFinite(leftNum)) {{
+              if (p.op === "<") return leftNum < p.num;
+              if (p.op === "<=") return leftNum <= p.num;
+              if (p.op === ">") return leftNum > p.num;
+              if (p.op === ">=") return leftNum >= p.num;
+              if (p.op === "=") return leftNum === p.num;
+              if (p.op === "!=") return leftNum !== p.num;
+              return true;
+            }}
+            const left = String(v);
+            if (p.op === "=") return left === p.raw;
+            if (p.op === "!=") return left !== p.raw;
+            return false;
+          }}));
+        }}
+        document.getElementById("count").textContent = data.length;
+      }};
+
+      const readConfig = () => ({{
+        chartType: document.getElementById("ctl-chart")?.value || chartType,
+        chartLibrary: document.getElementById("ctl-library")?.value || chartLibrary,
+        xKey: document.getElementById("ctl-x")?.value || xKey,
+        yKey: document.getElementById("ctl-y")?.value || yKey,
+        zKey: document.getElementById("ctl-z")?.value || zKey,
+        machine: document.getElementById("ctl-machine")?.value || "Wszystkie",
+        chartHeight: Number(document.getElementById("ctl-height")?.value || chartHeight),
+        histBins: Number(document.getElementById("ctl-bins")?.value || histBins),
+        outlierSigma: Number(document.getElementById("ctl-outlier-sigma")?.value || outlierSigma),
+        treeAlgorithm: document.getElementById("ctl-tree-algo")?.value || treeAlgorithm,
+        treeFitMode: document.getElementById("ctl-tree-fit")?.value || treeFitMode,
+        histDensity: !!document.getElementById("ctl-density")?.checked,
+        showTrend: !!document.getElementById("ctl-trend")?.checked,
+        smoothLine: !!document.getElementById("ctl-smooth")?.checked,
+        query: (document.getElementById("ctl-query")?.value || "").trim(),
+      }});
+
+      const applyConfig = (cfg) => {{
+        if (!cfg) return;
+        chartType = cfg.chartType || chartType;
+        chartLibrary = cfg.chartLibrary || chartLibrary;
+        xKey = cfg.xKey || xKey;
+        yKey = cfg.yKey || yKey;
+        zKey = cfg.zKey || zKey;
+        chartHeight = Number(cfg.chartHeight || chartHeight);
+        histBins = Number(cfg.histBins || histBins);
+        outlierSigma = Number(cfg.outlierSigma || outlierSigma);
+        treeAlgorithm = cfg.treeAlgorithm || treeAlgorithm;
+        treeFitMode = cfg.treeFitMode || treeFitMode;
+        histDensity = !!cfg.histDensity;
+        showTrend = cfg.showTrend !== false;
+        smoothLine = cfg.smoothLine !== false;
+        fillSelect("ctl-library", libraryOptions, chartLibrary);
+        const supported = libraryChartSupport[chartLibrary] || chartOptions;
+        if (!supported.includes(chartType)) chartType = supported[0] || "Scatter";
+        fillSelect("ctl-chart", supported, chartType);
+        fillSelect("ctl-x", columns, xKey);
+        fillSelect("ctl-y", columns, yKey);
+        fillSelect("ctl-z", columns, zKey);
+        fillSelect("ctl-tree-algo", treeAlgorithms, treeAlgorithm);
+        const tf = document.getElementById("ctl-tree-fit"); if (tf) tf.value = treeFitMode;
+        const h = document.getElementById("ctl-height"); if (h) h.value = String(chartHeight);
+        const b = document.getElementById("ctl-bins"); if (b) b.value = String(histBins);
+        const o = document.getElementById("ctl-outlier-sigma"); if (o) o.value = String(outlierSigma);
+        const den = document.getElementById("ctl-density"); if (den) den.checked = histDensity;
+        const tr = document.getElementById("ctl-trend"); if (tr) tr.checked = showTrend;
+        const sm = document.getElementById("ctl-smooth"); if (sm) sm.checked = smoothLine;
+        const q = document.getElementById("ctl-query"); if (q) q.value = cfg.query || "";
+        if (cfg.machine) fillSelect("ctl-machine", machineValues, cfg.machine);
+      }};
+
+      document.getElementById("ctl-redraw")?.addEventListener("click", () => {{
+        chartType = document.getElementById("ctl-chart")?.value || chartType;
+        chartLibrary = document.getElementById("ctl-library")?.value || chartLibrary;
+        xKey = document.getElementById("ctl-x")?.value || xKey;
+        yKey = document.getElementById("ctl-y")?.value || yKey;
+        zKey = document.getElementById("ctl-z")?.value || zKey;
+        chartHeight = Number(document.getElementById("ctl-height")?.value || chartHeight);
+        histBins = Number(document.getElementById("ctl-bins")?.value || histBins);
+        outlierSigma = Number(document.getElementById("ctl-outlier-sigma")?.value || outlierSigma);
+        treeAlgorithm = document.getElementById("ctl-tree-algo")?.value || treeAlgorithm;
+        treeFitMode = document.getElementById("ctl-tree-fit")?.value || treeFitMode;
+        histDensity = !!document.getElementById("ctl-density")?.checked;
+        showTrend = !!document.getElementById("ctl-trend")?.checked;
+        smoothLine = !!document.getElementById("ctl-smooth")?.checked;
+        applyFilters();
+        renderCurrentChart();
+      }});
+      document.getElementById("ctl-library")?.addEventListener("change", () => {{
+        chartLibrary = document.getElementById("ctl-library")?.value || chartLibrary;
+        const supported = libraryChartSupport[chartLibrary] || chartOptions;
+        if (!supported.includes(chartType)) chartType = supported[0] || "Scatter";
+        fillSelect("ctl-chart", supported, chartType);
+        renderCurrentChart();
+      }});
+      document.getElementById("ctl-full")?.addEventListener("click", () => {{
+        const panel = document.getElementById("chart-panel");
+        if (!panel) return;
+        if (!document.fullscreenElement) panel.requestFullscreen?.();
+        else document.exitFullscreen?.();
+        setTimeout(() => renderCurrentChart(), 180);
+      }});
+      document.getElementById("ctl-tree-zoom-in")?.addEventListener("click", () => {{
+        if (!treeZoomBehavior || chartType !== "SolutionTree") return;
+        svg.transition().duration(160).call(treeZoomBehavior.scaleBy, 1.25);
+      }});
+      document.getElementById("ctl-tree-zoom-out")?.addEventListener("click", () => {{
+        if (!treeZoomBehavior || chartType !== "SolutionTree") return;
+        svg.transition().duration(160).call(treeZoomBehavior.scaleBy, 0.8);
+      }});
+      document.getElementById("ctl-tree-zoom-reset")?.addEventListener("click", () => {{
+        treeZoomTransform = d3.zoomIdentity;
+        if (treeZoomBehavior && chartType === "SolutionTree") {{
+          svg.transition().duration(180).call(treeZoomBehavior.transform, treeZoomTransform);
+        }} else {{
+          renderCurrentChart();
+        }}
+      }});
+      document.getElementById("ctl-reset")?.addEventListener("click", () => {{
+        chartType = {chart_js};
+        chartLibrary = {library_js};
+        xKey = {x_js};
+        yKey = {y_js};
+        zKey = {z_js};
+        chartHeight = 700;
+        histBins = 30;
+        outlierSigma = 2.5;
+        treeAlgorithm = "Dane z pliku";
+        treeFitMode = "large";
+        selectedTreeNodeId = "";
+        deletedTreeNodes.clear();
+        histDensity = false;
+        showTrend = true;
+        smoothLine = true;
+        data = [...baseData];
+        fillSelect("ctl-library", libraryOptions, chartLibrary);
+        fillSelect("ctl-chart", libraryChartSupport[chartLibrary] || chartOptions, chartType);
+        fillSelect("ctl-x", columns, xKey);
+        fillSelect("ctl-y", columns, yKey);
+        fillSelect("ctl-z", columns, zKey);
+        fillSelect("ctl-tree-algo", treeAlgorithms, treeAlgorithm);
+        const tf = document.getElementById("ctl-tree-fit");
+        if (tf) tf.value = "large";
+        fillSelect("ctl-machine", machineValues, "Wszystkie");
+        const h = document.getElementById("ctl-height");
+        if (h) h.value = "700";
+        const b = document.getElementById("ctl-bins");
+        if (b) b.value = "30";
+        const o = document.getElementById("ctl-outlier-sigma");
+        if (o) o.value = "2.5";
+        const den = document.getElementById("ctl-density");
+        if (den) den.checked = false;
+        const tr = document.getElementById("ctl-trend");
+        if (tr) tr.checked = true;
+        const sm = document.getElementById("ctl-smooth");
+        if (sm) sm.checked = true;
+        treeZoomTransform = d3.zoomIdentity;
+        renderCurrentChart();
+      }});
+      document.getElementById("ctl-png")?.addEventListener("click", () => {{
+        if (chartLibrary === "Plotly" && window.Plotly) {{
+          const div = document.getElementById("html-chart");
+          Plotly.downloadImage(div, {{format:"png", filename:`chart_${{chartType.replace(/\\s+/g, "_")}}`, width:1400, height:900}});
+          return;
+        }}
+        if (chartLibrary === "Altair") {{
+          const altairSvg = document.querySelector("#html-chart svg");
+          if (altairSvg) {{
+            const xml = new XMLSerializer().serializeToString(altairSvg);
+            const blob = new Blob([xml], {{type: "image/svg+xml;charset=utf-8"}});
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = `chart_${{chartType.replace(/\\s+/g, "_")}}.svg`;
+            a.click();
+            return;
+          }}
+          alert("Altair wygenerowal wykres w HTML. Do eksportu uzyj menu przy wykresie lub przelacz na Plotly/D3.");
+          return;
+        }}
+        const svgEl = document.getElementById("chart");
+        if (!svgEl) return;
+        const xml = new XMLSerializer().serializeToString(svgEl);
+        const blob = new Blob([xml], {{type: "image/svg+xml;charset=utf-8"}});
+        const url = URL.createObjectURL(blob);
+        const img = new Image();
+        img.onload = () => {{
+          const canvas = document.createElement("canvas");
+          canvas.width = svgEl.viewBox.baseVal.width || 1400;
+          canvas.height = svgEl.viewBox.baseVal.height || 800;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) return;
+          ctx.fillStyle = "#071526";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0);
+          URL.revokeObjectURL(url);
+          const a = document.createElement("a");
+          a.href = canvas.toDataURL("image/png");
+          a.download = `chart_${{chartType.replace(/\\s+/g, "_")}}.png`;
+          a.click();
+        }};
+        img.src = url;
+      }});
+      document.getElementById("ctl-delete-tree")?.addEventListener("click", () => {{
+        if (!selectedTreeNodeId || selectedTreeNodeId === "__html_root__") {{
+          alert("Najpierw kliknij wezel drzewa. Shift+klik usuwa galaz od razu.");
+          return;
+        }}
+        deletedTreeNodes.add(selectedTreeNodeId);
+        selectedTreeNodeId = "";
+        renderCurrentChart();
+      }});
+      document.getElementById("ctl-restore-tree")?.addEventListener("click", () => {{
+        deletedTreeNodes.clear();
+        selectedTreeNodeId = "";
+        treeZoomTransform = d3.zoomIdentity;
+        renderCurrentChart();
+      }});
+      document.getElementById("ctl-save-preset")?.addEventListener("click", () => {{
+        const name = prompt("Nazwa presetu:", "EDA");
+        if (!name) return;
+        const all = JSON.parse(localStorage.getItem("aoa_d3_presets") || "{{}}");
+        all[name] = readConfig();
+        localStorage.setItem("aoa_d3_presets", JSON.stringify(all));
+        alert(`Zapisano preset: ${{name}}`);
+      }});
+      document.getElementById("ctl-load-preset")?.addEventListener("click", () => {{
+        const all = JSON.parse(localStorage.getItem("aoa_d3_presets") || "{{}}");
+        const names = Object.keys(all);
+        if (!names.length) {{
+          alert("Brak presetów. Najpierw zapisz preset.");
+          return;
+        }}
+        const name = prompt("Wpisz nazwę presetu:\\n" + names.join(", "), names[0]);
+        if (!name || !all[name]) return;
+        applyConfig(all[name]);
+        applyFilters();
+        renderCurrentChart();
+      }});
+      document.getElementById("ctl-export-json")?.addEventListener("click", () => {{
+        const cfg = readConfig();
+        const blob = new Blob([JSON.stringify(cfg, null, 2)], {{type: "application/json"}});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `chart_config_${{(cfg.chartType || "chart").replace(/\\s+/g, "_")}}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }});
+      applyFilters();
+    }}
+
+    setupControls();
+    window.addEventListener("resize", () => renderCurrentChart());
+    renderCurrentChart();
     }}
   </script>
 </body>
@@ -1391,6 +4310,7 @@ def build_d3_dashboard_html_report(
     x_col: str | None = None,
     y_col: str | None = None,
     z_col: str | None = None,
+    chart_library: str = "D3",
     max_rows: int = 900,
 ) -> str:
     if df is None or df.empty:

@@ -8,6 +8,7 @@ from AOA.core.data_generation import generate_production_data
 from AOA.core.mh_models import MH_MODEL_NAMES
 from AOA.core.ml_models import ML_MODEL_NAMES, ML_MODEL_SPECS, ML_MODELS_BY_TASK, get_ml_task
 from AOA.core.models import train_selected_models
+from AOA.gui.pages.theory_page.animation import ModelAnimationCard
 from AOA.gui.pages.theory_page.data import THEORY_MODELS
 
 
@@ -95,3 +96,38 @@ def test_every_ml_model_has_theory_card_with_full_step_animation(spec):
     assert len(card.step_details) == 12
     assert len(card.pseudocode) == 12
     assert len(card.next_steps) >= 3
+
+
+def test_theory_explains_ml_algorithms_with_correct_mechanics():
+    theory_by_key = {model.key: model for model in THEORY_MODELS if model.family == "ml"}
+
+    forest = theory_by_key["Quality"]
+    extra = theory_by_key["Quality_ET"]
+    boosting = theory_by_key["Delay"]
+    hist = theory_by_key["Quality_HGB"]
+    logistic = theory_by_key["Schedule_LOG"]
+
+    assert "drzewa nie potrzebuja skalowania" in " ".join(forest.step_details)
+    assert "Losowe progi" in extra.steps
+    assert "blad" in " ".join(boosting.step_details).lower()
+    assert "koszyki" in " ".join(hist.step_details).lower()
+    assert "granice liniowa" in " ".join(logistic.step_details).lower()
+
+
+def test_theory_keeps_sto_separate_from_ml_training():
+    sto_cards = [model for model in THEORY_MODELS if model.family == "mh"]
+
+    assert sto_cards
+    joined = " ".join(sto_cards[0].step_details + (sto_cards[0].tip,))
+    assert "nie trenuje modelu ML" in joined
+    assert "STO to suma dodatnich opoznien" in joined
+
+
+def test_theory_animation_uses_distinct_ml_visual_modes():
+    theory_by_key = {model.key: model for model in THEORY_MODELS if model.family == "ml"}
+
+    assert ModelAnimationCard._ml_visual_kind(theory_by_key["Quality"]) == "forest"
+    assert ModelAnimationCard._ml_visual_kind(theory_by_key["Quality_ET"]) == "extra"
+    assert ModelAnimationCard._ml_visual_kind(theory_by_key["Delay"]) == "boost"
+    assert ModelAnimationCard._ml_visual_kind(theory_by_key["Quality_HGB"]) == "hist"
+    assert ModelAnimationCard._ml_visual_kind(theory_by_key["Schedule_LOG"]) == "logistic"

@@ -1,0 +1,134 @@
+[
+  {
+    "id": "app_overview",
+    "aliases": ["aplikacja", "production optimization", "co robi program", "do czego sluzy", "jak zaczac"],
+    "answer": "Aplikacja Production Optimization sluzy do pracy z danymi produkcyjnymi: wczytania tabeli, trenowania modeli ML, liczenia metod STO, rysowania wykresow, budowania raportow i sprawdzania wynikow. Najprostszy przeplyw to: Main robi obliczenia, Visual pokazuje wykresy i HTML, Results pozwala sprawdzic tabele, Analytics buduje raporty, Diagrams tworzy schematy, a Theory tlumaczy algorytmy.",
+    "steps": ["Wczytaj dane albo uzyj przykladu.", "Uruchom modele w Main albo analize w Analytics.", "Sprawdz wykres w Visual i tabele w Results.", "Gdy nie rozumiesz wyniku, zapytaj ALICE o konkretny ekran albo model."]
+  },
+  {
+    "id": "main_workflow",
+    "aliases": ["main", "trening", "trenuj", "wybor modeli", "modele w main", "co robi main"],
+    "answer": "Main jest centrum obliczen. Tu uzytkownik wczytuje albo generuje dane, wybiera modele ML i heurystyki STO, uruchamia trening/analize oraz zapisuje wyniki. ML przewiduje jakosc, opoznienie albo schedule. STO uklada kolejnosc zlecen i liczy sume dodatnich opoznien.",
+    "steps": ["Wczytaj CSV/TXT/TSV albo wygeneruj dane.", "Zaznacz modele Quality, Delay, Schedule albo metody STO.", "Kliknij trening/analize.", "Po zakonczeniu przejdz do Visual lub Results."]
+  },
+  {
+    "id": "visual_workflow",
+    "aliases": ["visual", "wykres", "rysuj wykres", "html", "otworz html", "biblioteka wykresu"],
+    "answer": "Visual sluzy do eksploracji danych. Wybierasz X, Y, Z, typ wykresu i biblioteke. Matplotlib daje podglad w aplikacji, D3/Plotly/Altair sa najmocniejsze w HTML, Seaborn jest dobry do statystyki, a NetworkX do grafow i drzew.",
+    "steps": ["Wczytaj dane.", "Wybierz X/Y/Z.", "Wybierz typ wykresu zgodny z biblioteka.", "Kliknij Rysuj raport albo Otworz HTML.", "Czytaj osie, kolor, rozmiar i raport po prawej."]
+  },
+  {
+    "id": "chart_libraries",
+    "aliases": ["matplotlib", "seaborn", "plotly", "altair", "networkx", "biblioteki", "jakie wykresy"],
+    "answer": "Biblioteki maja rozne role. Matplotlib jest bazowym podgladem desktopowym. Seaborn sluzy do relacji statystycznych: regression, KDE, ECDF, violin, pair, count, strip, swarm, point i bar estimate. Plotly jest interaktywny w HTML i obsluguje m.in. 3D scatter, 3D surface, treemap, sunburst, funnel, waterfall i radar. Altair/Vega-Lite dobrze opisuje wykres deklaratywnie: binned scatter, stacked bar, faceted scatter i brush. NetworkX jest do grafow zaleznosci i wielu ukladow sieci.",
+    "steps": ["Jesli chcesz szybki podglad: Matplotlib.", "Jesli chcesz statystyke: Seaborn.", "Jesli chcesz interaktywny HTML i 3D: Plotly.", "Jesli chcesz deklaratywne wykresy i selekcje: Altair.", "Jesli chcesz graf lub drzewo: NetworkX albo SolutionTree."]
+  },
+  {
+    "id": "solution_tree",
+    "aliases": ["solutiontree", "solution tree", "drzewo rozwiazan", "drzewo", "galaz", "zielony", "zolty", "schowaj galaz"],
+    "answer": "SolutionTree pokazuje warianty rozwiazania i sciezke najlepsza wedlug danych albo wybranego algorytmu. Zielony oznacza najlepsza sciezke. Zolty oznacza wariant sprawdzony, pokonany albo taki, do ktorego algorytm wrocil po porownaniu. W HTML mozna kliknac wezel, schowac galaz i potem pokazac cale drzewo.",
+    "steps": ["W Visual wybierz SolutionTree.", "Otworz HTML, bo tam drzewo jest interaktywne.", "Kliknij wezel drzewa.", "Uzyj Schowaj wybrana galaz albo Pokaz cale drzewo.", "Porownuj zielone i zolte elementy z raportem."]
+  },
+  {
+    "id": "decision_tree",
+    "aliases": ["decisiontree", "decision tree", "drzewo decyzyjne", "ml decision tree"],
+    "answer": "ML Decision Tree pokazuje logike podzialu modelu: jakie cechy i progi prowadza do decyzji. To nie jest to samo co SolutionTree. ML Decision Tree tlumaczy model ML, a SolutionTree tlumaczy warianty rozwiazania/harmonogramowania.",
+    "steps": ["Uzyj ML Decision Tree, gdy pytasz jak model dzieli dane.", "Uzyj SolutionTree, gdy pytasz jaki wariant STO lub kolejka wygrywa.", "Sprawdz progi i liscie drzewa razem z metrykami modelu."]
+  },
+  {
+    "id": "analytics_workflow",
+    "aliases": ["analytics", "analityc", "data analytics", "kpi", "raport", "notebook", "workflow analityczny"],
+    "answer": "Analytics jest panelem analitycznym. Potrafi sprawdzic jakosc danych, zbudowac dashboard, raport, KPI, diagnostyke metryk, segmenty, korelacje, outliery, pivot, slownik danych, trendy i plan notebooka. To nie tylko tekst: generuje HTML, notebook, CSV akcji i raport do dalszej pracy.",
+    "steps": ["Wczytaj dane.", "Wybierz workflow, metryke i wymiar.", "Kliknij Uruchom analize albo Wykonaj wszystko.", "Otworz HTML lub Notebook .ipynb.", "W razie potrzeby przenies wybrany wykres do Visual."]
+  },
+  {
+    "id": "results_sql",
+    "aliases": ["results", "wyniki", "sql", "tabela", "csv", "filtr"],
+    "answer": "Results sluzy do kontroli tabeli wynikow. Mozna filtrowac dane, sortowac kolumny, uruchamiac zapytania SQL, ogladac osobna tabele wynikow SQL i eksportowac CSV. To najlepsze miejsce do sprawdzenia rekordu, ktory odstaje na wykresie.",
+    "steps": ["Przejdz do Results po treningu albo analizie.", "Sortuj kolumny klikajac naglowki.", "Uzyj SQL, gdy chcesz precyzyjne zapytanie.", "Eksportuj wynik do CSV."]
+  },
+  {
+    "id": "diagrams_workflow",
+    "aliases": ["diagrams", "diagram", "drawio", "draw.io", "uml", "erd", "bpmn", "mermaid"],
+    "answer": "Diagrams to edytor schematow. Mozna wczytac szablon, dodawac ksztalty, laczyc elementy, przesuwac je myszka, edytowac prawym kliknieciem i eksportowac do .drawio, SVG, Mermaid albo HTML. Nadaje sie do procesow, UML, ERD, BPMN, architektury i map pracy.",
+    "steps": ["Wybierz szablon.", "Dodaj lub przesun ksztalty.", "Dodaj polaczenia miedzy elementami.", "Prawym kliknieciem edytuj tekst, kolor, duplikuj albo usun.", "Eksportuj format potrzebny do dokumentacji."]
+  },
+  {
+    "id": "theory_workflow",
+    "aliases": ["theory", "teoria", "animacja", "jak dziala algorytm", "wyjasnienie modelu"],
+    "answer": "Theory tlumaczy algorytmy krok po kroku. ML i STO sa rozdzielone: ML uczy zaleznosci z danych, a STO uklada kolejke zlecen i liczy opoznienia. Random Forest usrednia wiele drzew, ExtraTrees losuje progi, Boosting poprawia bledy, HistGradient uzywa koszykow, Logistic liczy softmax, a STO liczy Cj, Tj i sume opoznien.",
+    "steps": ["Wybierz ML, jesli chcesz zrozumiec model predykcyjny.", "Wybierz Heurystyki, jesli chcesz zrozumiec STO.", "Przechodz suwakiem krok po kroku.", "Czytaj panel: co sie dzieje, pseudokod, stan przykladu i dlaczego to wazne."]
+  },
+  {
+    "id": "random_forest",
+    "aliases": ["random forest", "quality rf", "delay rf", "schedule rf", "las losowy"],
+    "answer": "Random Forest buduje wiele drzew na losowych probkach danych. Kazde drzewo daje swoja predykcje, a wynik koncowy jest srednia w regresji albo glosowaniem/srednia prawdopodobienstw w klasyfikacji. To zmniejsza niestabilnosc pojedynczego drzewa.",
+    "steps": ["Przygotuj cechy X i cel y.", "Uzupelnij braki mediana.", "Zbuduj wiele drzew na probkach.", "Polacz predykcje drzew.", "Sprawdz train/test i metryki."]
+  },
+  {
+    "id": "extra_trees",
+    "aliases": ["extratrees", "extra trees", "quality_et", "delay_et", "schedule_et"],
+    "answer": "ExtraTrees jest podobne do Random Forest, ale mocniej losuje progi podzialu. Dzieki temu drzewa sa bardziej roznorodne i czesto szybkie. Trzeba jednak sprawdzic metryki, bo zbyt duza losowosc nie zawsze pomaga.",
+    "steps": ["Model losuje cechy i progi.", "Buduje wiele roznorodnych drzew.", "Laczy wyniki przez srednia albo glosowanie.", "Porownaj wynik z Random Forest."]
+  },
+  {
+    "id": "gradient_boosting",
+    "aliases": ["gradient boosting", "gradientboost", "quality_gb", "delay", "schedule_gb", "boosting"],
+    "answer": "Gradient Boosting dziala sekwencyjnie. Startuje od prostej predykcji, liczy blad, buduje male drzewo poprawiajace blad i dodaje poprawke z learning_rate. Kolejne drzewa nie sa niezalezne: kazde poprawia poprzednie.",
+    "steps": ["Zrob predykcje bazowa.", "Policz blad/residual.", "Dopasuj male drzewo do bledu.", "Dodaj poprawke z learning_rate.", "Powtarzaj i kontroluj walidacje."]
+  },
+  {
+    "id": "hist_gradient",
+    "aliases": ["histgradient", "hist gradient", "quality_hgb", "delay_hgb", "hgb"],
+    "answer": "HistGradient Boosting to szybsza odmiana boostingu. Zamiast sprawdzac kazda wartosc cechy osobno, zamienia wartosci na koszyki i liczy histogramy. Nadal dziala jak boosting: kolejne drzewa poprawiaja bledy poprzedniej predykcji.",
+    "steps": ["Zamien wartosci cech na koszyki.", "Policz histogramy.", "Dopasuj drzewo poprawki.", "Uzyj early stopping, gdy walidacja nie rosnie."]
+  },
+  {
+    "id": "logistic_schedule",
+    "aliases": ["schedule_log", "logistic", "regresja logistyczna", "softmax"],
+    "answer": "Schedule_LOG to liniowy klasyfikator. Uzupelnia braki, skaluje cechy, uczy wagi klas i przez softmax zamienia wyniki liniowe na prawdopodobienstwa. Wygrywa klasa schedule z najwyzszym prawdopodobienstwem.",
+    "steps": ["Przygotuj cechy.", "Uzupelnij braki i przeskaluj dane.", "Naucz wagi klas.", "Policz softmax.", "Wybierz klase o najwyzszym prawdopodobienstwie."]
+  },
+  {
+    "id": "sto_methods",
+    "aliases": ["sto", "mt", "mo", "mzo", "mopt", "genetic", "slack", "critical ratio", "neh", "local search", "random restart"],
+    "answer": "STO to suma dodatnich opoznien. Dla zlecenia liczymy Cj, czyli czas zakonczenia, potem Tj = max(0, Cj - dj). Metoda jest lepsza, gdy ma mniejsze STO. MT/EDD sortuje po terminie, MO/SPT po najkrotszym czasie, MZO/LPT po najdluzszym czasie, MOPT szuka najlepszego wariantu, GENETIC ulepsza populacje kolejek, Local Search robi lokalne zamiany.",
+    "steps": ["Wczytaj zlecenia, czasy p i terminy d.", "Uloz kolejke wedlug metody.", "Symuluj czasy zakonczenia Cj.", "Policz Tj i STO.", "Porownaj metody i wybierz najmniejsze STO."]
+  },
+  {
+    "id": "data_quality",
+    "aliases": ["quality danych", "jakosc danych", "braki", "duplikaty", "outlier", "walidacja danych"],
+    "answer": "Jakosc danych decyduje, czy wynik jest wiarygodny. Najpierw sprawdza sie braki, duplikaty, typy kolumn, zakresy wartosci, outliery i sens relacji czas-termin. Dopiero potem warto trenowac model albo robic wnioski z wykresow.",
+    "steps": ["Sprawdz liczbe wierszy i kolumn.", "Sprawdz braki i duplikaty.", "Sprawdz kolumny liczbowe oraz kategorie.", "Obejrzyj outliery w Visual.", "Zapisz raport jakosci w Analytics."]
+  },
+  {
+    "id": "html_exports",
+    "aliases": ["eksport html", "html nie widac", "pusty html", "cdn", "otworz html", "raport html"],
+    "answer": "HTML jest interaktywnym eksportem do przegladarki. Dla wykresow korzysta z D3/Plotly/Altair przez CDN, a dla drzewa ma wlasny renderer SolutionTree. Jesli HTML jest pusty, najczestsze przyczyny to zle dobrana para biblioteka-wykres, blokada CDN albo brak danych w wybranych kolumnach.",
+    "steps": ["Sprawdz, czy dane sa wczytane.", "Dla SolutionTree wybierz drzewo i otworz HTML.", "Jesli biblioteka nie pasuje, wybierz typ z listy.", "Gdy CDN jest zablokowany, uzyj Matplotlib w aplikacji albo lokalnego fallbacku.", "Sprawdz raport po prawej stronie."]
+  },
+  {
+    "id": "pdf_report_export",
+    "aliases": ["pdf", "eksport pdf", "raport pdf", "zapisz pdf", "report builder pdf"],
+    "answer": "Analytics Report Builder potrafi zapisac raport do PDF. HTML zostaje najlepszy do interaktywnych wykresow i osadzonych widokow, a PDF jest dobry do oddania, wyslania albo dolaczenia do dokumentacji. PDF powstaje z czytelnego podgladu raportu, wiec zawiera tytuly, sekcje, KPI, wnioski i tekstowe wyniki.",
+    "steps": ["Wejdz w Analytics.", "Otworz Report Builder.", "Dodaj wyniki, pliki, KPI, wykresy albo rekomendacje.", "Sprawdz podglad.", "Kliknij Eksport PDF albo Eksport HTML, jesli potrzebujesz interakcji."]
+  },
+  {
+    "id": "self_learning_mode",
+    "aliases": ["samonauka", "self learning", "uczenie alice", "raport samonauki", "wlacz samonauke", "wylacz samonauke"],
+    "answer": "Samonauka ALICE ma dwa etapy: najpierw uczy sie aplikacji lokalnie, czyli modulow, modeli, STO, wykresow i raportow, a potem korzysta z dozwolonej listy zrodel albo lokalnych notatek w docs/alice_sources. Po publikacji na GitHubie nie powinna startowac sama. Uzytkownik wlacza ja dopiero z ALICE, gdy chce raporty i dalsze uczenie.",
+    "steps": ["Zapytaj ALICE o status samonauki.", "Uzyj komendy wlaczenia samonauki, gdy chcesz cykliczne raporty.", "Uzyj raportu samonauki, aby zobaczyc czego sie nauczyla.", "Przed publikacja zostaw auto-start wylaczony.", "Nie commituj wygenerowanych logow uczenia."]
+  },
+  {
+    "id": "alice_sources_cleanup",
+    "aliases": ["alice_sources", "co usunac", "html w alice_sources", "pliki samonauki", "github samonauka", "cache alice"],
+    "answer": "W docs/alice_sources najwazniejsze sa README i krotkie pliki .md, bo to one sa lekkim fallbackiem wiedzy ALICE. Pliki .html sa zrzutami stron i cachem lokalnym: moga byc duze, brzydkie w repo i nie sa potrzebne do wersji GitHub, jesli masz odpowiadajace im .md. Logi z folderu logs tez sa generowane lokalnie i nie powinny isc do repo.",
+    "steps": ["Zostaw docs/alice_sources/README.md.", "Zostaw skondensowane pliki .md z wiedza.", "Pomin albo usun lokalne .html, jesli sa tylko cachem stron.", "Nie commituj logs/alice_selflearn ani alice_selflearn_latest.json.", "Po uruchomieniu aplikacji uzytkownik moze sam wlaczyc samonauke."]
+  },
+  {
+    "id": "github_release_quality",
+    "aliases": ["github", "wydanie", "release", "wersja na githuba", "przed publikacja"],
+    "answer": "Przed wrzuceniem aplikacji na GitHuba warto sprawdzic trzy rzeczy: czy nowy uzytkownik rozumie flow, czy przyciski faktycznie cos robia, i czy ALICE potrafi wytlumaczyc modul bez znajomosci kodu. Najwazniejsze sa README, przykladowe dane, stabilny HTML, testy i jasne komunikaty bledow.",
+    "steps": ["Uruchom pelne testy.", "Sprawdz Main, Visual, Results, Analytics, Diagrams i Theory na przykladowym pliku.", "Otworz wygenerowany HTML drzewa i dashboardu.", "Zadaj ALICE pytania o kazdy modul.", "Dopisz brakujace hasla do docs/alice_brain.json."]
+  }
+]

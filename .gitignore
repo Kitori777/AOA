@@ -47,11 +47,19 @@ Thumbs.db
 
 # UV cache
 .uv/
+.vendor/
+third_party/
 
 # Optional local data/models artifacts
 models/*.pkl
+docs/alice_sources/*.html
 
 # Generated local data artifacts
 /data/*
 !/data/sample/
 !/data/sample/*.csv
+
+# Local desktop / temp artifacts
+*.zip
+*.7z
+*.rar

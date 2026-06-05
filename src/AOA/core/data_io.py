@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import csv
+from collections import Counter
 from pathlib import Path
 
 import pandas as pd
@@ -31,12 +33,20 @@ def load_table(path) -> pd.DataFrame:
         raise ValueError(f"Nieobsługiwany format pliku: {extension}. Obsługiwane: {allowed}")
 
     if extension == ".tsv":
-        return pd.read_csv(file_path, sep="\t")
+        df = pd.read_csv(file_path, sep="\t")
+        _validate_columns(df, file_path)
+        return df
 
+    delimiter = _detect_delimiter(file_path)
     try:
-        return pd.read_csv(file_path, sep=None, engine="python")
+        if delimiter:
+            df = pd.read_csv(file_path, sep=delimiter)
+        else:
+            df = pd.read_csv(file_path, sep=None, engine="python")
     except Exception:
-        return pd.read_csv(file_path)
+        df = pd.read_csv(file_path)
+    _validate_columns(df, file_path)
+    return df
 
 
 def save_csv(df, path):
@@ -47,3 +57,25 @@ def save_csv(df, path):
         path: Target file path.
     """
     df.to_csv(path, index=False)
+
+
+def _detect_delimiter(file_path: Path) -> str | None:
+    try:
+        with file_path.open("r", encoding="utf-8-sig", errors="replace") as handle:
+            sample = "".join(handle.readline() for _ in range(8))
+        if not sample.strip():
+            return ","
+        dialect = csv.Sniffer().sniff(sample, delimiters=",;\t")
+        return dialect.delimiter
+    except Exception:
+        return None
+
+
+def _validate_columns(df: pd.DataFrame, file_path: Path) -> None:
+    if df is None or df.empty and len(df.columns) == 0:
+        raise ValueError(f"Plik {file_path.name} nie zawiera naglowkow kolumn.")
+    normalized = [str(col).strip().lower() for col in df.columns]
+    duplicates = [name for name, count in Counter(normalized).items() if count > 1]
+    if duplicates:
+        dup_list = ", ".join(sorted(duplicates))
+        raise ValueError(f"Zduplikowane nazwy kolumn po normalizacji: {dup_list}")

@@ -5,7 +5,7 @@ from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 
 def prepare_decision_tree_data(df: pd.DataFrame):
     if df.shape[1] < 2:
-        raise ValueError("Do wykresu DecisionTree potrzeba co najmniej 2 kolumn")
+        raise ValueError("Do wykresu ML Decision Tree potrzeba co najmniej 2 kolumn")
 
     target = df.columns[-1]
     X = df.drop(columns=[target]).copy()

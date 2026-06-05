@@ -3,6 +3,9 @@ from __future__ import annotations
 import argparse
 from textwrap import dedent
 
+from AOA.core.data_analytics_service import ANALYTICS_WORKFLOWS
+from AOA.core.drawio_service import DRAWIO_TEMPLATES
+
 from .helpers import AVAILABLE_BACKENDS, DEFAULT_MATERIALS, DEFAULT_SHAPES
 
 
@@ -23,6 +26,10 @@ def build_examples_text() -> str:
           aoa-cli summary --models Quality,Delay,MT --backend tabpfn --n 800 --machines 1
           aoa-cli status --data data/train_x.csv
           aoa-cli workflow --n 800 --models Quality,Delay --backend classic
+          aoa-cli analytics --data data/sample/sample_table.csv --workflow "Build Report" --metric cena --dimension material --output data/reports/analysis.html --format html
+          aoa-cli report --source data/reports/my_report.tex --format pdf --output data/reports/my_report.pdf --preview
+          aoa-cli diagram --template Flowchart --format html --output data/diagrams/flowchart.html
+          aoa-cli alice "Jak dziala Visual Lab?"
           aoa-cli interactive
         """
     ).strip()
@@ -271,6 +278,76 @@ def build_parser() -> argparse.ArgumentParser:
         "--skip-solve",
         action="store_true",
         help="Tylko wygeneruj i wytrenuj, bez rozwiązywania testu",
+    )
+
+    analytics_parser = subparsers.add_parser(
+        "analytics",
+        help="Uruchom workflow Analytics bez GUI",
+        description="Wczytuje CSV, wykonuje wybrany workflow Analytics i opcjonalnie zapisuje wynik jako Markdown albo HTML.",
+        epilog='Przyklad: aoa-cli analytics --data data/sample/sample_table.csv --workflow "Build Report" --metric cena --dimension material --format html --output data/reports/analysis.html',
+        formatter_class=formatter,
+    )
+    analytics_parser.add_argument("--data", required=True, type=str, help="Sciezka do CSV")
+    analytics_parser.add_argument(
+        "--workflow",
+        choices=ANALYTICS_WORKFLOWS,
+        default="Index",
+        help="Workflow Analytics do uruchomienia",
+    )
+    analytics_parser.add_argument("--metric", type=str, default=None, help="Metryka liczbowa")
+    analytics_parser.add_argument("--dimension", type=str, default=None, help="Wymiar/grupowanie")
+    analytics_parser.add_argument(
+        "--format", choices=["md", "html"], default="md", help="Format zapisu z --output"
+    )
+    analytics_parser.add_argument(
+        "--output", type=str, default="", help="Opcjonalna sciezka zapisu raportu"
+    )
+
+    report_parser = subparsers.add_parser(
+        "report",
+        help="Zbuduj raport jak w Report Builder",
+        description="Renderuje zrodlo raportu LaTeX/Quarto-like do HTML, PDF, TEX albo MD bez otwierania GUI.",
+        epilog="Przyklad: aoa-cli report --source report.tex --format pdf --output report.pdf --preview",
+        formatter_class=formatter,
+    )
+    report_parser.add_argument("--source", type=str, default="", help="Plik zrodlowy raportu")
+    report_parser.add_argument("--title", type=str, default="AOA CLI Report", help="Tytul raportu")
+    report_parser.add_argument(
+        "--format", choices=["html", "pdf", "tex", "md"], default="html", help="Format eksportu"
+    )
+    report_parser.add_argument("--output", type=str, default="", help="Sciezka pliku wyjsciowego")
+    report_parser.add_argument(
+        "--preview", action="store_true", help="Pokaz tekstowy podglad raportu w terminalu"
+    )
+
+    diagram_parser = subparsers.add_parser(
+        "diagram",
+        help="Wygeneruj diagram z szablonu",
+        description="Tworzy diagram z szablonu Diagrams i zapisuje go jako .drawio, SVG, Mermaid albo HTML.",
+        epilog="Przyklad: aoa-cli diagram --template Flowchart --format html --output data/diagrams/flowchart.html",
+        formatter_class=formatter,
+    )
+    diagram_parser.add_argument(
+        "--template", choices=DRAWIO_TEMPLATES, default="Flowchart", help="Szablon diagramu"
+    )
+    diagram_parser.add_argument(
+        "--format",
+        choices=["drawio", "svg", "mermaid", "html"],
+        default="html",
+        help="Format eksportu diagramu",
+    )
+    diagram_parser.add_argument("--output", type=str, default="", help="Sciezka pliku wyjsciowego")
+
+    alice_parser = subparsers.add_parser(
+        "alice",
+        help="Zapytaj ALICE z terminala",
+        description="Uzywa tej samej bazy wiedzy co asystent w GUI i zwraca praktyczna odpowiedz.",
+        epilog='Przyklad: aoa-cli alice "Jak dziala SolutionTree?" --sources 3',
+        formatter_class=formatter,
+    )
+    alice_parser.add_argument("question", type=str, help="Pytanie do ALICE")
+    alice_parser.add_argument(
+        "--sources", type=int, default=0, help="Ile dopasowanych zrodel pokazac"
     )
 
     interactive_parser = subparsers.add_parser(

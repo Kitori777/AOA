@@ -63,7 +63,7 @@ class ReadmePage(ctk.CTkFrame):
             row=0, column=0, sticky="ew", padx=18, pady=(18, 8)
         )
         self._info_card("Cel modułu", step.goal, row=1)
-        self._list_card("Co kliknąć", step.clicks, row=2, icon="✅")
+        self._list_card("Co kliknąć", step.clicks, row=2, icon="✔")
         self._info_card("Na czym to polega", step.explanation, row=3)
         self._list_card("Warto pamiętać", step.good_to_know, row=4, icon="💡")
 

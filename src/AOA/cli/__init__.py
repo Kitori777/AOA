@@ -6,8 +6,12 @@ import path as a thin import-only facade.
 """
 
 from .commands import (
+    command_alice,
+    command_analytics,
+    command_diagram,
     command_generate,
     command_preview,
+    command_report,
     command_solve,
     command_status,
     command_sto_run,
@@ -54,9 +58,13 @@ __all__ = [
     "ask",
     "build_examples_text",
     "build_parser",
+    "command_alice",
+    "command_analytics",
+    "command_diagram",
     "command_generate",
     "command_interactive",
     "command_preview",
+    "command_report",
     "command_solve",
     "command_status",
     "command_sto_run",

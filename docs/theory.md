@@ -1,142 +1,135 @@
-# 📘 TEORIA – Production Optimization
+# Teoria AOA: ML, harmonogramowanie STO i interpretacja wynikow
 
-## 1. Wczytanie danych produkcyjnych i technicznych
+Ten dokument opisuje, jak dzialaja algorytmy pokazywane w zakladce `Theory`.
+Najwazniejsza zasada: nie wszystkie modele ML dzialaja tak samo. Random Forest i
+ExtraTrees sa zespolami wielu niezaleznych drzew, Gradient Boosting buduje drzewa
+po kolei jako poprawki bledow, HistGradient robi to szybciej na koszykach wartosci,
+a regresja logistyczna jest liniowym klasyfikatorem.
 
-System rozpoczyna działanie od wczytania danych produkcyjnych oraz technicznych zapisanych w pliku CSV.  
-Dane obejmują między innymi informacje o:
+## 1. Dane i cechy
 
-- kształcie detalu,
-- materiale,
-- czasie produkcji,
-- terminie realizacji,
-- ilości odpadu,
-- kosztach,
-- wymiarach geometrycznych,
-- wybranych parametrach technicznych procesu.
+Aplikacja wczytuje dane tabelaryczne z GUI, CSV, TXT albo TSV. Dla modeli ML
+tworzony jest zestaw cech liczbowych, np. czas produkcji, termin, koszt,
+material, odpad albo syntetyczne wskazniki procesu. Braki danych sa uzupelniane
+mediana.
 
-Na tym etapie użytkownik wybiera plik wejściowy, a system dokonuje wstępnej walidacji danych i umożliwia ich podgląd.  
-Pozwala to upewnić się, że dane zostały poprawnie załadowane oraz nadają się do dalszej analizy.
+Drzewa decyzyjne, Random Forest, ExtraTrees i boosting drzewiasty nie potrzebuja
+skalowania cech w taki sam sposob jak modele liniowe. Skalowanie ma znaczenie
+szczegolnie dla regresji logistycznej oraz modeli opartych o odleglosci lub
+marginesy.
 
----
+## 2. Regresja a klasyfikacja
 
-## 2. Inżynieria cech (Feature Engineering)
+Modele `Quality*` i `Delay*` sa regresorami. Ich wynik jest liczba:
 
-Z surowych danych wejściowych system tworzy zestaw cech opisujących proces produkcyjny w sposób ilościowy i decyzyjny.  
-Celem tego etapu jest zwiększenie informatywności danych oraz poprawa jakości uczenia modeli.
+- jakosc, np. `pred_quality = 0.82`,
+- opoznienie, np. `pred_delay = 3.4 h`.
 
-Tworzone cechy obejmują między innymi:
+Modele `Schedule*` sa klasyfikatorami. Ich wynik jest klasa strategii, np.
+`MT`, `MO` albo `MZO`, czesto z prawdopodobienstwami klas.
 
-- kodowanie cech kategorialnych, takich jak kształt i materiał,
-- normalizację odpadu względem wartości maksymalnej,
-- relację czasu produkcji do dostępnego terminu realizacji,
-- koszt czasu produkcji jako iloczyn ceny i czasu,
-- presję terminu wynikającą z krótkiego czasu realizacji,
-- pole powierzchni detalu obliczane na podstawie jego geometrii.
+Metryki regresji:
 
-Dzięki temu modele uczą się nie tylko na wartościach surowych, ale również na zależnościach lepiej opisujących realny proces produkcyjny.
+- `RMSE` mocno karze duze bledy,
+- `MAE` pokazuje przecietny blad w prostszej interpretacji,
+- `R2` pokazuje, ile zmiennosci celu wyjasnia model.
 
----
+Metryki klasyfikacji:
 
-## 3. Modelowanie jakości i strategii – Random Forest
+- `Accuracy` pokazuje udzial poprawnych klas,
+- `F1` laczy precyzje i czulosc, szczegolnie przy nierownych klasach.
 
-Do predykcji jakości produktu oraz wyboru strategii harmonogramowania system wykorzystuje algorytm **Random Forest**.
+## 3. Random Forest
 
-Jest to metoda uczenia zespołowego, w której wiele drzew decyzyjnych budowanych jest na losowych podzbiorach danych i cech.  
-Każde drzewo generuje własną predykcję, a wynik końcowy wyznaczany jest jako:
+Random Forest buduje wiele drzew na losowych probkach danych. Kazde drzewo uczy
+sie osobno, a potem wyniki sa laczone:
 
-- średnia predykcji w przypadku regresji, np. dla jakości produktu,
-- głosowanie większościowe w przypadku klasyfikacji, np. dla wyboru strategii harmonogramowania.
+- w regresji wynik jest srednia z wielu drzew,
+- w klasyfikacji wynik jest glosowaniem albo srednia prawdopodobienstw klas.
 
-Zaletą tego podejścia jest:
+To jest bagging. Jego sens polega na zmniejszeniu niestabilnosci pojedynczego
+drzewa. Random Forest moze tez uzywac kontroli OOB, czyli oceny na rekordach,
+ktorych dane drzewo nie dostalo w swojej probce.
 
-- dobra odporność na szum danych,
-- mniejsze ryzyko przeuczenia niż w przypadku pojedynczego drzewa,
-- możliwość modelowania zależności nieliniowych.
+## 4. ExtraTrees
 
----
+ExtraTrees jest podobny do Random Forest, ale wprowadza mocniejsza losowosc.
+Drzewa losuja nie tylko probki/cechy, ale tez progi podzialu. Dzieki temu model
+czesto jest szybki i odporny na szum, ale trzeba sprawdzic train/test, czy
+losowosc faktycznie pomaga dla danego zbioru.
 
-## 4. Predykcja opóźnień – Gradient Boosting
+## 5. Gradient Boosting
 
-Do estymacji opóźnień produkcyjnych system wykorzystuje model **Gradient Boosting**.
+Gradient Boosting nie buduje drzew niezaleznie. Dziala sekwencyjnie:
 
-Algorytm ten buduje kolejne drzewa decyzyjne sekwencyjnie.  
-Każde następne drzewo uczy się korygować błędy popełnione przez wcześniejsze modele, dzięki czemu predykcja staje się coraz dokładniejsza.
+1. startuje od prostej predykcji bazowej,
+2. liczy blad,
+3. buduje male drzewo, ktore poprawia ten blad,
+4. dodaje poprawke z mala sila (`learning_rate`),
+5. powtarza proces wiele razy.
 
-Model ten dobrze sprawdza się w zadaniach regresyjnych, szczególnie wtedy, gdy zależności pomiędzy cechami są złożone i nieliniowe.
+Predykcja koncowa jest suma predykcji bazowej i kolejnych poprawek. Dlatego
+boosting potrafi dobrze lapac trudne zaleznosci, ale moze sie przeuczyc, jesli
+liczba drzew albo glebokosc sa zbyt duze. W aplikacji stosowane jest early
+stopping tam, gdzie dany model to wspiera.
 
----
+## 6. HistGradient Boosting
 
-## 5. Optymalizacja harmonogramu produkcji
+HistGradient Boosting to szybka odmiana boostingu. Zamiast sprawdzac kazda
+wartosc cechy osobno, zamienia wartosci na koszyki i liczy histogramy. To
+przyspiesza uczenie na wiekszych danych i nadal zachowuje logike boostingu:
+kolejne drzewa poprawiaja bledy poprzedniego wyniku.
 
-System implementuje kilka klasycznych strategii harmonogramowania, takich jak:
+## 7. Regresja logistyczna
 
-- **EDF (Earliest Deadline First)** – priorytet mają zlecenia z najbliższym terminem,
-- **SPT (Shortest Processing Time)** – priorytet mają zlecenia o najkrótszym czasie realizacji,
-- **LPT (Longest Processing Time)** – priorytet mają zlecenia o najdłuższym czasie realizacji,
-- **Slack Time** – priorytet zależy od zapasu czasu do terminu realizacji.
+`Schedule_LOG` nie jest drzewem. To liniowy baseline klasyfikacyjny:
 
-Każdy harmonogram oceniany jest za pomocą funkcji celu, która uwzględnia:
+- dane sa imputowane,
+- cechy sa skalowane,
+- model uczy wagi cech,
+- softmax zamienia wyniki liniowe na prawdopodobienstwa klas,
+- wygrywa klasa z najwyzszym prawdopodobienstwem.
 
-- całkowity czas realizacji,
-- łączną sumę opóźnień.
+Regresja logistyczna jest prostsza niz modele drzewiaste, ale bardzo przydatna
+jako punkt odniesienia. Jesli prosty model dziala podobnie dobrze jak zlozony,
+to dane moga miec prosta strukture.
 
-Dzięki temu możliwe jest porównanie kilku strategii i wybór wariantu najlepiej dopasowanego do aktualnych warunków produkcyjnych.
+## 8. STO i heurystyki harmonogramowania
 
----
+Heurystyki STO nie sa modelami ML. One nie ucza sie wag ani drzew. Ich zadaniem
+jest ulozenie kolejki zlecen i policzenie opoznien.
 
-## 6. Wizualizacja danych i modeli
+Dla kazdego zlecenia:
 
-System umożliwia wizualizację danych oraz uproszczonych modeli decyzyjnych.  
-Dostępne są między innymi:
+```text
+Cj = czas zakonczenia zlecenia j
+dj = termin zlecenia j
+Tj = max(0, Cj - dj)
+STO = suma Tj
+```
 
-- wykresy punktowe,
-- wykresy liniowe,
-- histogramy,
-- boxploty,
-- wykresy Gantta,
-- macierze korelacji,
-- macierze podobieństw,
-- uproszczone drzewa decyzyjne.
+Im mniejsze `STO`, tym lepsza kolejnosc.
 
-Wizualizacje wspierają interpretację danych, ułatwiają analizę zależności oraz pomagają zrozumieć sposób działania modeli.
+Przyklady metod:
 
----
+- `MT / EDD` sortuje po terminie,
+- `MO / SPT` sortuje po krotkim czasie obrobki,
+- `MZO / LPT` zaczyna od dlugich zlecen,
+- `MOPT` szuka dokladnie najlepszej kolejnosci,
+- `GENETIC` ulepsza populacje kolejnosci przez mutacje i krzyzowanie,
+- `LOCAL_SEARCH` poprawia kolejke lokalnymi zamianami,
+- `RANDOM_RESTART` probuje wielu startow i wybiera najlepszy wynik.
 
-## 7. Prezentacja wyników i wsparcie decyzyjne
+## 9. Jak czytac Theory w aplikacji
 
-Wyniki działania systemu prezentowane są w formie czytelnych tabel, wykresów i komunikatów tekstowych.  
-Użytkownik może uzyskać informacje dotyczące:
+Zakladka `Theory` pokazuje kroki osobno dla kazdego typu algorytmu:
 
-- przewidywanej jakości,
-- przewidywanego opóźnienia,
-- priorytetu zlecenia,
-- sugerowanej strategii harmonogramowania.
+- lasy: wiele drzew i agregacja,
+- ExtraTrees: mocniej losowe progi,
+- boosting: kolejne poprawki bledow,
+- HistGradient: koszyki wartosci i histogramy,
+- regresja logistyczna: skalowanie, wagi, softmax,
+- STO: kolejka, czasy zakonczenia, opoznienia i ranking.
 
-Całość tworzy spójny system wspomagania decyzji, oparty na danych, analizie statystycznej oraz modelach uczenia maszynowego.
-
----
-
-## 8. Znaczenie praktyczne projektu
-
-Aplikacja może stanowić podstawę do budowy prostego systemu wspomagania decyzji w środowisku produkcyjnym.  
-Pozwala ona:
-
-- analizować dane procesowe,
-- szacować jakość i ryzyko opóźnień,
-- porównywać strategie harmonogramowania,
-- wspierać wybór kolejności realizacji zleceń.
-
-W obecnej wersji projekt ma charakter edukacyjno-analityczny, ale jego architektura może zostać w przyszłości rozwinięta o bardziej zaawansowane modele, dodatkowe źródła danych oraz integrację z rzeczywistymi procesami produkcyjnymi.
-
-
-## Rozszerzone modele ML i heurystyki STO
-
-W bieżącej wersji panel wyboru modeli został rozszerzony tak, aby użytkownik mógł porównywać różne podejścia dla podobnych celów. W trybie `classic` dostępnych jest 12 wariantów ML:
-
-- `Quality`, `Quality_ET`, `Quality_GB`, `Quality_HGB` — cztery modele regresyjne dla jakości, patrzące odpowiednio na stabilność lasu, większą losowość ExtraTrees, poprawianie błędów przez boosting oraz szybki boosting histogramowy.
-- `Delay`, `Delay_RF`, `Delay_ET`, `Delay_HGB` — cztery modele regresyjne dla opóźnień, skupione na ryzyku przekroczenia terminu i dużych błędach.
-- `Schedule`, `Schedule_ET`, `Schedule_GB`, `Schedule_LOG` — cztery klasyfikatory strategii harmonogramowania, od modeli drzewiastych po prosty baseline liniowy.
-
-Modele heurystyczne STO zostały rozszerzone do zestawu 13 metod: `MT`, `MO`, `MZO`, `MOPT`, `GENETIC`, `SLACK`, `CR`, `EDD_SPT`, `SPT_EDD`, `LPT_EDD`, `NEH`, `LOCAL_SEARCH`, `RANDOM_RESTART`. Każda metoda ma opis, na co patrzy: termin, czas obróbki, zapas, dokładne minimum STO, krytyczność, wariant wstawiania lub lokalne poprawki kolejności.
-
-Architektura została przygotowana modułowo: definicje modeli ML znajdują się w `src/AOA/core/ml_models/`, a definicje heurystyk w `src/AOA/core/mh_models/`. Dzięki temu można później dopisywać kolejne warianty bez przeciążania głównych plików aplikacji.
+Panel po prawej pokazuje, co dzieje sie w aktualnym kroku, mini-pseudokod,
+stan przykladu i wyjasnienie, dlaczego etap ma znaczenie.

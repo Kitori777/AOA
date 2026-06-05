@@ -19,6 +19,7 @@ class TheoryPage(ctk.CTkFrame):
         self.model_buttons: dict[str, ctk.CTkButton] = {}
         self.family_buttons: dict[str, ctk.CTkButton] = {}
         self.step_cards: list[ctk.CTkFrame] = []
+        self.hero_value_labels: dict[str, ctk.CTkLabel] = {}
         self.example_values = {"mt": 0.60, "mo": 0.30, "mzo": 0.10, "gen": 0.20}
         self.example_value_labels: dict[str, ctk.CTkLabel] = {}
         self._build_layout()
@@ -40,6 +41,7 @@ class TheoryPage(ctk.CTkFrame):
             size=13,
             color="#cbd5e1",
         ).grid(row=1, column=0, sticky="w", padx=24, pady=(0, 14))
+        self._build_hero_stats(header)
 
         top = make_card(self, radius=14, fg_color="#0d1a26")
         top.grid(row=1, column=0, sticky="ew", padx=14, pady=(6, 8))
@@ -50,7 +52,7 @@ class TheoryPage(ctk.CTkFrame):
         family_box.grid(row=0, column=0, sticky="w", padx=12, pady=10)
         self.family_buttons["ml"] = ctk.CTkButton(
             family_box,
-            text="⚙  Modele ML",
+            text="ML",
             width=120,
             height=34,
             command=lambda: self._set_family("ml"),
@@ -58,7 +60,7 @@ class TheoryPage(ctk.CTkFrame):
         self.family_buttons["ml"].grid(row=0, column=0, padx=(0, 6))
         self.family_buttons["mh"] = ctk.CTkButton(
             family_box,
-            text="✣  Modele heurystyczne",
+            text="Heurystyki",
             width=170,
             height=34,
             command=lambda: self._set_family("mh"),
@@ -74,7 +76,7 @@ class TheoryPage(ctk.CTkFrame):
         compare = ctk.CTkFrame(top, fg_color="transparent")
         compare.grid(row=0, column=2, sticky="e", padx=(0, 14), pady=10)
         label(compare, "Porównaj modele:", size=12, weight="bold").grid(row=0, column=0, padx=8)
-        ctk.CTkButton(compare, text="▥  Porównaj", width=118, command=self._compare_models).grid(
+        ctk.CTkButton(compare, text="Porównaj", width=118, command=self._compare_models).grid(
             row=0, column=1
         )
 
@@ -160,12 +162,38 @@ class TheoryPage(ctk.CTkFrame):
         self._build_model_buttons()
         self._refresh_family_buttons()
         self._refresh_model_buttons()
+        self._update_hero_stats(model)
         self._render_data_card(model)
         self._render_info_card(model)
         self._render_step_cards(model)
         self.animation.set_model(model)
         self.animation.set_example_values(self.example_values)
         self._render_right_panel(model, self.active_step)
+
+    def _build_hero_stats(self, parent: ctk.CTkFrame) -> None:
+        stats = ctk.CTkFrame(parent, fg_color="transparent")
+        stats.grid(row=0, column=1, rowspan=2, sticky="e", padx=18, pady=12)
+        items = [("Tryb", "ML"), ("Model", "-"), ("Kroki", "12")]
+        for col, (title, value) in enumerate(items):
+            card = ctk.CTkFrame(
+                stats,
+                fg_color="#102438",
+                corner_radius=12,
+                border_width=1,
+                border_color="#26435f",
+            )
+            card.grid(row=0, column=col, padx=4)
+            label(card, title, size=10, color="#93c5fd").grid(
+                row=0, column=0, sticky="w", padx=8, pady=(6, 0)
+            )
+            out = label(card, value, size=12, weight="bold")
+            out.grid(row=1, column=0, sticky="w", padx=8, pady=(0, 6))
+            self.hero_value_labels[title] = out
+
+    def _update_hero_stats(self, model: TheoryModel) -> None:
+        self.hero_value_labels["Tryb"].configure(text="ML" if model.family == "ml" else "STO")
+        self.hero_value_labels["Model"].configure(text=model.short_title[:16])
+        self.hero_value_labels["Kroki"].configure(text=str(len(model.steps)))
 
     def _on_step_changed(self, index: int) -> None:
         self.active_step = index
@@ -214,23 +242,24 @@ class TheoryPage(ctk.CTkFrame):
                 "• p/d – wskaźnik pomocniczy do rankingu"
             )
         else:
-            headers = ["ID", "Klasa", "MT", "MO", "MZO", "GEN"]
+            headers = ["ID", "Cel", "czas_h", "termin_h", "koszt", "material"]
             rows = [
                 (
                     row.row_id,
-                    row.klass,
-                    self.example_values["mt"] if row.row_id == 1 else row.mt,
-                    self.example_values["mo"] if row.row_id == 1 else row.mo,
-                    self.example_values["mzo"] if row.row_id == 1 else row.mzo,
+                    "jakosc",
+                    8 + (self.example_values["mt"] if row.row_id == 1 else row.mt) * 6,
+                    24 + (self.example_values["mo"] if row.row_id == 1 else row.mo) * 42,
+                    100 + (self.example_values["mzo"] if row.row_id == 1 else row.mzo) * 160,
                     self.example_values["gen"] if row.row_id == 1 else row.gen,
                 )
                 for row in EXAMPLE_ROWS
             ]
             note = (
                 "Wyjaśnienie kolumn:\n"
-                "• Klasa – etykieta / strategia (A, B, C)\n"
-                "• MT, MO, MZO, GEN – cechy opisujące instancję\n"
-                "• Wartości znormalizowane w zakresie [0, 1]"
+                "• Cel – zadanie modelu: jakosc, opoznienie albo schedule\n"
+                "• czas_h, termin_h, koszt – realne cechy produkcyjne dla ML\n"
+                "• material – przykladowy sygnal opisujacy rekord\n"
+                "• MT/MO/MZO sa osobno w heurystykach/STO, nie jako mechanika ML"
             )
         for col, text in enumerate(headers):
             label(self.data_card, text, size=10, weight="bold", color="#e5eef9").grid(
@@ -269,8 +298,9 @@ class TheoryPage(ctk.CTkFrame):
         label(panel, "Zmień przykład", size=12, weight="bold").grid(
             row=0, column=0, columnspan=3, sticky="w", padx=10, pady=(10, 4)
         )
+        labels = {"mt": "czas", "mo": "termin", "mzo": "koszt", "gen": "material"}
         for idx, key in enumerate(("mt", "mo", "mzo", "gen"), start=1):
-            label(panel, key.upper(), size=10, weight="bold", color="#dbeafe").grid(
+            label(panel, labels[key], size=10, weight="bold", color="#dbeafe").grid(
                 row=idx, column=0, sticky="w", padx=10, pady=3
             )
             value_label = label(panel, f"{self.example_values[key]:.2f}", size=10, color="#cbd5e1")
@@ -405,14 +435,15 @@ class TheoryPage(ctk.CTkFrame):
         card = make_card(self.right)
         card.grid(row=0, column=0, sticky="ew")
         card.grid_columnconfigure(0, weight=1)
-        label(card, "🧠  Co dzieje się w tym kroku?", size=15, weight="bold").grid(
+        label(card, "Co dzieje się w tym kroku?", size=15, weight="bold").grid(
             row=0, column=0, sticky="w", padx=16, pady=(16, 8)
         )
+        self._render_pipeline_row(card, step_index, len(model.steps))
         label(card, f"Krok {step_index + 1}: {step}", size=13, weight="bold").grid(
-            row=1, column=0, sticky="w", padx=16, pady=(0, 6)
+            row=2, column=0, sticky="w", padx=16, pady=(2, 6)
         )
         label(card, detail, size=12, color="#cbd5e1", wraplength=292).grid(
-            row=2, column=0, sticky="ew", padx=16, pady=(0, 16)
+            row=3, column=0, sticky="ew", padx=16, pady=(0, 16)
         )
 
         code_card = make_card(self.right, fg_color="#101923")
@@ -463,7 +494,7 @@ class TheoryPage(ctk.CTkFrame):
         why = make_card(self.right, fg_color="#111f2d")
         why.grid(row=3, column=0, sticky="ew", pady=(10, 0))
         why.grid_columnconfigure(0, weight=1)
-        label(why, "ⓘ  Dlaczego to ważne?", size=14, weight="bold").grid(
+        label(why, "Dlaczego to ważne?", size=14, weight="bold").grid(
             row=0, column=0, sticky="w", padx=16, pady=(14, 6)
         )
         label(
@@ -473,7 +504,7 @@ class TheoryPage(ctk.CTkFrame):
         next_card = make_card(self.right, fg_color="#111f2d")
         next_card.grid(row=4, column=0, sticky="ew", pady=(10, 0))
         next_card.grid_columnconfigure(0, weight=1)
-        label(next_card, "➜  Co będzie dalej?", size=14, weight="bold", color="#bbf7d0").grid(
+        label(next_card, "Co będzie dalej?", size=14, weight="bold", color="#bbf7d0").grid(
             row=0, column=0, sticky="w", padx=16, pady=(14, 6)
         )
         next_items = self._next_items(model, step_index)
@@ -485,28 +516,49 @@ class TheoryPage(ctk.CTkFrame):
         tip = make_card(self.right, fg_color="#2b2717", border=True)
         tip.grid(row=5, column=0, sticky="ew", pady=(10, 0))
         tip.grid_columnconfigure(0, weight=1)
-        label(tip, "💡  Wskazówka", size=13, weight="bold", color="#fde68a").grid(
+        label(tip, "Wskazówka", size=13, weight="bold", color="#fde68a").grid(
             row=0, column=0, sticky="w", padx=16, pady=(14, 4)
         )
         label(tip, model.tip, size=11, color="#f5e6b8", wraplength=292).grid(
             row=1, column=0, sticky="ew", padx=16, pady=(0, 14)
         )
 
+    def _render_pipeline_row(self, parent: ctk.CTkFrame, step_index: int, total_steps: int) -> None:
+        flow = ctk.CTkFrame(parent, fg_color="#0f1b2a", corner_radius=10)
+        flow.grid(row=1, column=0, sticky="ew", padx=16, pady=(0, 4))
+        phases = ("Dane", "Cechy", "Model", "Wynik")
+        phase_id = min(3, int((step_index / max(1, total_steps - 1)) * 4))
+        for col, phase in enumerate(phases):
+            active = col <= phase_id
+            chip = ctk.CTkFrame(
+                flow,
+                fg_color="#123f78" if active else "#1f2937",
+                corner_radius=8,
+                border_width=1,
+                border_color="#5eb1ff" if active else "#374151",
+            )
+            chip.grid(row=0, column=col * 2, padx=4, pady=6)
+            label(chip, phase, size=10, weight="bold", color="#e5eef9").grid(
+                row=0, column=0, padx=10, pady=4
+            )
+            if col < len(phases) - 1:
+                label(flow, ">", size=12, color="#64748b").grid(row=0, column=col * 2 + 1, padx=2)
+
     def _state_text(self, model: TheoryModel, step_index: int) -> str:
         if model.family == "ml":
             states = (
-                "Bieżący trening ma kilka nowych rekordów produkcyjnych.",
-                "W katalogu modeli znajdujemy wcześniejsze packi z tym samym typem modelu.",
-                "Zbiór treningowy rośnie: nowe rekordy + historia bez duplikatów.",
-                "Powstają kolumny numeryczne gotowe dla sklearn.",
-                "Scaler zapisuje skalę, żeby solve używał tych samych przeliczeń.",
-                "Estymatory dopasowują progi, wagi lub granice decyzyjne.",
-                "Jedna instancja jest prowadzona przez aktualny model.",
-                "Cząstkowe wyniki pokazują, skąd bierze się decyzja.",
-                "Agregacja redukuje przypadkowość pojedynczego drzewa.",
-                "Rozkład pozwala ocenić pewność, nie tylko samą etykietę.",
-                "Predykcja trafia do kolumny wynikowej dla CSV.",
-                "Pack zapisuje model, scaler, metadane i dane do następnego treningu.",
+                "Rekord produkcyjny ma cechy, z których model ma przewidzieć cel.",
+                "Braki danych są uzupełniane, żeby algorytm dostał pełną tabelę.",
+                "Model widzi macierz cech X i cel y; schedule jest klasyfikacją, quality/delay regresją.",
+                "W modelach drzewiastych powstają podziały cech, a w logistic powstają wagi klas.",
+                "Ten krok pokazuje właściwy mechanizm algorytmu, nie heurystyki MT/MO/MZO.",
+                "Model dopasowuje zależności: progi, poprawki błędu albo granicę liniową.",
+                "Jedna instancja przechodzi przez wyuczony model.",
+                "Wyniki cząstkowe zależą od typu modelu: głosy drzew, poprawki boostingu albo softmax.",
+                "Agregacja łączy wiele decyzji w jeden stabilniejszy wynik.",
+                "Walidacja sprawdza, czy model działa na nowych danych, nie tylko na treningu.",
+                "Predykcja trafia do wyników: jakość, opóźnienie albo strategia schedule.",
+                "Zapis modelu pozwala potem użyć tej samej logiki w solve i raportach.",
             )
         else:
             states = (
@@ -537,10 +589,10 @@ class TheoryPage(ctk.CTkFrame):
             train_rows = 5 + history_rows if step_index >= 2 else 5
             confidence = min(0.95, 0.52 + signal * 0.38 + step_index * 0.01)
             return (
-                ("MT", f"{self.example_values['mt']:.2f}"),
-                ("MO", f"{self.example_values['mo']:.2f}"),
-                ("MZO", f"{self.example_values['mzo']:.2f}"),
-                ("GEN", f"{self.example_values['gen']:.2f}"),
+                ("czas_h", f"{8 + self.example_values['mt'] * 6:.1f}"),
+                ("termin_h", f"{24 + self.example_values['mo'] * 42:.1f}"),
+                ("koszt", f"{100 + self.example_values['mzo'] * 160:.0f}"),
+                ("material", f"{self.example_values['gen']:.2f}"),
                 ("historia", f"{history_rows} rekordów"),
                 ("zbiór uczący", f"{train_rows} rekordów"),
                 ("pewność", f"{confidence:.2f}"),
@@ -555,18 +607,18 @@ class TheoryPage(ctk.CTkFrame):
     def _why_text(self, model: TheoryModel, step_index: int) -> str:
         if model.family == "ml":
             texts = (
-                "Bez nowych danych model nie ma świeżego sygnału z aktualnego uruchomienia.",
-                "Historia sprawia, że model nie zaczyna od zera przy każdym treningu.",
-                "Łączenie historii z nowymi rekordami daje szerszy i stabilniejszy zbiór uczący.",
-                "Dobre cechy są mostem między tabelą produkcyjną a algorytmem ML.",
-                "Wspólna skala stabilizuje analizę i ułatwia porównywanie kolumn.",
-                "Trening jest miejscem, w którym model faktycznie dopasowuje zależności.",
-                "Ścieżka decyzji pokazuje, jak konkretne liczby zmieniają wynik.",
-                "Wynik pojedynczego estymatora jest tylko fragmentem całej decyzji.",
-                "Łączenie głosów daje bardziej odporną predykcję.",
-                "Rozkład pokazuje nie tylko decyzję, ale też poziom pewności.",
-                "Końcowa predykcja jest tym, co później widzi użytkownik w wynikach.",
-                "Zapis doświadczenia pozwala kolejnym treningom korzystać z poprzednich uruchomień.",
+                "Bez jasnego celu model nie wie, czy ma przewidywać jakość, opóźnienie czy schedule.",
+                "Uzupełnienie braków chroni przed błędem technicznym i fałszywym porównaniem modeli.",
+                "Rozdzielenie X i y pokazuje, czego model używa, a co ma przewidzieć.",
+                "Drzewa, boosting i logistic uczą się zupełnie inaczej, dlatego animacja musi je rozdzielać.",
+                "To miejsce odcina ML od STO: MT/MO/MZO są regułami kolejkowania, a nie etapami lasu ani boostingu.",
+                "Dopasowanie zależności jest właściwym treningiem modelu.",
+                "Przejście jednej instancji pokazuje, co stanie się z nowym zleceniem.",
+                "Cząstkowe wyniki pomagają wyjaśnić, skąd bierze się predykcja.",
+                "Agregacja zmniejsza ryzyko, że jedna przypadkowa decyzja zdominuje wynik.",
+                "Walidacja jest kontrolą jakości modelu na danych niewidzianych.",
+                "Końcowa predykcja to wartość widoczna potem w Results, Visual i raportach.",
+                "Zapis modelu pozwala odtworzyć wynik i używać go w kolejnych workflow.",
             )
         else:
             texts = (
@@ -632,12 +684,16 @@ class TheoryPage(ctk.CTkFrame):
             bar = ctk.CTkProgressBar(row, height=10, progress_color=self._compare_color(item))
             bar.set(score)
             bar.grid(row=2, column=0, sticky="ew", padx=10, pady=(0, 4))
+            explainability = min(0.95, score + (0.08 if item.family == "mh" else 0.0))
+            label(row, f"stabilność: {score:.2f}", size=10, color="#cbd5e1").grid(
+                row=3, column=0, sticky="w", padx=10, pady=(0, 2)
+            )
             label(
                 row,
-                f"czytelność {score:.2f} | koszt treningu {self._training_cost_label(item)}",
+                f"wyjaśnialność: {explainability:.2f} | koszt treningu: {self._training_cost_label(item)}",
                 size=10,
                 color="#cbd5e1",
-            ).grid(row=3, column=0, sticky="w", padx=10, pady=(0, 8))
+            ).grid(row=4, column=0, sticky="w", padx=10, pady=(0, 8))
 
     def _compare_score(self, model: TheoryModel, index: int) -> float:
         if model.family == "mh":

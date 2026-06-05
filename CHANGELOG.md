@@ -1,5 +1,64 @@
 # CHANGELOG
 
+## [0.7.0] - 2026-06-05
+
+### Added
+
+* Dodano `Analytics Studio` inspirowane Data Analytics: workflow jakości danych, executive summary, dashboardy, KPI, diagnostyka metryk, segmenty, korelacje, outliery, słownik danych, trend czasu, plan akcji i plan notebooka.
+* Dodano pełny `Report Builder` w stylu LaTeX/Overleaf: własne raporty, sekcje, KPI, wykresy, rekomendacje, pliki z innych modułów, podgląd HTML, podgląd/eksport PDF, eksport HTML, `.tex` i `.md`.
+* Dodano komendy raportowe podobne do LaTeX/Quarto: `\title{}`, `\section{}`, `\subsection{}`, `\textbf{}`, `\emph{}`, `\code{}`, `\url{}`, wzory inline `$...$`, `\equation{}`, `$$...$$`, `\label{}`, `\ref{}`, `\caption{}`, `\footnote{}`, `\pagebreak`, callouty, cytaty, checklisty, `\includegraphics{}` i `\includehtml{}`.
+* Dodano moduł `Diagrams`: interaktywny edytor diagramów z szablonami flowchart, UML, ERD, BPMN, pipeline i architekturą, kształtami, połączeniami, etykietami oraz eksportem `.drawio`, SVG, Mermaid i HTML.
+* Dodano rozbudowane menu pod prawym przyciskiem w diagramach: edycja tekstu, duplikowanie, połączenia, zmiana kształtu, wypełnienia, obramowania, rozmiaru, wyrównania, warstw i usuwanie elementów.
+* Dodano `ALICE` jako dock/panel asystenta: avatar, animacje mówienia, fala głosu, nastroje, akcje nawigacji po aplikacji, autopokaz, odpowiedzi o modułach i baza wiedzy o workflow.
+* Dodano bazę wiedzy ALICE oraz samonaukę z lokalnych źródeł i raportów: dokumentacja aplikacji, modele ML/STO, workflow, testy, mapowanie źródeł i checklisty opanowania wiedzy.
+* Dodano assety ALICE w `src/AOA/assets/assistant`, `model_pack.json` oraz skrypt developerski `scripts/generate_assistant_model_pack.py` do regeneracji paczki wizualnej.
+* Dodano wybór biblioteki wizualizacji w `Visual Lab`: Matplotlib, Seaborn, Plotly, Altair, NetworkX i D3/HTML tam, gdzie dany renderer ma sens.
+* Dodano nowe komendy CLI dla funkcji z `0.7.0`: `analytics`, `report`, `diagram` i `alice`, aby z terminala uruchamiać analizy, generować raporty, eksportować diagramy i pytać ALICE bez GUI.
+* Dodano nowe i rozszerzone typy wykresów dla bibliotek: dashboardy produkcyjne, heatmapy, macierze korelacji, pair ploty, box/violin/hist/KDE, ranking kolumn, grafy NetworkX, układy drzew i widoki interaktywne HTML.
+* Dodano interaktywny HTML dla `SolutionTree`: zoom, przesuwanie, przyciski powiększania, pokazywanie całego drzewa, ukrywanie gałęzi, przywracanie widoku i statystyki drzewa.
+* Dodano liczniki drzewa rozwiązań: liczba węzłów, liści, korzeni/poziomów, ukrytych i odrzuconych gałęzi.
+* Dodano oznaczanie ścieżek w `SolutionTree`: zielony dla najlepszej ścieżki, żółty dla wariantów odwiedzonych/pokonanych, czerwony dla odrzuconych gałęzi.
+* Dodano testy stabilności ścieżki PDF/sample dla `SolutionTree`, w tym przypadek `['z1', 'z3', 'z4', 'z2']` niezależnie od kolejności rekordów przykładowych.
+* Dodano nowy przykładowy plik `data/sample/sample_table.csv` oraz testy mapowania danych, workflow ML stack, raportów, diagramów, ALICE i jakości logowania.
+
+### Changed
+
+* Przebudowano `Visual Lab`, aby przycisk `OTWÓRZ HTML` był widoczny i umieszczony obok sterowania widokiem, a nie ginął w panelu narzędzi.
+* Uporządkowano wybór wykresów tak, aby `Decision Tree` i `ML Decision Tree` nie dublowały się jako osobne opcje.
+* Zmieniono logikę bibliotek wykresów: Plotly i Altair nie są już nadpisywane przez D3, tylko dostają własne renderery HTML albo jasny podgląd, gdy desktopowy renderer wymaga HTML.
+* Rozwinięto Seaborn i NetworkX o dodatkowe wykresy oraz dopasowanie listy dostępnych widoków do wybranej biblioteki.
+* Przebudowano `TheoryPage`, aby lepiej rozdzielała animacje ML od heurystyk STO i nie sugerowała, że wszystkie algorytmy działają jak zwykłe drzewo decyzyjne.
+* Rozwinięto animacje teorii dla modeli jakości, opóźnień i harmonogramowania, w tym kroki danych, cech, modelu, walidacji, OOB, predykcji i zapisu paczki.
+* Rozszerzono `ReadmePage` / instrukcję użytkownika o nowe moduły: Analytics, Diagrams, Report Builder, Visual HTML, ALICE i Theory.
+* Uporządkowano bazę wiedzy i samonaukę ALICE tak, aby automatyczna samonauka nie startowała sama przy imporcie na GitHuba, tylko po uruchomieniu aplikacji/użytkownika.
+* Rozszerzono dokumenty `docs/architecture.md`, `docs/workflows.md`, `docs/theory.md`, `docs/guide.md` i `docs/alice_brain.json` o aktualny stan aplikacji.
+
+### Fixed
+
+* Naprawiono błąd `ValueError: Grouper for 'cena' not 1-dimensional` w Analytics przez bezpieczniejszą obsługę metryki i wymiaru.
+* Naprawiono eksport HTML `SolutionTree`, który potrafił pokazać zbyt mały, nieczytelny fragment drzewa zamiast pełnego widoku.
+* Naprawiono czytelność wartości w HTML drzewa: tekst w węzłach jest ciemny/czarny na jasnym tle, a użytkownik może powiększać i przesuwać widok.
+* Naprawiono logikę żółtej ścieżki w drzewie dla sample/PDF, aby odwiedzona kolejność `z1 -> z3 -> z4 -> z2` była oznaczana stabilnie.
+* Naprawiono ukrywanie gałęzi w HTML: ukryte/odcięte elementy są przekreślane w etykiecie, a całe drzewo można przywrócić.
+* Naprawiono renderowanie Plotly/Altair w HTML, gdzie wcześniej pierwszeństwo D3 powodowało pusty lub zastępczy widok.
+* Naprawiono ostrzeżenia jakościowe w `visualization_service.py`, w tym mieszane wcięcia i niejednoznaczne typy etykiet/kolumn.
+* Naprawiono typy i inicjalizację w `drawio_page.py`, `analytics_page.py`, `assistant_dock.py`, `self_learning.py` i `theory_page/animation.py`, żeby `mypy` przechodził bez błędów.
+* Naprawiono formatowanie całego projektu po zmianach, aby `ruff format --check` był czysty.
+
+### Documentation
+
+* Podmieniono i rozbudowano README pod aktualny styl projektu oraz nowe funkcje: ALICE, Analytics, Diagrams, Report Builder, Visual Lab, Theory, Results i workflow ML/STO.
+* Dopisano instrukcje, co można wrzucać na GitHuba, a czego nie warto commitować z lokalnych źródeł samonauki i vendorów.
+* Zaktualizowano changelog o pełny zakres zmian wersji `0.7.0`.
+
+### Tests
+
+* `ruff check .` -> `All checks passed`
+* `ruff format --check .` -> `132 files already formatted`
+* `mypy src tests` -> `Success: no issues found in 130 source files`
+* `pytest -q` -> `398 passed, 1 warning`
+* `pytest -q tests/cli` -> `37 passed`
+
 ## [0.6.0] - 2026-05-22
 
 ### Fixed

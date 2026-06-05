@@ -1,3 +1,4 @@
+from .analytics import command_alice, command_analytics, command_diagram, command_report
 from .generate import command_generate
 from .preview import command_preview, command_status, command_summary
 from .solve import command_solve
@@ -7,6 +8,10 @@ from .workflow import command_workflow
 
 __all__ = [
     "command_generate",
+    "command_analytics",
+    "command_report",
+    "command_diagram",
+    "command_alice",
     "command_train",
     "command_solve",
     "command_sto_run",

@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import json
 import random
 from collections.abc import Callable
 from dataclasses import dataclass
-from functools import cache
+
+try:
+    from functools import cache
+except ImportError:  # Python < 3.9
+    from functools import lru_cache as cache
 from itertools import permutations
 
 import pandas as pd
@@ -461,6 +466,71 @@ def apply_sto_result_to_dataframe(
     ]
     out["sto_cumulative"] = [step_map[job_id]["sto_running"] for job_id in ordered_ids]
     out["sto_total_for_model"] = result["sto"]
+    out["solution_node_id"] = [f"B{index + 1}" for index in range(len(out))]
+    out["solution_parent_id"] = [""] + out["solution_node_id"].tolist()[:-1]
+    out["solution_label"] = out["solution_node_id"]
+    out["solution_details"] = [
+        (
+            f"job={job_id}; start={step_map[job_id]['start_time']}; "
+            f"end={step_map[job_id]['completion_time']}; STO={step_map[job_id]['sto_running']}"
+        )
+        for job_id in ordered_ids
+    ]
+    out["solution_edge_label"] = [
+        "" if index == 0 else f"rank {index + 1}" for index in range(len(out))
+    ]
+    out["solution_level"] = list(range(len(out)))
+    out["solution_order"] = list(range(1, len(out) + 1))
+    tree_records = [
+        {
+            "id": "B1",
+            "parent": "",
+            "label": "B1",
+            "details": f"model={result['method']}; STO={result['sto']}; jobs={len(ordered_ids)}",
+            "edge_label": "",
+        }
+    ]
+    next_id = 2
+    selected_parent = "B1"
+    remaining = ordered_ids[:]
+    for rank, selected_job_id in enumerate(ordered_ids, start=1):
+        selected_step = step_map[selected_job_id]
+        selected_node_id = f"B{next_id}"
+        next_id += 1
+        tree_records.append(
+            {
+                "id": selected_node_id,
+                "parent": selected_parent,
+                "label": selected_node_id,
+                "details": (
+                    f"selected={selected_job_id}; rank={rank}; "
+                    f"end={selected_step['completion_time']}; STO={selected_step['sto_running']}"
+                ),
+                "edge_label": f"z{rank}:{selected_job_id}",
+            }
+        )
+        # Show a few unselected alternatives from this branch point.
+        alternatives = [job_id for job_id in remaining if job_id != selected_job_id][:2]
+        for alt_job_id in alternatives:
+            alt_step = step_map[alt_job_id]
+            alt_node_id = f"B{next_id}"
+            next_id += 1
+            tree_records.append(
+                {
+                    "id": alt_node_id,
+                    "parent": selected_parent,
+                    "label": alt_node_id,
+                    "details": (
+                        f"alt={alt_job_id}; p={alt_step['processing_time']}; "
+                        f"d={alt_step['deadline']}; T+={alt_step['tardiness_positive']}"
+                    ),
+                    "edge_label": f"alt:{alt_job_id}",
+                }
+            )
+        selected_parent = selected_node_id
+        remaining = [job_id for job_id in remaining if job_id != selected_job_id]
+    out["solution_tree_json"] = ""
+    out.loc[out.index[0], "solution_tree_json"] = json.dumps(tree_records, ensure_ascii=False)
 
     return out.reset_index()
 

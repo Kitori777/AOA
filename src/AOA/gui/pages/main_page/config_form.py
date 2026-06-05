@@ -4,6 +4,7 @@ import customtkinter as ctk
 
 class MainPageConfigFormMixin:
     def _build_layout(self):
+        self.assistant_sections = {}
         header = ctk.CTkFrame(self)
         header.pack(fill="x", padx=20, pady=(15, 10))
         ctk.CTkLabel(header, text="ML / Optymalizacja", font=("Arial", 24, "bold")).pack(
@@ -41,6 +42,7 @@ class MainPageConfigFormMixin:
     def _build_models_section(self, parent):
         frame = ctk.CTkFrame(parent)
         frame.pack(fill="x", padx=10, pady=(10, 8))
+        self.assistant_sections["models"] = frame
         ctk.CTkLabel(frame, text="Wybór modeli", font=("Arial", 18, "bold")).pack(
             anchor="w", padx=15, pady=(12, 8)
         )
@@ -109,6 +111,7 @@ class MainPageConfigFormMixin:
     def _build_generation_section(self, parent):
         frame = ctk.CTkFrame(parent)
         frame.pack(fill="x", padx=10, pady=8)
+        self.assistant_sections["generation"] = frame
         ctk.CTkLabel(frame, text="Parametry generowania danych", font=("Arial", 18, "bold")).pack(
             anchor="w", padx=15, pady=(12, 8)
         )
@@ -166,20 +169,22 @@ class MainPageConfigFormMixin:
     def _build_actions_section(self, parent):
         frame = ctk.CTkFrame(parent)
         frame.pack(fill="x", padx=10, pady=8)
+        self.assistant_sections["actions"] = frame
         ctk.CTkLabel(frame, text="Akcje", font=("Arial", 18, "bold")).pack(
             anchor="w", padx=15, pady=(12, 10)
         )
         btns = ctk.CTkFrame(frame)
         btns.pack(fill="x", padx=10, pady=(0, 12))
-        ctk.CTkButton(btns, text="Generuj dane", command=self.gen, height=38).pack(
-            fill="x", padx=10, pady=6
+        self.btn_generate = ctk.CTkButton(btns, text="Generuj dane", command=self.gen, height=38)
+        self.btn_generate.pack(fill="x", padx=10, pady=6)
+        self.btn_load = ctk.CTkButton(
+            btns, text="Wczytaj dane (CSV)", command=self.load_from_disk, height=38
         )
-        ctk.CTkButton(btns, text="Wczytaj dane (CSV)", command=self.load_from_disk, height=38).pack(
-            fill="x", padx=10, pady=6
-        )
-        ctk.CTkButton(
+        self.btn_load.pack(fill="x", padx=10, pady=6)
+        self.btn_train = ctk.CTkButton(
             btns, text="Uruchom / zapisz wybrane modele", command=self.train, height=38
-        ).pack(fill="x", padx=10, pady=6)
+        )
+        self.btn_train.pack(fill="x", padx=10, pady=6)
         ctk.CTkButton(
             btns,
             text="▶ Rozwiąż zapisany model na wybranych danych",
