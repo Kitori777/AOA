@@ -415,8 +415,8 @@ do commitow.
 #### 1. Sklonuj repozytorium i przejdz do katalogu projektu
 
 ```bash
-git clone git@github.com:UZ-FENS/passthebranch-Kitori2137.git
-cd passthebranch-Kitori2137
+git clone https://github.com/Kitori777/AOA.git
+cd AOA
 ```
 
 #### 2. Zainstaluj zaleznosci
