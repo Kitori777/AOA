@@ -1,0 +1,6 @@
+order_id,route_km,load_kg,stops,delay_h,cost,priority
+L001,120,800,3,1.5,920,high
+L002,45,300,1,0.2,260,normal
+L003,210,1200,5,4.0,1680,high
+L004,80,500,2,0.0,510,low
+L005,160,950,4,2.2,1240,normal

@@ -1,9 +1,9 @@
 [
   {
     "id": "app_overview",
-    "aliases": ["aplikacja", "production optimization", "co robi program", "do czego sluzy", "jak zaczac"],
-    "answer": "Aplikacja Production Optimization sluzy do pracy z danymi produkcyjnymi: wczytania tabeli, trenowania modeli ML, liczenia metod STO, rysowania wykresow, budowania raportow i sprawdzania wynikow. Najprostszy przeplyw to: Main robi obliczenia, Visual pokazuje wykresy i HTML, Results pozwala sprawdzic tabele, Analytics buduje raporty, Diagrams tworzy schematy, a Theory tlumaczy algorytmy.",
-    "steps": ["Wczytaj dane albo uzyj przykladu.", "Uruchom modele w Main albo analize w Analytics.", "Sprawdz wykres w Visual i tabele w Results.", "Gdy nie rozumiesz wyniku, zapytaj ALICE o konkretny ekran albo model."]
+    "aliases": ["aplikacja", "production optimization", "co robi program", "do czego sluzy", "jak zaczac", "opowiedz cos o projekcie", "opowiedz o projekcie", "co to za projekt", "projekt aoa"],
+    "answer": "AOA - Aplikacja Optymalnego Algorytmowania sluzy do pracy od danych do decyzji: wczytania tabeli, trenowania modeli ML, liczenia metod STO, rysowania wykresow, budowania raportow i sprawdzania wynikow. Najprostszy przeplyw to: Main robi obliczenia, Visual pokazuje wykresy i HTML, Results pozwala sprawdzic tabele, Report sklada raporty, Diagrams tworzy schematy, a Theory tlumaczy algorytmy.",
+    "steps": ["Wczytaj dane albo uzyj przykladu.", "Uruchom modele w Main albo analize w Report.", "Sprawdz wykres w Visual i tabele w Results.", "Gdy nie rozumiesz wyniku, zapytaj ALICE o konkretny ekran albo model."]
   },
   {
     "id": "main_workflow",
@@ -38,7 +38,7 @@
   {
     "id": "analytics_workflow",
     "aliases": ["analytics", "analityc", "data analytics", "kpi", "raport", "notebook", "workflow analityczny"],
-    "answer": "Analytics jest panelem analitycznym. Potrafi sprawdzic jakosc danych, zbudowac dashboard, raport, KPI, diagnostyke metryk, segmenty, korelacje, outliery, pivot, slownik danych, trendy i plan notebooka. To nie tylko tekst: generuje HTML, notebook, CSV akcji i raport do dalszej pracy.",
+    "answer": "Report Studio jest panelem raportow i analityki. Potrafi sprawdzic jakosc danych, zbudowac dashboard, raport, KPI, diagnostyke metryk, segmenty, korelacje, outliery, pivot, slownik danych, trendy i plan notebooka. To nie tylko tekst: generuje HTML, notebook, CSV akcji i raport do dalszej pracy. Stara nazwa Analytics nadal dziala jako alias.",
     "steps": ["Wczytaj dane.", "Wybierz workflow, metryke i wymiar.", "Kliknij Uruchom analize albo Wykonaj wszystko.", "Otworz HTML lub Notebook .ipynb.", "W razie potrzeby przenies wybrany wykres do Visual."]
   },
   {
@@ -99,7 +99,7 @@
     "id": "data_quality",
     "aliases": ["quality danych", "jakosc danych", "braki", "duplikaty", "outlier", "walidacja danych"],
     "answer": "Jakosc danych decyduje, czy wynik jest wiarygodny. Najpierw sprawdza sie braki, duplikaty, typy kolumn, zakresy wartosci, outliery i sens relacji czas-termin. Dopiero potem warto trenowac model albo robic wnioski z wykresow.",
-    "steps": ["Sprawdz liczbe wierszy i kolumn.", "Sprawdz braki i duplikaty.", "Sprawdz kolumny liczbowe oraz kategorie.", "Obejrzyj outliery w Visual.", "Zapisz raport jakosci w Analytics."]
+    "steps": ["Sprawdz liczbe wierszy i kolumn.", "Sprawdz braki i duplikaty.", "Sprawdz kolumny liczbowe oraz kategorie.", "Obejrzyj outliery w Visual.", "Zapisz raport jakosci w Report."]
   },
   {
     "id": "html_exports",
@@ -110,8 +110,8 @@
   {
     "id": "pdf_report_export",
     "aliases": ["pdf", "eksport pdf", "raport pdf", "zapisz pdf", "report builder pdf"],
-    "answer": "Analytics Report Builder potrafi zapisac raport do PDF. HTML zostaje najlepszy do interaktywnych wykresow i osadzonych widokow, a PDF jest dobry do oddania, wyslania albo dolaczenia do dokumentacji. PDF powstaje z czytelnego podgladu raportu, wiec zawiera tytuly, sekcje, KPI, wnioski i tekstowe wyniki.",
-    "steps": ["Wejdz w Analytics.", "Otworz Report Builder.", "Dodaj wyniki, pliki, KPI, wykresy albo rekomendacje.", "Sprawdz podglad.", "Kliknij Eksport PDF albo Eksport HTML, jesli potrzebujesz interakcji."]
+    "answer": "Report Builder potrafi zapisac raport do PDF. HTML zostaje najlepszy do interaktywnych wykresow i osadzonych widokow, a PDF jest dobry do oddania, wyslania albo dolaczenia do dokumentacji. PDF powstaje z czytelnego podgladu raportu, wiec zawiera tytuly, sekcje, KPI, wnioski i tekstowe wyniki.",
+    "steps": ["Wejdz w Report.", "Otworz Report Builder.", "Dodaj wyniki, pliki, KPI, wykresy albo rekomendacje.", "Sprawdz podglad.", "Kliknij Eksport PDF albo Eksport HTML, jesli potrzebujesz interakcji."]
   },
   {
     "id": "self_learning_mode",
@@ -126,9 +126,153 @@
     "steps": ["Zostaw docs/alice_sources/README.md.", "Zostaw skondensowane pliki .md z wiedza.", "Pomin albo usun lokalne .html, jesli sa tylko cachem stron.", "Nie commituj logs/alice_selflearn ani alice_selflearn_latest.json.", "Po uruchomieniu aplikacji uzytkownik moze sam wlaczyc samonauke."]
   },
   {
+    "id": "custom_sklearn_models",
+    "aliases": ["wlasny model", "własny model", "custom model", "sklearn", "dodaj model", "dodac model", "estymator sklearn", "parametry json", "moj model ml", "mój model ml"],
+    "answer": "W Main mozna dodac wlasny model sklearn bez pisania kodu. Przycisk Wlasny model otwiera guide: wybierasz preset algorytmu, cel zadania, nazwe, estymator sklearn, skalowanie i parametry JSON. Sciezka typu sklearn.svm.SVR nie jest komenda do wpisania w terminalu, tylko pelna nazwa klasy Pythona, ktora aplikacja pozniej tworzy, trenuje i zapisuje.",
+    "steps": ["Kliknij Wlasny model w Main.", "Wybierz preset, np. RandomForest, ExtraTrees, GradientBoosting, HistGradient, SVR, KNN, Ridge albo LogisticRegression.", "Zostaw nazwe na ekranie jako Moj model ML, jesli nie potrzebujesz innej etykiety.", "Wybierz zadanie: jakosc/opoznienie to regresja, harmonogram to klasyfikacja.", "Dla SVR, KNN, Ridge i LogisticRegression wlacz standard albo robust; dla drzew zwykle wystarczy none.", "Zostaw JSON bez zmian, jesli nie znasz parametrow.", "Kliknij Zapisz model, zaznacz go na liscie i uruchom trening."]
+  },
+  {
+    "id": "sklearn_algorithms_and_formulas",
+    "aliases": ["svm", "svr", "knn", "ridge", "randomforest", "random forest", "extra trees", "extratrees", "gradientboosting", "histgradient", "logisticregression", "n_estimators", "learning_rate", "max_depth", "alpha", "epsilon", "n_neighbors", "wzory ml"],
+    "answer": "Najprosciej: RandomForest i ExtraTrees lacza wiele drzew, Boosting buduje poprawki bledow, HistGradient robi boosting na koszykach histogramowych, SVR/SVM szuka granicy z marginesem, KNN patrzy na najblizsze podobne rekordy, Ridge jest regresja liniowa z kara alpha, a LogisticRegression liczy prawdopodobienstwa klas przez softmax. Wzory: lasy y_hat = mean(tree_i(x)) albo glosowanie; boosting F_m(x)=F_{m-1}(x)+eta*h_m(x); Ridge min ||y-Xw||^2 + alpha||w||^2; Logistic P(class|X)=softmax(Xw+b); KNN y_hat = srednia wazona sasiadow; SVR minimalizuje blad poza marginesem epsilon z kara C.",
+    "steps": ["n_estimators: ile drzew/modeli zbudowac.", "max_depth: jak glebokie i szczegolowe moze byc drzewo.", "learning_rate: jak mocno boosting dodaje kazda poprawke.", "C: jak mocno SVM karze bledy.", "epsilon: jaki blad SVR toleruje bez kary.", "n_neighbors: ilu podobnych rekordow bierze KNN.", "alpha: sila regularyzacji Ridge, czyli hamulec na zbyt duze wagi.", "random_state: powtarzalny wynik."]
+  },
+  {
     "id": "github_release_quality",
     "aliases": ["github", "wydanie", "release", "wersja na githuba", "przed publikacja"],
     "answer": "Przed wrzuceniem aplikacji na GitHuba warto sprawdzic trzy rzeczy: czy nowy uzytkownik rozumie flow, czy przyciski faktycznie cos robia, i czy ALICE potrafi wytlumaczyc modul bez znajomosci kodu. Najwazniejsze sa README, przykladowe dane, stabilny HTML, testy i jasne komunikaty bledow.",
-    "steps": ["Uruchom pelne testy.", "Sprawdz Main, Visual, Results, Analytics, Diagrams i Theory na przykladowym pliku.", "Otworz wygenerowany HTML drzewa i dashboardu.", "Zadaj ALICE pytania o kazdy modul.", "Dopisz brakujace hasla do docs/alice_brain.json."]
+    "steps": ["Uruchom pelne testy.", "Sprawdz Main, Visual, Results, Report, Diagrams i Theory na przykladowym pliku.", "Otworz wygenerowany HTML drzewa i dashboardu.", "Zadaj ALICE pytania o kazdy modul.", "Dopisz brakujace hasla do docs/alice_brain.json."]
+  },
+  {
+    "id": "alice_identity_v2",
+    "aliases": ["kim jest alice", "co wie alice", "co umie alice", "przedstaw sie", "opowiedz o sobie alice", "alice o sobie"],
+    "answer": "Jestem ALICE, przewodniczka po AOA - Aplikacji Optymalnego Algorytmowania. Mam tlumaczyc aplikacje bez zgadywania: co kliknac, co oznacza wynik, jaki model wybrac, kiedy uzyc TabPFN, jak zrobic diagram, raport, pipeline i jak czytac metryki. Znam Main, Visual, Results, Report, Diagrams, Theory, custom ML, custom STO, Report Builder, eksporty i samonauke.",
+    "steps": ["Najpierw pytam lub rozpoznaje ekran.", "Potem daje proste wyjasnienie po ludzku.", "Nastepnie podaje kroki do klikniecia.", "Na koncu mowie co sprawdzic: metryki, podglad, raport, diagram albo wynik w tabeli."]
+  },
+  {
+    "id": "tabpfn_workflow",
+    "aliases": ["tabpfn", "tabpfn quality", "tabpfn delay", "tabpfn schedule", "nowoczesne modele", "tabular prior"],
+    "answer": "TabPFN to trzecia sciezka obok classic ML i STO. Dla quality oraz delay dziala jak regresor, bo przewiduje liczbe. Dla schedule dziala jak klasyfikator, bo wybiera klase/strategie. TabPFN traktuje mala lub srednia tabele treningowa jako kontekst i korzysta z pretrenowanego priora tabelarycznego, dlatego czesto jest dobrym szybkim baseline bez recznego strojenia.",
+    "steps": ["W Main wybierz backend tabpfn albo w Theory zakladke TabPFN.", "Quality/Delay czytaj jako regresje.", "Schedule czytaj jako klasyfikacje.", "Porownaj wynik z classic ML na tym samym train/test.", "Do raportu wpisz wzor: y_hat = f_PFN(X_train, y_train, x_new)."]
+  },
+  {
+    "id": "report_builder_full_editor",
+    "aliases": ["pelny edytor raportu", "pisanie raportu", "normalny podglad raportu", "report builder pelne okno", "overleaf w aplikacji"],
+    "answer": "Report Builder powinien byc uzywany w pelnym oknie. Malutki panel w Report sluzy tylko do szybkich przyciskow, a pelny edytor ma normalne pisanie po lewej, podglad strony/PDF po prawej oraz guide i pliki projektu obok. Do raportu mozna wstawic wyniki, KPI, ML analiza, STO analiza, pipeline, wykresy, diagramy, ryzyka, rekomendacje i zalaczniki z Visual/Diagrams/Report.",
+    "steps": ["Wejdz w Report.", "Kliknij Otworz pelny edytor raportu.", "Pisz sekcje w edytorze albo uzywaj przyciskow.", "Dodaj pliki z projektu przez biblioteke/asset selector.", "Sprawdz podglad strony.", "Eksportuj HTML, MD, TeX albo PDF."]
+  },
+  {
+    "id": "model_task_types",
+    "aliases": ["czy wszystko jest regresja", "schedule regresja", "schedule klasyfikacja", "quality delay schedule", "typ zadania modelu"],
+    "answer": "Nie wszystko jest regresja. W aplikacji Quality i Delay sa regresja, bo model przewiduje wartosc liczbowa: jakosc albo opoznienie. Schedule jest klasyfikacja, bo model wybiera klase/strategie harmonogramu. Dlatego kreator wlasnego modelu pokazuje regresory dla Quality/Delay i klasyfikatory dla Schedule.",
+    "steps": ["Quality: uzyj regressor, metryki RMSE/MAE/R2.", "Delay: uzyj regressor, metryki RMSE/MAE/R2.", "Schedule: uzyj classifier, metryki accuracy/precision/recall.", "Jesli wybierasz TabPFN, aplikacja dobiera TabPFNRegressor albo TabPFNClassifier wedlug celu."]
+  },
+  {
+    "id": "app_pipeline_v2",
+    "aliases": ["pipeline aplikacji", "pelny pipeline", "jak dziala aplikacja po kolei", "workflow end to end"],
+    "answer": "Pelny pipeline aplikacji to: dane -> walidacja -> wybor celu -> classic ML/TabPFN/STO/custom model -> trening albo ranking -> metryki -> Visual/Diagrams -> Report Builder -> Results/eksport. Uzytkownik nie musi znac kodu, bo kazdy etap ma panel: Main robi obliczenia, Visual i Theory tlumacza, Diagrams rysuje proces, Report sklada raport, Results kontroluje tabele.",
+    "steps": ["Wczytaj dane w Main.", "Wybierz zadania i backend.", "Uruchom trening lub STO.", "Sprawdz wykres i diagram.", "Zbuduj raport w pelnym Report Builderze.", "Zweryfikuj wynik w Results i wyeksportuj."]
+  },
+  {
+    "id": "modern_ml_segments",
+    "aliases": ["nowoczesne ml", "xgboost", "mlp", "stacking", "inne niz tabpfn", "nowoczesne modele poza tabpfn"],
+    "answer": "Zakladka Nowoczesne ML w Theory nie oznacza tylko TabPFN. Pokazuje tez XGBoost jako mocny boosting z regularyzacja, MLP jako siec neuronowa dla relacji nieliniowych oraz Stacking jako meta-model laczacy kilka modeli. ALICE powinna zawsze przypominac, ze nazwa algorytmu nie wystarcza: liczy sie walidacja, metryki, przeuczenie, czas i sens decyzji.",
+    "steps": ["TabPFN: szybki baseline tabelaryczny bez duzego strojenia.", "XGBoost: gdy lasy sa za slabe i chcesz mocniejszy boosting.", "MLP: gdy relacje sa nieliniowe, ale dane trzeba dobrze skalowac.", "Stacking: gdy chcesz polaczyc kilka modeli i sprawdzic, czy meta-model pomaga.", "Porownaj wszystko z classic ML na tym samym train/test."]
+  },
+  {
+    "id": "tabpfn_validation",
+    "aliases": ["walidacja tabpfn", "tabpfn walidacja", "czy tabpfn dziala", "tabpfn bledy danych"],
+    "answer": "TabPFN ma walidacje wejscia przed treningiem. Sprawdza, czy X i y istnieja, czy X jest tabela 2D, czy liczba rekordow w X i y jest taka sama, czy cechy nie maja NaN/inf, czy sa co najmniej 3 rekordy oraz czy klasyfikacja ma minimum 2 klasy. Dzieki temu blad jest czytelny zanim trafi do biblioteki TabPFN.",
+    "steps": ["Quality/Delay: y musi byc liczba bez NaN/inf.", "Schedule: y moze byc klasa, ale nie moze byc pusta i musi miec co najmniej 2 klasy.", "Jesli walidacja pada, najpierw popraw dane w Main/Report.", "Po treningu porownaj TabPFN z classic ML na tych samych metrykach."]
+  },
+  {
+    "id": "smart_diagrams_from_text",
+    "aliases": ["diagram z opisu", "madry diagram", "zrob diagram ze slow", "opis procesu diagram", "smart diagram"],
+    "answer": "Diagrams potrafi startowac od opisu slownego. Uzytkownik wpisuje proces naturalnie albo strzalkami, np. dostawca -> magazyn -> QC -> produkcja -> raport. Aplikacja dobiera typ diagramu, ksztalty, kolory i etykiety polaczen, a potem uzytkownik moze uzyc Auto layout, recznie poprawic teksty/kolory i wyeksportowac wynik.",
+    "steps": ["Wejdz w Diagrams.", "Kliknij Z opisu.", "Wpisz proces lub wybierz przyklad.", "Kliknij Zbuduj diagram.", "Jesli diagram jest ciasny, kliknij Auto layout.", "Popraw teksty, kolory i polaczenia.", "Eksportuj do drawio, SVG, Mermaid albo HTML."]
+  },
+  {
+    "id": "pdf_preview_reality",
+    "aliases": ["czy podglad pdf jest prawdziwy", "pdf preview", "podglad strony a4", "jak sprawdzic pdf"],
+    "answer": "Srodkowy podglad w Report Builderze jest wizualna symulacja strony A4: pokazuje margines, szerokosc tekstu i przyblizony uklad. Faktyczny plik PDF powstaje dopiero po kliknieciu Podglad PDF albo Eksport PDF. Dlatego przy koncowej kontroli trzeba otworzyc wygenerowany PDF, nie tylko patrzec na tekst w edytorze.",
+    "steps": ["Pisz w pelnym Report Builderze.", "Patrz na jasny podglad strony A4.", "Kliknij Podglad PDF, gdy chcesz zobaczyc realny plik.", "Kliknij Eksport PDF do wersji finalnej.", "Jesli raport ma interaktywne HTML, eksport HTML bedzie wierniejszy niz PDF."]
+  },
+  {
+    "id": "alice_operator_mode",
+    "aliases": ["tryb operatora", "co mozesz przetestowac", "co mozesz pokazac", "co mozesz stworzyc", "co mozesz utworzyc", "jak sterujesz aplikacja", "akcje alice", "alice testuj"],
+    "answer": "ALICE ma tryb operatora: moze rozpoznac intencje uzytkownika i wykonac ruch w aplikacji. Nie tylko odpowiada tekstem, ale moze przejsc do ekranu, podswietlic sekcje, uruchomic workflow, wczytac przyklad raportu, zbudowac diagram z opisu, stworzyc szkic raportu, dodac sekcje ML/STO/KPI/pipeline, wstawic wykres albo asset do raportu, eksportowac notebook lub CSV akcji, pokazac Theory albo narysowac sample dashboard. Umie tez tworzyc 20 praktycznych typow diagramow: proces, BPMN, UML, ERD, siec, swimlane, sekwencja, org chart, mind map, decyzje, kanban, magazyn, QC, MLOps, utrzymanie ruchu, VSM, supply chain, layout hali, ANDON, zapasy i energia. Umie tez otwierac D3/HTML z Visual, pokazywac braki danych, eksportowac widoczne wyniki i SQL, uruchamiac wszystkie workflow Report Studio oraz prowadzic lekcjami: ML, raporty i diagramy. Ciezsze akcje, takie jak trening modeli albo samonauka, wymagaja potwierdzenia, jesli auto-potwierdzanie jest wylaczone.",
+    "steps": ["Napisz naturalnie, np. 'stworz raport ML', 'stworz diagram BPMN', 'stworz ERD', 'diagram magazynu', 'dodaj model ML', 'otworz kreator diagramu', 'eksportuj notebook', 'lekcja raportow', 'pokaz braki danych' albo 'pokaz Stacking'.", "ALICE rozpozna plan operatora.", "Aplikacja przejdzie do odpowiedniego modulu.", "ALICE utworzy dostepny artefakt albo wykona akcje i napisze, co zrobila.", "Gdy akcja jest ciezka, ALICE poprosi o potwierdzenie."]
+  },
+  {
+    "id": "alice_capability_categories",
+    "aliases": ["wypisz funkcje", "lista funkcji", "lista komend", "co mozesz zrobic", "co potrafisz", "komendy alice", "co umiesz zrobic"],
+    "answer": "Gdy uzytkownik pyta ogolnie co ALICE potrafi, ALICE najpierw pokazuje kategorie zamiast jednej dlugiej listy: Dane i modele, Wykresy i Visual, Results i SQL, Raporty, Diagramy, Theory i lekcje, Sterowanie aplikacja oraz ALICE i samonauka. Dopiero po pytaniu o konkretna kategorie rozwija komendy i przyklady.",
+    "steps": ["Zapytaj 'co mozesz w diagramach?', aby dostac typy diagramow i przyklady.", "Zapytaj 'co umiesz w raportach?', aby dostac akcje Report Buildera.", "Zapytaj 'jakie komendy do Results?', aby dostac SQL, filtry i eksport.", "Zapytaj 'co umiesz w Main?', aby dostac dane, modele, trening i STO.", "Zapytaj 'co mozesz w Theory?', aby dostac animacje, lekcje i wzory."]
+  },
+  {
+    "id": "alice_visual_file_operator",
+    "aliases": ["wczytaj dane do visual", "wczytaj sample do visual", "dobierz wykres", "wykres z opisu", "scatter z opisu", "histogram z opisu", "dashboard z opisu"],
+    "answer": "ALICE potrafi obslugiwac Visual jak operator. Moze otworzyc wybor pliku dla Visual, wczytac sample, dobrac wykres startowy do kolumn liczbowych albo narysowac wykres z opisu. Jesli nie ma danych, przy komendach testowych uzywa sample_table.csv, zeby uzytkownik od razu zobaczyl efekt.",
+    "steps": ["Napisz 'wczytaj dane do Visual', aby otworzyc wybor CSV/TXT/TSV.", "Napisz 'wczytaj sample do Visual', aby zaladowac przyklad.", "Napisz 'dobierz wykres', aby ALICE wybrala scatter, histogram albo dashboard.", "Napisz 'scatter z opisu', 'histogram z opisu' albo 'dashboard z opisu', aby przetestowac parser polecen wykresu.", "Po wykresie zapytaj 'jak to czytac?', zeby ALICE wyjasnila osie i wnioski."]
+  },
+  {
+    "id": "alice_results_sql_operator",
+    "aliases": ["wczytaj dane do results", "wczytaj sample do results", "pokaz sql przyklad", "sql statystyki", "sql braki", "sql top", "przykladowe sql"],
+    "answer": "ALICE potrafi obslugiwac Results i SQL. Moze otworzyc wybor pliku, wczytac sample, przelaczyc Results w tryb SQL i wykonac gotowe zapytanie. Przyklady SQL sa celowo proste: SELECT * LIMIT 20, statystyki dla pierwszej kolumny liczbowej, liczenie brakow oraz top rekordy po metryce.",
+    "steps": ["Napisz 'wczytaj sample do Results', jesli chcesz szybki test bez pliku.", "Napisz 'pokaz SQL przyklad', aby zobaczyc pierwsze rekordy.", "Napisz 'SQL statystyki', aby policzyc count/avg/min/max.", "Napisz 'SQL braki', aby policzyc puste wartosci w kolumnach.", "Napisz 'SQL top', aby posortowac po pierwszej kolumnie liczbowej.", "Po wyniku mozesz uzyc 'eksportuj wynik SQL'."]
+  },
+  {
+    "id": "alice_main_training_operator",
+    "aliases": ["wczytaj sample do main", "zaznacz quality", "zaznacz delay", "zaznacz schedule", "ustaw tabpfn", "ustaw classic", "naucz modele", "trenuj quality", "trenuj tabpfn quality"],
+    "answer": "ALICE potrafi sterowac Main jak prostym terminalem. Moze wygenerowac dane treningowe, otworzyc wybor pliku, zaznaczyc modele Quality/Delay/Schedule, zaznaczyc wszystkie ML lub STO, ustawic backend classic albo TabPFN i uruchomic trening po potwierdzeniu. Jesli nie ma danych treningowych, przy komendzie treningowej przygotowuje je z aktualnych parametrow Main.",
+    "steps": ["Napisz 'wczytaj sample do Main', aby przygotowac dane treningowe.", "Napisz 'zaznacz Quality', 'zaznacz Delay' albo 'zaznacz Schedule', aby wybrac cel.", "Napisz 'zaznacz wszystkie ML' albo 'zaznacz podstawowe STO', jesli chcesz szersze porownanie.", "Napisz 'ustaw TabPFN' albo 'ustaw classic', aby wybrac backend.", "Napisz 'naucz modele', aby uruchomic trening aktualnego wyboru.", "Napisz 'trenuj Quality' albo 'trenuj TabPFN Quality', jesli ALICE ma sama ustawic cel i backend."]
+  },
+  {
+    "id": "file_manager_cleanup",
+    "aliases": ["menedzer plikow", "otworz pliki", "pokaz pliki", "usun pliki", "posprzataj pliki", "podglad plikow"],
+    "answer": "AOA ma menedzer plikow do wygenerowanych danych, raportow, HTML, modeli i dokumentow. ALICE moze go otworzyc komenda 'otworz pliki'. Uzytkownik najpierw widzi liste plikow z data/, models/ i docs/, potem tekstowy podglad, a dopiero po potwierdzeniu moze usunac wybrany plik.",
+    "steps": ["Napisz 'otworz pliki' albo kliknij przycisk podgladu plikow w Main/Visual.", "Wybierz plik z listy.", "Sprawdz podglad po prawej.", "Jesli to HTML/PDF/obraz/model, kliknij Otworz, zeby zobaczyc go w aplikacji systemowej.", "Kliknij Usun wybrany dopiero po upewnieniu sie, ze plik nie jest potrzebny."]
+  },
+  {
+    "id": "release_check_html_qa",
+    "aliases": ["release check", "sprawdz release", "kontrola wydania", "qa html", "sprawdz html", "sprawdz wykresy html"],
+    "answer": "ALICE zna checklist release i QA HTML. Moze przejsc po modulach Main, Visual, Results, Report, Diagrams, Theory, sprawdzic interaktywne HTML, przypomniec o testach, historii treningow, historii workflowow, porownaniu modeli i bazie wiedzy.",
+    "steps": ["Napisz 'release check', aby dostac liste kontroli przed GitHubem.", "Napisz 'qa html', aby ALICE otworzyla Visual i kontrolny raport HTML.", "W HTML sprawdz fullscreen, tooltipy, eksport CSV/JSON, reset, czytelne osie i brak nachodzenia elementow.", "Po poprawkach uruchom testy i sprawdz README oraz docs."]
+  },
+  {
+    "id": "model_compare_history",
+    "aliases": ["porownywarka modeli", "porownaj modele", "historia treningow", "historia workflowow", "model history"],
+    "answer": "AOA zapisuje wyniki i raporty tak, aby mozna bylo porownywac wiele podejsc: classic ML, TabPFN, XGBoost, MLP, Stacking i heurystyki STO. ALICE ma prowadzic uzytkownika do Results, Report i Visual, gdzie sprawdza metryki, eksporty, wykresy oraz historie wygenerowanych plikow.",
+    "steps": ["Uruchom trening kilku modeli w Main.", "Przejdz do Results i odswiez tabele wynikow.", "W Report wybierz ML Analytics albo STO Analytics.", "W Visual otworz dashboard HTML.", "W menedzerze plikow sprawdz zapisane raporty i modele.", "Porownaj RMSE/MAE/R2 dla regresji oraz accuracy/F1 dla klasyfikacji."]
+  },
+  {
+    "id": "alice_quality_review",
+    "aliases": ["ocen diagram", "sprawdz diagram", "ocen raport", "sprawdz raport", "ocen wykres", "sprawdz wykres", "ocen model", "audyt workflow", "czy jest git"],
+    "answer": "ALICE moze dzialac jak recenzent pracy w kazdym trybie aplikacji. Przy diagramie sprawdza cel, start/koniec, etykiety, polaczenia, decyzje, kolory i eksport. Przy raporcie sprawdza cel decyzji, dane, pipeline, metryki, interpretacje, ryzyka i rekomendacje. Przy wykresie sprawdza osie, typ wykresu, legendy, outliery i interakcje HTML. Przy modelu sprawdza typ zadania, dane, train/test, metryki, baseline, stabilnosc i sens decyzji.",
+    "steps": ["Napisz 'ocen diagram', gdy chcesz sprawdzic schemat przed eksportem.", "Napisz 'ocen raport', gdy chcesz sprawdzic strukture i PDF/HTML.", "Napisz 'ocen wykres', gdy chcesz sprawdzic osie, typ i czytelnosc.", "Napisz 'ocen model', gdy chcesz sprawdzic metryki, walidacje i baseline.", "Napisz 'audyt workflow', gdy chcesz sprawdzic caly przeplyw od danych do decyzji."]
+  },
+  {
+    "id": "sample_files_and_tutorials",
+    "aliases": ["przykladowe pliki", "sample dane", "tutoriale krok po kroku", "docs tutorial", "jak potestowac aplikacje"],
+    "answer": "AOA ma dzialac tak, zeby osoba bez wlasnego pliku mogla testowac funkcje. Main, Visual i Results maja komendy sample, Report ma gotowe formaty raportow, Diagrams ma przyklady procesow, a Theory ma lekcje z animacjami i wzorami.",
+    "steps": ["Napisz 'wczytaj sample do Main', aby zaczac od danych treningowych.", "Napisz 'wczytaj sample do Visual', aby zobaczyc wykres.", "Napisz 'wczytaj sample do Results', aby przetestowac SQL.", "Napisz 'przetestuj raport', aby otworzyc gotowy Report Builder.", "Napisz 'przetestuj diagram', aby zbudowac diagram z opisu.", "Napisz 'lekcja ML' albo 'pokaz XGBoost', aby przejsc do Theory."]
+  },
+  {
+    "id": "release_segments_080",
+    "aliases": ["kolejne segmenty", "segmenty rozwoju", "roadmap", "co dalej rozwijac", "co mozemy rozwinac"],
+    "answer": "Segmenty rozwoju 0.8.0 sa juz opisane jako fundament aplikacji: ALICE Reviewer, Scenario Lab, Model Registry UI, Workflow History, Dataset Library, Report Templates, Diagram QA, Chart QA, Data Contract i Assistant Playbooks. ALICE moze je omowic, a czesc z nich ma juz komendy operatora, testy albo dane startowe.",
+    "steps": ["Napisz 'kolejne segmenty rozwoju', aby zobaczyc liste.", "Napisz 'ocen diagram' albo 'ocen raport', aby uzyc ALICE Reviewer.", "Napisz 'szablony raportow', aby zobaczyc gotowe formaty.", "Napisz 'kontrakt danych', aby sprawdzic wymagania przed treningiem."]
+  },
+  {
+    "id": "report_templates_080",
+    "aliases": ["szablony raportow", "report templates", "gotowe raporty", "formaty raportow", "jaki raport wybrac"],
+    "answer": "Report Templates pomagaja zaczac bez pustej kartki. AOA rozroznia m.in. executive_summary, ml_validation, sto_comparison, data_quality, release_check i incident_review. Kazdy szablon ma cel, dane, wyniki, ryzyka i rekomendacje, a Report Builder moze potem dopisac KPI, ML, STO, pipeline, wykresy, diagramy i zalaczniki.",
+    "steps": ["Executive summary: szybka decyzja dla kierownika.", "ML validation: sprawdzenie modelu, metryk, baseline i ryzyk.", "STO comparison: porownanie kolejek, opoznien i bufora.", "Data quality: braki, duplikaty, outliery i kontrakt danych.", "Release check: testy, QA HTML, README, changelog i tag."]
+  },
+  {
+    "id": "data_contract_080",
+    "aliases": ["kontrakt danych", "data contract", "wymagane kolumny", "walidacja danych przed treningiem", "jakie kolumny potrzebne"],
+    "answer": "Data Contract opisuje minimalne wymagania danych przed treningiem: czas_h jako dodatni czas pracy, termin_h jako dodatni deadline, koszt jako liczba nieujemna, material jako kategoria lub liczba, jakosc/opoznienie jako cele regresji i schedule jako cel klasyfikacji. Globalnie X i y musza miec zgodna liczbe rekordow, cechy nie powinny miec NaN/inf, a klasyfikacja musi miec co najmniej dwie klasy.",
+    "steps": ["Sprawdz, czy kolumny istnieja albo maja odpowiedniki w danych.", "Sprawdz typy: liczby dla regresji, etykiety dla schedule.", "Usun albo uzupelnij NaN/inf przed treningiem.", "Dla Schedule sprawdz, czy sa minimum 2 klasy.", "Po walidacji uruchom model i porownaj wynik w Results/Report."]
   }
 ]

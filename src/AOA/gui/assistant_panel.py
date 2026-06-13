@@ -25,6 +25,487 @@ class AssistantAction:
     value: str
 
 
+OPERATOR_TASK_MAP: list[tuple[tuple[str, ...], str]] = [
+    (
+        (
+            "otworz pliki",
+            "pokaz pliki",
+            "menedzer plikow",
+            "zarzadzaj plikami",
+            "usun pliki",
+            "posprzataj pliki",
+            "podglad plikow",
+        ),
+        "files:open",
+    ),
+    (
+        (
+            "release check",
+            "sprawdz release",
+            "kontrola wydania",
+            "check przed github",
+            "przed publikacja",
+        ),
+        "app:release_check",
+    ),
+    (
+        (
+            "historia treningow",
+            "historia workflowow",
+            "historia plikow",
+            "pokaz historie",
+            "ostatnie pliki",
+        ),
+        "app:history",
+    ),
+    (
+        (
+            "porownaj modele",
+            "porownywarka modeli",
+            "porownanie modeli",
+            "sprawdz modele",
+        ),
+        "app:model_compare",
+    ),
+    (
+        (
+            "pokaz tutoriale",
+            "tutoriale krok po kroku",
+            "instrukcja krok po kroku",
+            "readme krok po kroku",
+        ),
+        "app:tutorials",
+    ),
+    (
+        (
+            "pokaz sample",
+            "przykladowe dane",
+            "dane przykladowe",
+            "sample start",
+        ),
+        "app:samples",
+    ),
+    (
+        (
+            "kolejne segmenty",
+            "segmenty rozwoju",
+            "roadmap",
+            "co dalej rozwijac",
+            "co mozemy rozwinac",
+        ),
+        "app:segments",
+    ),
+    (
+        (
+            "szablony raportow",
+            "report templates",
+            "gotowe raporty",
+            "formaty raportow",
+        ),
+        "app:report_templates",
+    ),
+    (
+        (
+            "kontrakt danych",
+            "data contract",
+            "wymagane kolumny",
+            "walidacja danych przed treningiem",
+        ),
+        "app:data_contract",
+    ),
+    (
+        (
+            "ocen diagram",
+            "sprawdz diagram",
+            "audyt diagramu",
+            "ocen raport",
+            "sprawdz raport",
+            "audyt raportu",
+            "ocen wykres",
+            "sprawdz wykres",
+            "ocen model",
+            "sprawdz model",
+            "audyt workflow",
+            "czy jest git",
+        ),
+        "app:quality_review",
+    ),
+    (
+        (
+            "qa html",
+            "sprawdz html",
+            "test html",
+            "sprawdz wykresy html",
+            "kontrola html",
+        ),
+        "app:html_qa",
+    ),
+    (("otworz main", "przejdz do main", "pokaz main"), "main:open"),
+    (("generuj dane", "wygeneruj dane", "przygotuj dane testowe"), "main:generate"),
+    (
+        (
+            "wczytaj sample do main",
+            "zaladuj sample do main",
+            "sample do main",
+            "przygotuj dane do treningu",
+            "dane treningowe sample",
+        ),
+        "main:sample_data",
+    ),
+    (("przetestuj main", "test main", "pokaz pipeline main"), "main:test_pipeline"),
+    (("wczytaj dane z pliku", "zaladuj dane z pliku", "otworz dane csv"), "main:load_file"),
+    (("pokaz parametry danych", "ustawienia danych", "parametry generowania"), "main:focus_data"),
+    (("pokaz modele main", "wybor modeli", "panel modeli"), "main:focus_models"),
+    (
+        (
+            "zaznacz quality",
+            "wybierz quality",
+            "model quality",
+            "zaznacz jakosc",
+            "model jakosci",
+        ),
+        "main:select_quality",
+    ),
+    (
+        (
+            "zaznacz delay",
+            "wybierz delay",
+            "model delay",
+            "zaznacz opoznienie",
+            "model opoznienia",
+        ),
+        "main:select_delay",
+    ),
+    (
+        (
+            "zaznacz schedule",
+            "wybierz schedule",
+            "model schedule",
+            "zaznacz harmonogram",
+            "model harmonogramu",
+        ),
+        "main:select_schedule",
+    ),
+    (
+        ("zaznacz wszystkie ml", "wybierz wszystkie ml", "wszystkie modele ml"),
+        "main:select_all_ml",
+    ),
+    (
+        (
+            "zaznacz podstawowe ml",
+            "wybierz podstawowe ml",
+            "quality delay schedule",
+            "modele bazowe ml",
+        ),
+        "main:select_basic_ml",
+    ),
+    (
+        ("zaznacz wszystkie sto", "wybierz wszystkie sto", "wszystkie heurystyki"),
+        "main:select_all_sto",
+    ),
+    (
+        ("zaznacz podstawowe sto", "wybierz podstawowe sto", "podstawowe heurystyki"),
+        "main:select_basic_sto",
+    ),
+    (("odznacz modele", "wyczysc modele", "wyzeruj wybor modeli"), "main:clear_models"),
+    (
+        ("ustaw tabpfn", "backend tabpfn", "wybierz tabpfn", "trenuj tabpfn"),
+        "main:backend_tabpfn",
+    ),
+    (
+        ("ustaw classic", "backend classic", "wybierz classic", "klasyczny backend"),
+        "main:backend_classic",
+    ),
+    (("uruchom sto", "analiza sto", "przetestuj sto"), "main:run_sto"),
+    (
+        ("odswiez visual", "aktualizuj wykres", "narysuj wykres", "zrob mi wykres", "zrob wykres"),
+        "visual:draw",
+    ),
+    (("otworz visual", "przejdz do visual", "pokaz visual"), "visual:open"),
+    (
+        (
+            "wczytaj dane z pliku do visual",
+            "wczytaj plik do visual",
+            "wczytaj dane do visual",
+            "zaladuj plik do visual",
+            "otworz csv w visual",
+        ),
+        "visual:load_file",
+    ),
+    (
+        ("wczytaj sample do visual", "zaladuj sample visual", "sample do wykresu"),
+        "visual:load_sample",
+    ),
+    (
+        (
+            "dobierz wykres",
+            "wybierz wykres za mnie",
+            "automatyczny wykres",
+            "zrob wykres z opisu",
+            "narysuj z opisu",
+        ),
+        "visual:auto_chart",
+    ),
+    (("scatter z opisu", "wykres scatter z opisu"), "visual:prompt_scatter"),
+    (("histogram z opisu", "wykres histogram z opisu"), "visual:prompt_histogram"),
+    (("dashboard z opisu", "wykres dashboard z opisu"), "visual:prompt_dashboard"),
+    (("otworz raport d3", "pokaz html visual", "otworz html visual"), "visual:open_d3"),
+    (("pokaz wybor wykresu", "ustawienia wykresu", "panel wykresow"), "visual:focus_controls"),
+    (
+        ("wczytaj sample i narysuj dashboard", "sample dashboard", "pokaz dashboard na sample"),
+        "visual:sample_dashboard",
+    ),
+    (("przetestuj visual", "test visual", "pokaz przykladowy wykres"), "visual:sample_dashboard"),
+    (("odswiez results", "odswiez wyniki"), "results:refresh"),
+    (("przejdz do results", "otworz results", "pokaz results"), "results:open"),
+    (
+        (
+            "wczytaj plik do results",
+            "wczytaj dane do results",
+            "zaladuj plik do results",
+            "otworz csv w results",
+        ),
+        "results:load_file",
+    ),
+    (
+        ("wczytaj sample do results", "zaladuj sample results", "sample do results"),
+        "results:load_sample",
+    ),
+    (("pokaz braki danych", "raport brakow", "missing report"), "results:missing_report"),
+    (("eksportuj widoczne wyniki", "zapisz widoczne wyniki", "eksport results"), "results:export_visible"),
+    (("eksportuj wynik sql", "zapisz wynik sql", "csv sql"), "results:export_sql"),
+    (("pokaz filtry results", "filtry results", "panel filtrow"), "results:focus_filters"),
+    (("uruchom sql", "wykonaj sql", "przetestuj sql"), "results:sql_run"),
+    (
+        ("pokaz sql przyklad", "przykladowe sql", "sql sample", "sql pierwsze wiersze"),
+        "results:sql_preview",
+    ),
+    (
+        ("sql podsumowanie", "sql statystyki", "pokaz statystyki sql", "agregacja sql"),
+        "results:sql_summary",
+    ),
+    (
+        ("sql braki", "braki sql", "pokaz braki sql", "policz braki sql"),
+        "results:sql_missing",
+    ),
+    (
+        ("sql top", "najwieksze sql", "top rekordy sql"),
+        "results:sql_top",
+    ),
+    (("reset sql",), "results:sql_reset"),
+    (("reset filtry", "wyczysc filtry"), "results:reset_filters"),
+    (
+        ("otworz report", "przejdz do report", "otworz analytics", "przejdz do analytics", "data analytics"),
+        "analytics:open",
+    ),
+    (
+        ("uruchom report", "uruchom analytics", "analiza analytics", "workflow analytics", "workflow report"),
+        "analytics:run",
+    ),
+    (("uruchom wszystkie raporty", "wykonaj wszystko report", "pelna analiza report"), "analytics:run_all"),
+    (("wygeneruj html analytics", "raport html analytics", "eksport analytics html"), "analytics:export_full_html"),
+    (("pokaz builder raportu", "focus builder raportu", "sekcja builder raportu"), "analytics:focus_builder"),
+    (
+        ("report builder", "otworz builder", "otworz edytor raportu", "pelny edytor raportu"),
+        "analytics:report_builder",
+    ),
+    (
+        ("wczytaj przyklad raportu", "gotowy raport", "szablon raportu", "format raportu"),
+        "analytics:example",
+    ),
+    (
+        ("stworz raport", "utworz raport", "napisz raport", "zrob raport", "przygotuj raport"),
+        "analytics:create_report",
+    ),
+    (("dodaj ml do raportu", "sekcja ml raport", "analityka ml do raportu"), "analytics:add_ml"),
+    (("dodaj sto do raportu", "sekcja sto raport", "heurystyki do raportu"), "analytics:add_sto"),
+    (("dodaj pipeline do raportu", "pipeline do raportu"), "analytics:add_pipeline"),
+    (("dodaj kpi do raportu", "kpi do raportu"), "analytics:add_kpi"),
+    (("dodaj rekomendacje do raportu", "rekomendacje do raportu"), "analytics:add_recommendations"),
+    (("dodaj wykres do raportu", "wykres do raportu"), "analytics:add_chart"),
+    (("dodaj plik do raportu", "wstaw plik do raportu", "dodaj asset do raportu"), "analytics:add_asset"),
+    (("odswiez pliki raportu", "odswiez biblioteke raportu"), "analytics:refresh_assets"),
+    (("stworz raport ml", "raport ml", "przygotuj raport ml"), "analytics:create_ml_report"),
+    (("stworz raport sto", "raport sto", "przygotuj raport sto"), "analytics:create_sto_report"),
+    (("eksportuj notebook", "zrob notebook", "notebook ipynb"), "analytics:export_notebook"),
+    (("eksportuj akcje csv", "csv akcji", "lista akcji csv"), "analytics:export_actions"),
+    (("zapisz raport html", "eksport raport html"), "analytics:export_html"),
+    (("zapisz raport pdf", "eksport raport pdf"), "analytics:export_pdf"),
+    (
+        ("przetestuj raport", "test raportu", "pokaz jak zrobic raport", "sprawdz report"),
+        "analytics:test",
+    ),
+    (("podglad pdf", "przetestuj pdf", "pokaz pdf"), "analytics:preview_pdf"),
+    (
+        (
+            "otworz diagrams",
+            "otworz diagramy",
+            "otworz drawio",
+            "otworz draw.io",
+            "draw io",
+            "drawio",
+            "diagramy",
+        ),
+        "drawio:open",
+    ),
+    (
+        ("wczytaj szablon diagramu", "szablon diagrams", "szablon drawio", "szablon draw.io"),
+        "drawio:template",
+    ),
+    (
+        ("diagram z opisu", "madry diagram", "zbuduj diagram", "przetestuj diagram"),
+        "drawio:smart_sample",
+    ),
+    (
+        ("stworz diagram procesu", "utworz diagram procesu", "zrob diagram procesu"),
+        "drawio:create_process",
+    ),
+    (
+        ("stworz diagram produkcji", "utworz diagram produkcji", "zrob diagram produkcji"),
+        "drawio:create_production",
+    ),
+    (
+        ("stworz diagram logistyczny", "utworz diagram logistyczny", "zrob diagram logistyczny"),
+        "drawio:create_logistics",
+    ),
+    (
+        ("stworz diagram systemu", "utworz diagram systemu", "zrob diagram systemu"),
+        "drawio:create_system",
+    ),
+    (("dodaj maszyne", "blok maszyna"), "drawio:add_machine"),
+    (("dodaj magazyn", "blok magazyn"), "drawio:add_warehouse"),
+    (("dodaj kontrole qc", "dodaj qc", "blok qc"), "drawio:add_qc"),
+    (("dodaj model ml", "blok model ml"), "drawio:add_ml_model"),
+    (("dodaj kpi do diagramu", "blok kpi"), "drawio:add_kpi"),
+    (("dodaj notatke", "blok notatka"), "drawio:add_note"),
+    (("dodaj kontener", "blok kontener"), "drawio:add_container"),
+    (("zapisz diagram html", "eksport diagram html"), "drawio:export_html"),
+    (("zapisz diagram svg", "eksport diagram svg"), "drawio:export_svg"),
+    (("otworz kreator diagramu", "kreator diagramu", "builder diagramu"), "drawio:smart_builder"),
+    (
+        ("stworz diagram danych", "diagram danych", "diagram pipeline danych"),
+        "drawio:create_data_pipeline",
+    ),
+    (("stworz diagram bpmn", "diagram bpmn", "proces bpmn"), "drawio:create_bpmn"),
+    (("stworz uml", "diagram uml", "uml klas", "diagram klas"), "drawio:create_uml"),
+    (("stworz erd", "diagram erd", "baza danych diagram"), "drawio:create_erd"),
+    (("diagram sieci", "network diagram", "architektura sieci"), "drawio:create_network"),
+    (("diagram swimlane", "swimlane", "odpowiedzialnosci proces"), "drawio:create_swimlane"),
+    (("diagram sekwencji", "sequence diagram", "sekwencja systemu"), "drawio:create_sequence"),
+    (("schemat organizacji", "org chart", "struktura zespolu"), "drawio:create_org"),
+    (("mapa mysli", "mind map", "burza pomyslow"), "drawio:create_mindmap"),
+    (("drzewo decyzji diagram", "diagram decyzji", "decision tree diagram"), "drawio:create_decision"),
+    (("tablica kanban", "diagram kanban", "kanban board"), "drawio:create_kanban"),
+    (("diagram magazynu", "warehouse flow", "przeplyw magazynu"), "drawio:create_warehouse"),
+    (("kontrola jakosci diagram", "diagram qc", "quality control diagram"), "drawio:create_quality"),
+    (("ml production pipeline", "pipeline ml produkcyjny", "diagram mlops"), "drawio:create_ml_pipeline"),
+    (("diagram utrzymania ruchu", "maintenance flow", "utrzymanie ruchu"), "drawio:create_maintenance"),
+    (("value stream map", "vsm", "mapa strumienia wartosci"), "drawio:create_vsm"),
+    (("supply chain", "lancuch dostaw", "diagram dostaw"), "drawio:create_supply"),
+    (("plant layout", "layout hali", "uklad zakladu"), "drawio:create_plant"),
+    (("andon incident", "diagram awarii", "incydent andon"), "drawio:create_andon"),
+    (("inventory replenishment", "uzupelnianie zapasow", "diagram zapasow"), "drawio:create_inventory"),
+    (("energy media flow", "media energia", "diagram energii"), "drawio:create_energy"),
+    (("guide diagram", "pomoc diagram", "jak robic diagram"), "drawio:guide"),
+    (("auto layout", "uloz diagram", "wyrownaj diagram"), "drawio:auto_layout"),
+    (("wyczysc diagram", "nowy pusty diagram"), "drawio:clear"),
+    (("otworz theory", "przejdz do theory", "pokaz theory", "otworz teorie"), "theory:open"),
+    (("pokaz xgboost", "theory xgboost", "animacja xgboost"), "theory:xgboost"),
+    (("pokaz tabpfn", "theory tabpfn", "animacja tabpfn"), "theory:tabpfn"),
+    (("pokaz sto", "theory sto", "animacja sto", "heurystyki theory"), "theory:sto"),
+    (("pokaz ml", "theory ml", "animacja ml"), "theory:ml"),
+    (("pokaz mlp", "theory mlp", "animacja mlp"), "theory:mlp"),
+    (("pokaz stacking", "theory stacking", "animacja stacking"), "theory:stacking"),
+    (("pokaz schedule", "theory schedule", "animacja schedule"), "theory:schedule"),
+    (("lekcja ml", "lekcje ml", "daj lekcje ml", "naucz mnie ml", "sciezka ml"), "learning:ml_path"),
+    (
+        ("lekcja raportow", "lekcje raportow", "daj lekcje raportow", "naucz mnie raportow", "sciezka raportow"),
+        "learning:report_path",
+    ),
+    (
+        ("lekcja diagramow", "lekcje diagramow", "daj lekcje diagramow", "naucz mnie diagramow", "sciezka diagramow"),
+        "learning:diagram_path",
+    ),
+    (("co powinienem kliknac", "prowadz mnie", "pilotuj mnie"), "app:guide_next"),
+    (("otworz pomoc", "pokaz pomoc", "help aplikacji"), "app:help"),
+    (("wlacz autopokaz", "start autopokaz", "demo aplikacji", "zademonstruj aplikacje"), "theory:autotour"),
+    (
+        ("stworz demo aplikacji", "przetestuj cala aplikacje", "pokaz caly przeplyw"),
+        "app:create_demo",
+    ),
+    (
+        (
+            "uruchom trening",
+            "trenuj modele",
+            "naucz modele",
+            "nauczaj modele",
+            "wytrenuj modele",
+            "uczenie modeli",
+        ),
+        "main:train",
+    ),
+    (
+        ("trenuj quality", "naucz quality", "wytrenuj jakosc", "trenuj jakosc"),
+        "main:train_quality",
+    ),
+    (
+        ("trenuj delay", "naucz delay", "wytrenuj opoznienie", "trenuj opoznienie"),
+        "main:train_delay",
+    ),
+    (
+        ("trenuj schedule", "naucz schedule", "wytrenuj harmonogram", "trenuj harmonogram"),
+        "main:train_schedule",
+    ),
+    (
+        ("trenuj tabpfn quality", "naucz tabpfn quality", "wytrenuj tabpfn jakosc"),
+        "main:train_tabpfn_quality",
+    ),
+    (("wlacz samonauke", "start samonauki", "selfnauka start"), "selflearn:start"),
+    (("wylacz samonauke", "stop samonauki", "selfnauka stop"), "selflearn:stop"),
+    (("status samonauki", "selfnauka status"), "selflearn:status"),
+    (("raport teraz", "wygeneruj raport teraz", "selfnauka teraz"), "selflearn:now"),
+    (("raport samonauki", "co zrobila samonauka", "pokaz raport"), "selflearn:report"),
+    (("czego nauczyla sie o algorytmach", "raport teorii", "selfnauka teoria"), "selflearn:theory"),
+    (("plan samonauki", "etap samonauki", "selfnauka plan"), "selflearn:plan"),
+    (("co sie zmienilo", "zmiany samonauki", "delta samonauki"), "selflearn:changes"),
+    (("podsumowanie dnia", "raport dzienny", "daily summary"), "selflearn:daily"),
+    (("wzrost wiedzy", "growth", "jak rosnie wiedza"), "selflearn:growth"),
+]
+
+
+def collect_operator_tasks(prompt: str) -> list[str]:
+    matches: list[tuple[int, str]] = []
+    for aliases, task_name in OPERATOR_TASK_MAP:
+        best_pos = None
+        for alias in aliases:
+            pos = prompt.find(alias)
+            if pos >= 0 and (best_pos is None or pos < best_pos):
+                best_pos = pos
+        if best_pos is not None:
+            matches.append((best_pos, task_name))
+    matches.sort(key=lambda item: item[0])
+    dedup: list[str] = []
+    for _pos, task in matches:
+        if task not in dedup:
+            dedup.append(task)
+    if "analytics:create_ml_report" in dedup and "analytics:create_report" in dedup:
+        dedup.remove("analytics:create_report")
+    if "analytics:create_sto_report" in dedup and "analytics:create_report" in dedup:
+        dedup.remove("analytics:create_report")
+    if "theory:mlp" in dedup and "theory:ml" in dedup:
+        dedup.remove("theory:ml")
+    if "visual:load_file" in dedup and "main:load_file" in dedup:
+        dedup.remove("main:load_file")
+    if "results:load_file" in dedup and "main:load_file" in dedup:
+        dedup.remove("main:load_file")
+    if any(task.startswith("visual:prompt_") or task == "visual:auto_chart" for task in dedup):
+        if "visual:draw" in dedup:
+            dedup.remove("visual:draw")
+    if any(task.startswith("main:train_") for task in dedup) and "main:train" in dedup:
+        dedup.remove("main:train")
+    return dedup
+
+
 class AOAAssistantPanel(ctk.CTkToplevel):
     def __init__(
         self,
@@ -328,79 +809,17 @@ class AOAAssistantPanel(ctk.CTkToplevel):
 
     @staticmethod
     def _is_heavy_task(task_name: str) -> bool:
-        return task_name in {"main:train", "selflearn:start"}
+        return task_name in {
+            "main:train",
+            "main:train_quality",
+            "main:train_delay",
+            "main:train_schedule",
+            "main:train_tabpfn_quality",
+            "selflearn:start",
+        }
 
     def _collect_tasks(self, prompt: str) -> list[str]:
-        task_map = [
-            (("odswiez visual", "aktualizuj wykres", "narysuj wykres"), "visual:draw"),
-            (("otworz visual", "przejdz do visual"), "visual:open"),
-            (("odswiez results", "odswiez wyniki"), "results:refresh"),
-            (("otworz analytics", "przejdz do analytics", "data analytics"), "analytics:open"),
-            (("uruchom analytics", "analiza analytics", "workflow analytics"), "analytics:run"),
-            (
-                (
-                    "otworz diagrams",
-                    "otworz diagramy",
-                    "otworz drawio",
-                    "otworz draw.io",
-                    "draw io",
-                    "drawio",
-                    "diagramy",
-                ),
-                "drawio:open",
-            ),
-            (
-                (
-                    "wczytaj szablon diagramu",
-                    "szablon diagrams",
-                    "szablon drawio",
-                    "szablon draw.io",
-                ),
-                "drawio:template",
-            ),
-            (("uruchom sql", "wykonaj sql"), "results:sql_run"),
-            (("reset sql",), "results:sql_reset"),
-            (("reset filtry", "wyczysc filtry"), "results:reset_filters"),
-            (("wlacz autopokaz", "start autopokaz"), "theory:autotour"),
-            (("uruchom trening", "trenuj modele"), "main:train"),
-            (
-                (
-                    "wczytaj sample i narysuj dashboard",
-                    "sample dashboard",
-                    "pokaz dashboard na sample",
-                ),
-                "visual:sample_dashboard",
-            ),
-            (("wlacz samonauke", "start samonauki", "selfnauka start"), "selflearn:start"),
-            (("wylacz samonauke", "stop samonauki", "selfnauka stop"), "selflearn:stop"),
-            (("status samonauki", "selfnauka status"), "selflearn:status"),
-            (("raport teraz", "wygeneruj raport teraz", "selfnauka teraz"), "selflearn:now"),
-            (("raport samonauki", "co zrobila samonauka", "pokaz raport"), "selflearn:report"),
-            (
-                ("czego nauczyla sie o algorytmach", "raport teorii", "selfnauka teoria"),
-                "selflearn:theory",
-            ),
-            (("plan samonauki", "etap samonauki", "selfnauka plan"), "selflearn:plan"),
-            (("co sie zmienilo", "zmiany samonauki", "delta samonauki"), "selflearn:changes"),
-            (("podsumowanie dnia", "raport dzienny", "daily summary"), "selflearn:daily"),
-            (("wzrost wiedzy", "growth", "jak rosnie wiedza"), "selflearn:growth"),
-            (("przejdz do results", "otworz results"), "results:open"),
-        ]
-        matches: list[tuple[int, str]] = []
-        for aliases, task_name in task_map:
-            best_pos = None
-            for alias in aliases:
-                pos = prompt.find(alias)
-                if pos >= 0 and (best_pos is None or pos < best_pos):
-                    best_pos = pos
-            if best_pos is not None:
-                matches.append((best_pos, task_name))
-        matches.sort(key=lambda item: item[0])
-        dedup: list[str] = []
-        for _pos, task in matches:
-            if task not in dedup:
-                dedup.append(task)
-        return dedup
+        return collect_operator_tasks(prompt)
 
     def _maybe_execute_task(self, prompt: str) -> str | None:
         if not callable(self.run_app_task):

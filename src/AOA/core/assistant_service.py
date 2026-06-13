@@ -14,6 +14,11 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 from AOA.core.mh_models import get_mh_model_specs
 from AOA.core.ml_models import get_ml_model_specs
+from AOA.core.release_segments import (
+    data_contract_summary,
+    report_template_summary,
+    segment_summary,
+)
 
 
 def _has_word(text: str, words: tuple[str, ...]) -> bool:
@@ -151,17 +156,18 @@ def _model_catalog_chunks() -> list[tuple[str, str]]:
             (
                 "Architektura aplikacji: GUI (CustomTkinter) + Core (modele, wizualizacje, uslugi) + Assets. "
                 "MainPage odpowiada za konfiguracje i trening. VisualPage za wykresy Matplotlib/D3. "
-                "ResultsPage za filtrowanie tabel, SQL i eksport CSV. AnalyticsPage za raporty, KPI i notebook. "
+                "ResultsPage za filtrowanie tabel, SQL i eksport CSV. Report/AnalyticsPage za raporty, KPI, PDF-like preview, notebook, ML/STO analytics i biblioteke plikow do raportow. "
                 "Diagrams Studio za interaktywne schematy, UML, ERD, BPMN i eksport .drawio/SVG/Mermaid/HTML. "
-                "TheoryPage za przewodnik krokowy. "
+                "TheoryPage za przewodnik krokowy dla classic ML, heurystyk STO oraz TabPFN/nowoczesnych modeli tabelarycznych. "
                 "AssistantService laczy RAG (README/docs/specy modeli) z endpointem LLM."
             ),
         ),
         (
             "workflow",
             (
-                "Workflow aplikacji: Readme -> Main (dane i modele) -> Visual (wykresy) -> "
-                "Results (filtrowanie i eksport) -> Theory (wyjasnienie modeli)."
+                "Workflow aplikacji: Readme -> Main (dane, classic ML, TabPFN, STO i modele wlasne) -> "
+                "Visual (wykresy) -> Diagrams (procesy, UML, ERD, BPMN, produkcja) -> "
+                "Report (raporty, PDF, notebook, KPI, ML/STO analytics) -> Results (SQL, tabele, eksport) -> Theory (wyjasnienie modeli)."
             ),
         ),
     ]
@@ -308,7 +314,7 @@ class AssistantService:
             web_note = self._web_lookup(question)
             msg = (
                 "Nie mam do tego wystarczajaco pewnego kontekstu w aplikacji.\n"
-                "Moge za to pomoc praktycznie: opisac Main, Visual, Results, Analytics, Diagrams, Theory albo ALICE."
+                "Moge za to pomoc praktycznie: opisac Main, Visual, Results, Report, Diagrams, Theory albo ALICE."
             )
             if web_note:
                 msg = f"{msg}\n\nDodatkowo sprawdzilam siec: {web_note}"
@@ -371,14 +377,26 @@ class AssistantService:
             answer = "Brak odpowiedzi."
 
         next_steps: list[str] = []
-        if any(
+        if AssistantService._category_help(question):
+            next_steps = [
+                "Wybierz jedna komende z tej kategorii i wpisz ja normalnym zdaniem.",
+                "Mozesz dopisac szczegol, np. 'dla sample', 'z SQL', 'do raportu' albo 'z opisu'.",
+                "Jesli chcesz tylko nauke, napisz 'wytlumacz krok po kroku'.",
+            ]
+        elif any(
             k in question
-            for k in ["theory", "teoria", "animac", "random forest", "boost", "extra", "softmax"]
+            for k in ["theory", "teoria", "animac", "random forest", "boost", "extra", "softmax", "tabpfn"]
         ) or ("sto" in question and ("machine learning" in question or " ml" in question)):
             next_steps = [
-                "Przejdz do Theory i wybierz najpierw grupe ML.",
-                "Porownaj animacje Random Forest, ExtraTrees, Boosting i Logistic.",
-                "Potem przelacz na Heurystyki, zeby osobno zobaczyc MT, MO, MZO i STO.",
+                "Przejdz do Theory i wybierz grupe ML, Heurystyki albo TabPFN.",
+                "Porownaj classic ML, TabPFN i STO na tych samych danych.",
+                "Sprawdz dolny blok z logika, wzorami i oznaczeniami.",
+            ]
+        elif AssistantService._is_function_list_question(question):
+            next_steps = [
+                "Wpisz jedna komende, np. 'zrob mi wykres' albo 'stworz raport ML'.",
+                "Mozesz laczyc polecenia w jednym zdaniu, np. 'stworz raport i pokaz PDF'.",
+                "Do nauki wpisz 'lekcja ML', 'lekcja raportow' albo 'lekcja diagramow'.",
             ]
         elif any(k in question for k in ["tren", "model", "main"]):
             next_steps = [
@@ -409,9 +427,10 @@ class AssistantService:
             ]
         elif any(k in question for k in ["analytics", "kpi", "notebook", "raport"]):
             next_steps = [
-                "Przejdz do Analytics.",
-                "Wczytaj dane, wybierz workflow i kliknij Uruchom analize.",
-                "Uzyj Otworz HTML albo Wykonaj wszystko, jesli chcesz pelny pakiet.",
+                "Przejdz do Report.",
+                "Wczytaj dane albo otworz Report Builder.",
+                "Dodaj wynik, Pipeline, ML/STO analize albo plik z Visual/Diagrams.",
+                "Sprawdz podglad PDF-like i dopiero eksportuj HTML/PDF.",
             ]
         elif any(k in question for k in ["sql", "result", "csv", "tabela"]):
             next_steps = [
@@ -442,6 +461,8 @@ class AssistantService:
     @staticmethod
     def _add_plain_explanation(answer: str, question: str, profile: str = "normal") -> str:
         if profile == "krotko":
+            return answer
+        if AssistantService._is_function_list_question(question) or AssistantService._category_help(question):
             return answer
         lowered = answer.lower()
         if "jak to czytac:" in lowered or "jak to czytać:" in lowered:
@@ -496,6 +517,10 @@ class AssistantService:
 
     @staticmethod
     def _human_lead(answer: str, question: str) -> str:
+        if any(k in question for k in ["jak sie masz", "jak się masz", "co u ciebie"]):
+            return ""
+        if AssistantService._is_function_list_question(question) or AssistantService._category_help(question):
+            return ""
         if "raport" in question or "podsumowanie" in question:
             return "Jasne. Najpierw dam Ci sedno, a szczegoly zostawiam ponizej."
         if any(k in question for k in ["jak", "dlaczego", "czemu"]):
@@ -534,6 +559,179 @@ class AssistantService:
     @staticmethod
     def _casual_playbook(question: str) -> str | None:
         compact = question.strip().lower()
+        category_help = AssistantService._category_help(compact)
+        if category_help:
+            return category_help
+        if AssistantService._is_function_list_question(compact):
+            return AssistantService._terminal_help()
+        if any(
+            k in compact
+            for k in [
+                "opowiedz cos o projekcie",
+                "opowiedz o projekcie",
+                "co to za projekt",
+                "co robi projekt",
+                "co robi aplikacja",
+                "o projekcie",
+                "production optimization",
+                "aoa",
+                "aplikacja optymalnego algorytmowania",
+            ]
+        ):
+            return (
+                "To jest AOA - Aplikacja Optymalnego Algorytmowania, czyli aplikacja do przejscia calej pracy od danych do decyzji.\n\n"
+                "Najprosciej:\n"
+                "- Main przygotowuje dane, uruchamia classic ML, TabPFN, XGBoost/nowoczesne ML, STO i modele wlasne.\n"
+                "- Visual pokazuje wykresy, dashboardy, drzewa decyzyjne i interaktywne HTML.\n"
+                "- Results pozwala sprawdzac tabele, filtrowac, uzywac SQL i eksportowac CSV.\n"
+                "- Report sklada raporty: gotowe formaty, KPI, ML/STO, pipeline, pliki z wykresow i PDF/HTML.\n"
+                "- Diagrams sluzy do flowchartow, BPMN, UML, ERD, VSM, procesow produkcyjnych i eksportu.\n"
+                "- Theory tlumaczy algorytmy jedna animacja krok po kroku, z logika i wzorami.\n\n"
+                "Moja rola jako ALICE: tlumaczyc te ekrany po ludzku, prowadzic krok po kroku, podpowiadac co kliknac i wyjasniac, co znacza metryki, modele, pliki oraz raporty."
+            )
+        if any(k in compact for k in ["kolejne segmenty", "segmenty rozwoju", "roadmap", "co dalej rozwijac"]):
+            return (
+                f"{segment_summary()}\n\n"
+                "Te segmenty sa w aplikacji opisane i podlaczone do ALICE jako playbooki: recenzent, operator, "
+                "kontroler release, analityk raportu i przewodnik po modelach."
+            )
+        if any(k in compact for k in ["szablony raportow", "report templates", "gotowe raporty"]):
+            return (
+                f"{report_template_summary()}\n\n"
+                "Najprosciej: napisz 'stworz raport ML', 'stworz raport STO' albo 'release report', "
+                "a ALICE poprowadzi Cie przez potrzebne sekcje."
+            )
+        if any(k in compact for k in ["kontrakt danych", "data contract", "wymagane kolumny", "walidacja danych"]):
+            return (
+                f"{data_contract_summary()}\n\n"
+                "Jesli dane nie przechodza treningu, najpierw sprawdz typy kolumn, braki, NaN/inf i czy cel y istnieje."
+            )
+        if any(
+            k in compact
+            for k in [
+                "ocen",
+                "oceń",
+                "sprawdz czy",
+                "sprawdz moj",
+                "sprawdz diagram",
+                "sprawdz raport",
+                "sprawdz wykres",
+                "sprawdz model",
+                "audyt",
+                "czy jest git",
+            ]
+        ):
+            if any(k in compact for k in ["diagram", "bpmn", "uml", "erd", "flow", "proces"]):
+                return (
+                    "Moge ocenic diagram jak checklist QA, niezaleznie od tego, w ktorym module jestes.\n\n"
+                    "Sprawdzam po kolei:\n"
+                    "1. Cel: czy tytul mowi, jaki proces/relacje pokazuje diagram.\n"
+                    "2. Start i koniec: czy wiadomo, gdzie zaczyna sie przeplyw i co jest wynikiem.\n"
+                    "3. Elementy: czy kazdy blok ma krotka, konkretna etykiete.\n"
+                    "4. Polaczenia: czy strzalki ida w jedna logiczna strone i nie krzyzuja sie bez potrzeby.\n"
+                    "5. Decyzje: czy bramki maja opisane wyjscia, np. tak/nie, OK/NOK.\n"
+                    "6. Kolory: czy kolor oznacza znaczenie, a nie losowa dekoracje.\n"
+                    "7. Czytelnosc: czy po eksporcie SVG/HTML tekst nie nachodzi na linie.\n"
+                    "8. Kontekst: czy diagram ma note, co oznaczaja skroty i kto ma z niego korzystac.\n\n"
+                    "Jesli chcesz, napisz 'ocen diagram z opisu: ...', a podam brakujace elementy przed zbudowaniem go w Diagrams."
+                )
+            if any(k in compact for k in ["raport", "report", "pdf", "latex"]):
+                return (
+                    "Moge ocenic raport jak redaktor i analityk.\n\n"
+                    "Minimalny dobry raport AOA powinien miec:\n"
+                    "1. Cel decyzji: po co raport powstal i jaka decyzje wspiera.\n"
+                    "2. Dane: zrodlo, zakres, liczba rekordow, braki i ograniczenia.\n"
+                    "3. Pipeline: dane -> walidacja -> ML/STO/TabPFN -> Visual/Results -> wnioski.\n"
+                    "4. Wyniki: metryki, wykresy, tabele i porownanie modeli/metod.\n"
+                    "5. Interpretacje: co oznacza wynik po ludzku, nie tylko liczby.\n"
+                    "6. Ryzyka: czego nie wiemy, co moze zaburzyc wynik.\n"
+                    "7. Rekomendacje: konkretne nastepne dzialania.\n"
+                    "8. Podglad PDF/HTML: czy strona ma marginesy, nie ucina tabel i ma czytelne naglowki.\n\n"
+                    "Komendy: 'stworz raport ML', 'dodaj ryzyka', 'podglad PDF', 'dodaj plik do raportu'."
+                )
+            if any(k in compact for k in ["wykres", "visual", "dashboard", "html"]):
+                return (
+                    "Moge ocenic wykres albo dashboard pod decyzje, nie tylko wyglad.\n\n"
+                    "Patrze na:\n"
+                    "1. Pytanie: czy wykres odpowiada na konkretne pytanie.\n"
+                    "2. Osie: czy X/Y maja nazwy, jednostki i sensowny zakres.\n"
+                    "3. Typ: scatter do relacji, histogram do rozkladu, bar do porownan, linia do czasu, heatmap do macierzy.\n"
+                    "4. Kolor i rozmiar: czy koduja konkretna zmienna.\n"
+                    "5. Outliery: czy widac rekordy odstajace i czy sa opisane.\n"
+                    "6. Interakcja HTML: tooltip, zoom/fullscreen, eksport i reset.\n"
+                    "7. Czytelnosc: czy etykiety nie nachodza i legenda nie przykrywa danych.\n\n"
+                    "Po wykresie warto przejsc do Results i sprawdzic rekordy, ktore wygladaja podejrzanie."
+                )
+            if any(k in compact for k in ["model", "ml", "tabpfn", "xgboost", "metryk", "trening"]):
+                return (
+                    "Moge ocenic model ML/TabPFN/XGBoost jako kontrola przed zaufaniem wynikowi.\n\n"
+                    "Sprawdzam:\n"
+                    "1. Typ zadania: Quality/Delay = regresja, Schedule = klasyfikacja.\n"
+                    "2. Dane: brak NaN/inf, sensowne typy kolumn, brak przecieku celu do cech.\n"
+                    "3. Podzial: train/test jest staly i taki sam dla porownywanych modeli.\n"
+                    "4. Metryki: regresja RMSE/MAE/R2, klasyfikacja accuracy/F1/confusion matrix.\n"
+                    "5. Baseline: porownanie z prostym modelem albo heurystyka.\n"
+                    "6. Stabilnosc: random_state, kilka modeli, historia treningow.\n"
+                    "7. Interpretacja: wazne cechy, drzewo decyzyjne albo Theory.\n"
+                    "8. Decyzja: co wynik zmienia w praktyce, a czego jeszcze nie wolno wnioskowac.\n\n"
+                    "Komendy: 'porownaj modele', 'pokaz historie', 'lekcja XGBoost', 'trenuj Quality'."
+                )
+            return (
+                "Moge zrobic uniwersalny audyt AOA dla kazdego trybu: Main, Visual, Results, Report, Diagrams i Theory.\n\n"
+                "Moja checklista:\n"
+                "1. Czy wiadomo, jaki jest cel pracy.\n"
+                "2. Czy dane albo wejscie sa poprawne i opisane.\n"
+                "3. Czy wybrany model/wykres/diagram pasuje do celu.\n"
+                "4. Czy wynik ma metryki, opis i ryzyka.\n"
+                "5. Czy uzytkownik ma nastepny krok: Results, Visual, Report, eksport albo poprawka danych.\n"
+                "6. Czy artefakt da sie odtworzyc pozniej z plikow, historii albo raportu.\n\n"
+                "Mozesz napisac: 'ocen diagram', 'ocen raport', 'ocen wykres', 'ocen model' albo 'audyt workflow'."
+            )
+        if any(
+            k in compact
+            for k in [
+                "co mozesz przetestowac",
+                "co mozesz pokazac",
+                "co mozesz stworzyc",
+                "co mozesz utworzyc",
+                "co mozesz zrobic w aplikacji",
+                "jak mozesz sterowac",
+                "jakie akcje alice",
+                "tryb operatora",
+            ]
+        ):
+            return (
+                "Moge dzialac w trybie operatora, czyli nie tylko odpowiadac, ale tez wykonac ruch w aplikacji.\n\n"
+                "Przyklady polecen:\n"
+                "- 'przetestuj raport' -> uruchomie Report Studio, wczytam gotowy format i otworze edytor.\n"
+                "- 'stworz raport' -> zloze szkic raportu z sekcjami ML, STO, pipeline i rekomendacjami.\n"
+                "- 'stworz raport ML' albo 'stworz raport STO' -> przygotuje raport pod konkretny typ decyzji.\n"
+                "- 'dodaj wykres/plik/KPI do raportu' -> rozbuduje aktualny raport o gotowy blok.\n"
+                "- 'eksportuj notebook' albo 'csv akcji' -> wygeneruje material do dalszej analizy.\n"
+                "- 'pokaz XGBoost' -> przejde do Theory i ustawie animacje XGBoost.\n"
+                "- 'pokaz MLP/Stacking/Schedule' -> ustawie odpowiednia animacje nowoczesnego ML.\n"
+                "- 'przetestuj diagram' -> zbuduje diagram z opisu w Diagrams.\n"
+                "- 'wczytaj dane do Visual' -> otworze plik w Visual, a potem moge dobrac wykres.\n"
+                "- 'dobierz wykres' -> wezme aktualne dane albo sample i wybiore sensowny wykres startowy.\n"
+                "- 'wczytaj sample do Results' -> pokaze tabele w Results bez szukania pliku.\n"
+                "- 'pokaz SQL przyklad/statystyki/braki/top' -> przelacze Results w SQL i odpale gotowe zapytanie.\n"
+                "- 'stworz diagram produkcji/logistyczny/systemu' -> sama wybiore typ diagramu i uloze elementy.\n"
+                "- 'stworz diagram danych' -> uloze pipeline CSV -> walidacja -> model -> metryki -> raport.\n"
+                "- 'diagram BPMN/UML/ERD/sieci/swimlane/kanban/QC/MLOps/VSM' -> zbuduje konkretny typ diagramu na planszy.\n"
+                "- 'otworz kreator diagramu' -> pokaze formularz do opisania diagramu slowami.\n"
+                "- 'dodaj maszyne/model ML/notatke/kontener' -> dodam gotowy blok do aktualnego diagramu.\n"
+                "- 'sample dashboard' -> przejde do Visual i narysuje przykladowy dashboard.\n"
+                "- 'otworz raport D3' albo 'pokaz wybor wykresu' -> pomoge w Visual.\n"
+                "- 'przejdz do Results' albo 'uruchom SQL' -> otworze Results i wykonam odpowiednia akcje.\n"
+                "- 'pokaz braki danych', 'eksportuj widoczne wyniki' albo 'eksportuj wynik SQL' -> pomoge w Results.\n"
+                "- 'przetestuj Main' -> przygotuje dane testowe i pokaze panel modeli.\n"
+                "- 'wczytaj sample do Main' -> wygeneruje dane treningowe z aktualnych parametrow.\n"
+                "- 'zaznacz Quality/Delay/Schedule' -> ustawie odpowiednie modele w Main.\n"
+                "- 'ustaw TabPFN' albo 'ustaw classic' -> zmienie backend treningu.\n"
+                "- 'naucz modele', 'trenuj Quality' albo 'trenuj TabPFN Quality' -> przygotuje dane, zaznacze cel i uruchomie trening po potwierdzeniu.\n\n"
+                "Moge tez prowadzic sciezkami: 'lekcja ML', 'lekcja raportow', 'lekcja diagramow' albo 'co powinienem kliknac'.\n\n"
+                "Ciezsze akcje, np. trening modeli albo samonauka, wymagaja potwierdzenia, jesli nie wlaczysz auto-potwierdzania."
+            )
         if any(
             k in compact
             for k in [
@@ -545,18 +743,19 @@ class AssistantService:
             ]
         ):
             return (
-                "Jestem ALICE, czyli przewodniczka po aplikacji Production Optimization.\n"
+                "Jestem ALICE, czyli przewodniczka po AOA - Aplikacji Optymalnego Algorytmowania.\n"
                 "Moim zadaniem nie jest tylko odpowiadac jednym zdaniem, ale prowadzic uzytkownika krok po kroku: "
                 "co kliknac, co oznacza wynik i gdzie sprawdzic szczegoly.\n\n"
                 "Znam glowne miejsca aplikacji:\n"
-                "- Main: wczytanie danych, wybor modeli, trening i zapis wynikow.\n"
+                "- Main: wczytanie danych, wybor classic ML/TabPFN/STO, modele wlasne i zapis wynikow.\n"
                 "- Visual: wykresy, dashboardy, ML Decision Tree, SolutionTree i eksport HTML.\n"
                 "- Results: tabela wynikow, filtrowanie, SQL, eksport CSV.\n"
-                "- Analytics: raporty, KPI, diagnostyka danych, notebook i workflow analityczne.\n"
-                "- Diagrams: schematy procesow, UML, ERD, BPMN, edycja i eksport.\n"
-                "- Theory: animacje, ktore tlumacza osobno ML oraz heurystyki/STO.\n\n"
+                "- Report: raporty, pelny Report Builder, KPI, diagnostyka danych, notebook i workflow analityczne.\n"
+                "- Diagrams: schematy procesow, UML, ERD, BPMN, VSM, supply chain, produkcja, edycja i eksport.\n"
+                "- Theory: animacje, ktore tlumacza ML, heurystyki/STO, TabPFN, XGBoost, MLP i Stacking.\n\n"
+                "Wiem tez, czym sa zadania regresji i klasyfikacji: Quality/Delay przewiduja liczby, a Schedule wybiera klase/strategie.\n\n"
                 "Najlepiej pytaj mnie normalnie, np. 'co zrobic w Main?', 'czemu drzewo jest zolte?', "
-                "'jak czytac raport?' albo 'przeprowadz mnie przez workflow'."
+                "'jak czytac raport?', 'jaki model wybrac?' albo 'przeprowadz mnie przez workflow'."
             )
         if "main" in compact and any(
             k in compact
@@ -591,6 +790,14 @@ class AssistantService:
                 "W praktyce ALICE powinna odpowiadac tak: najpierw sedno, potem proste wyjasnienie, na koncu konkretne kroki. "
                 "Jesli nie zna odpowiedzi, nie powinna udawac; ma powiedziec, czego brakuje i zaproponowac najblizsza akcje."
             )
+        if any(k in compact for k in ["jak sie masz", "jak się masz", "co u ciebie"]):
+            return (
+                "Mam sie dobrze i jestem gotowa do pracy w aplikacji.\n"
+                "Mozesz traktowac mnie jak terminal z jezykiem naturalnym: piszesz, co chcesz zrobic, "
+                "a ja wykonuje akcje albo pokazuje, gdzie kliknac.\n\n"
+                "Przyklady: 'zrob mi wykres', 'stworz raport ML', 'pokaz braki danych', "
+                "'lekcja ML', 'stworz diagram produkcji', 'wypisz funkcje'."
+            )
         casual_prompts = {
             "powiedz cos",
             "powiedz coś",
@@ -610,10 +817,11 @@ class AssistantService:
                 "Jestem ALICE i moge pomoc Ci przejsc przez aplikacje bez zgadywania.\n"
                 "Najlepiej dzialam, gdy pytasz konkretnie, np.:\n"
                 "- co pokazuje ten wykres,\n"
-                "- jak uruchomic workflow w Analytics,\n"
+                "- jak uruchomic workflow w Report,\n"
                 "- czym rozni sie ML od STO,\n"
-                "- jak zrobic raport albo diagram.\n"
-                "Jesli chcesz szybki start: wczytaj dane, wejdz w Analytics albo Visual, a ja wytlumacze wynik krok po kroku."
+                "- jak zrobic raport albo diagram,\n"
+                "- czym rozni sie classic ML, TabPFN, custom ML i STO.\n"
+                "Jesli chcesz szybki start: wczytaj dane, wejdz w Report albo Visual, a ja wytlumacze wynik krok po kroku."
             )
         if "workflow" in compact and any(
             k in compact for k in ["powiedz", "wymow", "czytaj", "glos", "akcent"]
@@ -621,11 +829,314 @@ class AssistantService:
             return (
                 "Workflow czytam jako 'łork-floł', czyli przeplyw pracy.\n"
                 "W aplikacji workflow oznacza gotowy zestaw krokow, np. kontrola danych, analiza metryki, wykres, raport i rekomendacje."
+        )
+        return None
+
+    @staticmethod
+    def _is_function_list_question(compact: str) -> bool:
+        phrases = [
+            "wypisz funkcje",
+            "wypisz komendy",
+            "lista funkcji",
+            "lista komend",
+            "jakie masz funkcje",
+            "jakie funkcje masz",
+            "co potrafisz",
+            "co umiesz",
+            "co umiesz zrobic",
+            "co mozesz zrobic",
+            "komendy alice",
+            "help alice",
+            "terminal alice",
+        ]
+        return any(phrase in compact for phrase in phrases)
+
+    @staticmethod
+    def _terminal_help() -> str:
+        return (
+            "Tryb terminalowy ALICE: piszesz normalnym jezykiem, a ja odpowiadam, przenosze do modulu albo wykonuje dostepna akcje.\n\n"
+            "Kategorie komend:\n"
+            "1. Dane i modele - Main, dane treningowe, zaznaczanie modeli, backend classic/TabPFN, trening, XGBoost, custom ML, custom STO.\n"
+            "2. Wykresy i Visual - dashboardy, HTML, drzewa, wykresy i interpretacja.\n"
+            "3. Results i SQL - tabele, filtry, braki danych, sample, eksport CSV i zapytania.\n"
+            "4. Raporty - Report Builder, PDF/HTML, KPI, ML/STO analytics, pliki i szablony.\n"
+            "5. Diagramy - flowchart, BPMN, UML, ERD, VSM, MLOps i diagramy z opisu.\n"
+            "6. Theory i lekcje - animacje ML/STO/nowoczesne ML, wzory i nauka krok po kroku.\n"
+            "7. Sterowanie aplikacja - przechodzenie po ekranach, podswietlanie paneli i testy.\n"
+            "8. Pliki i porzadek - podglad wygenerowanych CSV/HTML/PDF/modeli oraz bezpieczne usuwanie po potwierdzeniu.\n"
+            "9. Release i QA - check przed GitHubem, kontrola HTML i historia workflowow.\n"
+            "10. Historia, sample i porownania - ostatnie pliki, zapisane workflowy, sample do Main/Visual/Results i porownywarka modeli.\n"
+            "11. Ocena i audyt - sprawdzenie diagramu, raportu, wykresu, modelu, wynikow albo calego workflow.\n"
+            "12. ALICE i samonauka - status, baza wiedzy, co wiem o aplikacji i potwierdzanie akcji.\n\n"
+            "Zapytaj o kategorie, np. 'co mozesz w diagramach?', 'co umiesz w raportach?', "
+            "'jakie komendy do Results?' albo od razu wydaj polecenie: 'wczytaj sample do Main', "
+            "'zaznacz Quality i ustaw TabPFN', 'naucz modele', 'stworz diagram BPMN', "
+            "'zrob raport ML', 'pokaz braki danych', 'otworz pliki', 'release check', "
+            "'pokaz historie', 'porownaj modele', 'pokaz tutoriale', 'ocen diagram', 'lekcja XGBoost'."
+        )
+
+    @staticmethod
+    def _category_help(compact: str) -> str | None:
+        if not AssistantService._has_help_intent(compact):
+            return None
+        if "operatora" in compact or "tryb operator" in compact:
+            return None
+        if _has_word(compact, ("plik", "pliki", "plikami", "usun", "usuwanie", "porzadek")) and not any(
+            k in compact for k in ["visual", "report", "results", "main", "diagram"]
+        ):
+            return (
+                "Pliki i porzadek - co moge zrobic:\n"
+                "1. Otworzyc menedzer plikow AOA.\n"
+                "2. Pokazac wygenerowane dane, raporty HTML, PDF, Markdown, JSON, modele .pkl i obrazy.\n"
+                "3. Zrobic tekstowy podglad pliku przed decyzja.\n"
+                "4. Otworzyc plik w domyslnej aplikacji albo przegladarce.\n"
+                "5. Usunac wybrany plik dopiero po potwierdzeniu.\n\n"
+                "Polecenia: 'otworz pliki', 'menedzer plikow', 'pokaz pliki', 'usun pliki', 'posprzataj pliki'."
+            )
+        if any(k in compact for k in ["release", "github", "qa", "kontrola", "publikacja"]):
+            return (
+                "Release i QA - co moge zrobic:\n"
+                "1. Podac checklist przed publikacja na GitHubie.\n"
+                "2. Przejsc przez Main, Visual, Results, Report, Diagrams i Theory.\n"
+                "3. Otworzyc kontrolny HTML z Visual i sprawdzic fullscreen, eksport, tooltipy oraz czy wykres nie wychodzi poza ekran.\n"
+                "4. Przypomniec o testach, historii treningow, historii workflowow i porownaniu modeli.\n\n"
+                "Polecenia: 'release check', 'sprawdz release', 'qa html', 'sprawdz wykresy html'."
+            )
+        if any(
+            k in compact
+            for k in [
+                "historia",
+                "workflow",
+                "workflowow",
+                "porown",
+                "porownaj",
+                "porownywarka",
+                "sample",
+                "przykladowe",
+                "tutorial",
+                "tutoriale",
+                "instrukcja",
+            ]
+        ):
+            return (
+                "Historia, sample, porownania i tutoriale - co moge zrobic:\n"
+                "1. Otworzyc historie artefaktow AOA: wyniki, modele, raporty, wykresy HTML, diagramy, JSON i notebooki.\n"
+                "2. Pokazac menedzer plikow jako historie treningow i workflowow zapisanych lokalnie.\n"
+                "3. Przygotowac sample do Main, Visual albo Results, zeby testowac bez szukania pliku.\n"
+                "4. Przeniesc do porownywania modeli w Results/Visual/Report i przypomniec metryki: RMSE, MAE, R2, accuracy, F1, opoznienia i bufor.\n"
+                "5. Otworzyc tutoriale krok po kroku w Readme, docs i Theory.\n"
+                "6. Podpowiedziec nastepny krok po wykonanym workflow: trening -> Results -> Visual -> Report -> pliki.\n\n"
+                "Polecenia: 'pokaz historie', 'historia treningow', 'ostatnie pliki', "
+                "'porownaj modele', 'pokaz sample', 'wczytaj sample do Main', "
+                "'pokaz tutoriale', 'instrukcja krok po kroku'."
+            )
+        if any(k in compact for k in ["diagram", "drawio", "draw.io", "uml", "erd", "bpmn"]):
+            return (
+                "Diagramy - co moge zrobic:\n"
+                "1. Stworzyc diagram z opisu: 'zrob diagram z opisu: dostawca -> magazyn -> QC -> produkcja'.\n"
+                "2. Otworzyc kreator: 'otworz kreator diagramu'.\n"
+                "3. Zbudowac praktyczne typy: proces, BPMN, UML, ERD, siec, swimlane, sekwencja, org chart, mind map, decyzje.\n"
+                "4. Zbudowac diagramy operacyjne: kanban, magazyn, QC, MLOps, utrzymanie ruchu, VSM, supply chain, layout hali, ANDON, zapasy i energia.\n"
+                "5. Dodac elementy: maszyna, magazyn, model ML, notatka, kontener, bramka decyzyjna albo polaczenie.\n"
+                "6. Uporzadkowac plansze: auto layout, zastosuj styl, wyczysc, duplikuj, usun zaznaczony.\n"
+                "7. Wyeksportowac: .drawio, SVG, Mermaid albo HTML.\n\n"
+                "Najlepsze polecenia startowe:\n"
+                "- 'stworz diagram BPMN procesu reklamacji'\n"
+                "- 'stworz ERD dla zamowien, produktow i klientow'\n"
+                "- 'zrob diagram MLOps od danych do monitoringu'\n"
+                "- 'diagram magazynu z kontrola jakosci i wysylka'"
+            )
+        if any(k in compact for k in ["raport", "report", "pdf", "kpi", "notebook", "analytics"]):
+            return (
+                "Raporty - co moge zrobic:\n"
+                "1. Otworzyc pelny Report Builder jak edytor Overleaf/LaTeX.\n"
+                "2. Wstawic gotowy format: cel raportu, pipeline pracy, dane i wyniki, ML analiza, STO analiza, wnioski.\n"
+                "3. Dodac bloki: KPI, wykres, rekomendacje, ryzyka, plan predykcji, pipeline, obraz/HTML z Visual albo diagram.\n"
+                "4. Wczytac pliki z projektu i wstawic je do raportu jako zalacznik, obraz albo link.\n"
+                "5. Pokazac podglad strony/PDF i eksportowac HTML, MD, TeX albo PDF.\n"
+                "6. Wykonac workflow Report Studio: data quality, dashboard, KPI, diagnostyka, korelacje, outliery, notebook.\n\n"
+                "Polecenia:\n"
+                "- 'stworz raport ML'\n"
+                "- 'stworz raport STO'\n"
+                "- 'otworz pelny edytor raportu'\n"
+                "- 'dodaj KPI do raportu'\n"
+                "- 'podglad PDF'\n"
+                "- 'eksportuj notebook'"
+            )
+        if any(k in compact for k in ["visual", "wykres", "dashboard", "html", "drzewo"]):
+            return (
+                "Visual - co moge zrobic:\n"
+                "1. Przejsc do Visual i ustawic panel wykresu.\n"
+                "2. Wczytac plik do Visual albo sample bez szukania danych.\n"
+                "3. Dobierac wykres startowy do kolumn: scatter, histogram albo dashboard.\n"
+                "4. Rysowac z opisu: scatter, histogram, dashboard i potem odswiezyc raport.\n"
+                "5. Otworzyc interaktywny raport D3/HTML.\n"
+                "6. Wyjasnic osie, kolory, rozmiar punktow, outliery i relacje.\n"
+                "7. Rozroznic ML Decision Tree od SolutionTree.\n"
+                "8. Pomoc dobrac biblioteke: Matplotlib, Seaborn, Plotly, Altair, NetworkX.\n\n"
+                "Polecenia: 'wczytaj dane do Visual', 'wczytaj sample do Visual', 'dobierz wykres', "
+                "'scatter z opisu', 'histogram z opisu', 'dashboard z opisu', 'otworz raport D3'."
+            )
+        if any(k in compact for k in ["results", "wynik", "wyniki", "sql", "csv", "tabela", "filtr"]):
+            return (
+                "Results i SQL - co moge zrobic:\n"
+                "1. Przeniesc do Results i pokazac tabele wynikow.\n"
+                "2. Wczytac plik do Results albo sample do testow.\n"
+                "3. Pokazac braki danych, duplikaty albo rekordy odstajace.\n"
+                "4. Pomoc z filtrowaniem i sortowaniem kolumn.\n"
+                "5. Uruchomic gotowe SQL: pierwsze wiersze, statystyki, braki albo top rekordy.\n"
+                "6. Uruchomic albo wyjasnic wlasne zapytanie SQL.\n"
+                "7. Eksportowac widoczne wyniki albo wynik SQL do CSV.\n\n"
+                "Polecenia: 'wczytaj dane do Results', 'wczytaj sample do Results', 'pokaz SQL przyklad', "
+                "'SQL statystyki', 'SQL braki', 'SQL top', 'eksportuj wynik SQL'."
+            )
+        if any(
+            k in compact
+            for k in ["main", "dane", "model", "modele", "trening", "tabpfn", "xgboost", "custom"]
+        ) or _has_word(compact, ("sto",)):
+            return (
+                "Dane i modele - co moge zrobic:\n"
+                "1. Otworzyc Main, wczytac plik albo wygenerowac dane testowe.\n"
+                "2. Wczytac sample do Main, czyli przygotowac dane treningowe bez szukania pliku.\n"
+                "3. Zaznaczyc modele za uzytkownika: Quality, Delay, Schedule, wszystkie ML, podstawowe ML, wszystkie STO albo podstawowe STO.\n"
+                "4. Ustawic backend classic albo TabPFN.\n"
+                "5. Wyjasnic typ zadania: Quality/Delay to regresja, Schedule to klasyfikacja.\n"
+                "6. Pomoc wybrac model: RandomForest, ExtraTrees, GradientBoosting, HistGradient, SVR, KNN, Ridge, LogisticRegression, XGBoost, MLP, Stacking, TabPFN.\n"
+                "7. Utworzyc wlasny model sklearn albo wlasna heurystyke STO z opisem/wzorem.\n"
+                "8. Uruchomic trening po potwierdzeniu: aktualnie zaznaczone modele, Quality, Delay, Schedule albo TabPFN Quality.\n"
+                "9. Uruchomic STO i pokazac, co dalej sprawdzic w Results/Visual.\n\n"
+                "Polecenia: 'wczytaj dane z pliku', 'wczytaj sample do Main', 'zaznacz Quality', "
+                "'zaznacz wszystkie ML', 'zaznacz podstawowe STO', 'ustaw TabPFN', "
+                "'naucz modele', 'trenuj Quality', 'trenuj TabPFN Quality', "
+                "'dodaj wlasny model ML', 'dodaj heurystyke', 'uruchom STO'."
+            )
+        if any(k in compact for k in ["theory", "teoria", "lekcja", "nauka", "algorytm", "wzor", "wzory"]):
+            return (
+                "Theory i lekcje - co moge zrobic:\n"
+                "1. Pokazac animacje classic ML: Random Forest, ExtraTrees, GradientBoosting, HistGradient, Logistic/Schedule.\n"
+                "2. Pokazac heurystyki STO: MT/EDD, MO/SPT, MZO/LPT, MOpt, Genetic, Slack, Critical Ratio.\n"
+                "3. Pokazac nowoczesne ML: TabPFN, XGBoost, MLP, Stacking.\n"
+                "4. Wyjasnic kazdy krok: dane, cechy, braki, trening, walidacja, predykcja, metryki.\n"
+                "5. Podac wzory i oznaczenia po ludzku.\n\n"
+                "Polecenia: 'lekcja ML', 'lekcja raportow', 'lekcja diagramow', "
+                "'pokaz XGBoost', 'pokaz TabPFN', 'pokaz Stacking', 'daj liste krok po kroku'."
+            )
+        if any(
+            k in compact
+            for k in ["sterowanie", "sterowania", "nawigacja", "przejdz", "klik", "test"]
+        ):
+            return (
+                "Sterowanie aplikacja - co moge zrobic:\n"
+                "1. Przejsc do modulu: Main, Visual, Results, Report, Diagrams albo Theory.\n"
+                "2. Podswietlic panel, ktory warto kliknac.\n"
+                "3. Uruchomic bezpieczne akcje: sample dashboard, diagram z opisu, szkic raportu, podglad HTML/PDF.\n"
+                "4. Przetestowac sciezke: Main -> Visual -> Results -> Report -> Theory.\n"
+                "5. Dla ciezkich akcji, jak trening lub samonauka, poprosic o potwierdzenie.\n\n"
+                "Polecenia: 'przejdz do Report', 'co powinienem kliknac?', 'przetestuj raport', "
+                "'przetestuj diagram', 'przetestuj Main'."
+            )
+        if any(k in compact for k in ["alice", "samonauka", "self learning", "baza wiedzy", "status"]):
+            return (
+                "ALICE i samonauka - co moge zrobic:\n"
+                "1. Przedstawic siebie i wyjasnic, co wiem o aplikacji.\n"
+                "2. Korzystac z bazy wiedzy: README, docs, specy modeli, akcje GUI i alice_brain.json.\n"
+                "3. Odpowiadac na pytania o Main, Visual, Results, Report, Diagrams, Theory i modele.\n"
+                "4. Pokazywac kategorie komend zamiast zalewac sciana tekstu.\n"
+                "5. Wlaczyc/wyjasnic samonauke i raport z uczenia, gdy uzytkownik to potwierdzi.\n\n"
+                "Polecenia: 'opowiedz o sobie', 'co wiesz o aplikacji?', 'status samonauki', "
+                "'czego sie nauczyla ALICE?', 'wypisz funkcje'."
             )
         return None
 
     @staticmethod
+    def _has_help_intent(compact: str) -> bool:
+        phrases = [
+            "co mozesz",
+            "co umiesz",
+            "co potrafisz",
+            "jakie komendy",
+            "jakie masz komendy",
+            "jakie funkcje",
+            "jakie masz funkcje",
+            "lista",
+            "wypisz",
+            "pomoc",
+            "help",
+            "jak mozesz",
+            "czym mozesz",
+            "co da rade",
+            "kategorie",
+            "kategoria",
+        ]
+        return any(phrase in compact for phrase in phrases)
+
+    @staticmethod
     def _process_playbook(question: str) -> str | None:
+        if any(
+            k in question
+            for k in [
+                "svm",
+                "svr",
+                "knn",
+                "ridge",
+                "histgradient",
+                "randomforest",
+                "extratrees",
+                "gradientboosting",
+                "logisticregression",
+                "n_estimators",
+                "learning_rate",
+                "max_depth",
+                "estymator",
+                "parametry json",
+            ]
+        ):
+            return (
+                "Nazwy w kreatorze własnego modelu to klasy sklearn i ich parametry.\n\n"
+                "Najważniejsze algorytmy:\n"
+                "- RandomForest: wiele drzew decyzyjnych; wynik regresji to średnia, a klasyfikacji głosowanie.\n"
+                "- ExtraTrees: podobne do RandomForest, ale mocniej losuje progi podziału, więc często jest szybkie i odporne na szum.\n"
+                "- GradientBoosting: buduje kolejne małe modele, które poprawiają błędy poprzednich: F_m(x)=F_{m-1}(x)+η·h_m(x).\n"
+                "- HistGradientBoosting: boosting na koszykach/histogramach wartości, dobry dla większych danych.\n"
+                "- SVR/SVM: szuka granicy z marginesem; w regresji toleruje błąd epsilon i ma karę C. Wymaga skalowania.\n"
+                "- KNN: patrzy na najbliższe podobne rekordy; n_neighbors mówi ilu sąsiadów użyć. Wymaga skalowania.\n"
+                "- Ridge: prosta regresja liniowa z karą alpha: min ||y-Xw||² + alpha·||w||².\n"
+                "- LogisticRegression: klasyfikacja; liczy P(klasa|X), a wygrywa największe prawdopodobieństwo.\n\n"
+                "Co znaczą parametry:\n"
+                "- n_estimators: liczba drzew/modeli.\n"
+                "- max_depth: maksymalna głębokość drzewa.\n"
+                "- min_samples_leaf: minimalna liczba rekordów w liściu, chroni przed przeuczeniem.\n"
+                "- learning_rate: tempo poprawiania błędu w boostingu.\n"
+                "- C: kara w SVM; większe C mocniej dopasowuje model.\n"
+                "- epsilon: tolerowany błąd w SVR.\n"
+                "- alpha: siła regularyzacji Ridge.\n"
+                "- random_state: powtarzalny wynik.\n"
+                "- n_jobs: liczba równoległych wątków, -1 oznacza użyj dostępnych rdzeni.\n\n"
+                "Ścieżka typu sklearn.svm.SVR to po prostu pełna nazwa klasy w bibliotece sklearn, którą aplikacja tworzy i trenuje."
+            )
+        if any(
+            k in question
+            for k in [
+                "wlasny model",
+                "własny model",
+                "custom model",
+                "sklearn",
+                "dodac model",
+                "dodać model",
+            ]
+        ):
+            return (
+                "Własny model sklearn dodajesz w Main przez przycisk '+ Własny model sklearn'.\n\n"
+                "Krok po kroku:\n"
+                "1. Wybierz gotowy preset, np. RandomForest, ExtraTrees, GradientBoosting, SVR, KNN, Ridge albo LogisticRegression.\n"
+                "2. Wybierz zadanie aplikacji: jakość, opóźnienie albo harmonogram. To jest cel y, który model ma przewidywać.\n"
+                "3. Zostaw nazwę na ekranie jako 'Mój model ML' albo wpisz własną etykietę.\n"
+                "4. Sprawdź estymator sklearn. Regresory są do jakości/opóźnienia, klasyfikatory do harmonogramu.\n"
+                "5. Jeśli model to SVR, KNN albo LogisticRegression, użyj skalowania standard/robust. Dla drzew zwykle wystarczy none.\n"
+                "6. Zostaw JSON bez zmian, jeśli nie wiesz co ustawić. Parametry trafiają bezpośrednio do sklearn.\n"
+                "7. Kliknij 'Zapisz model', zaznacz nowy model na liście i uruchom trening.\n\n"
+                "Logika pod spodem: dane produkcji -> cechy X -> brakujące dane medianą -> opcjonalne skalowanie -> estimator.fit(X, y) -> predykcja i metryki."
+            )
         if (
             "sto" in question
             and ("machine learning" in question or " ml" in question or "model ml" in question)
@@ -646,13 +1157,13 @@ class AssistantService:
             return (
                 "Pelny proces pracy w aplikacji:\n"
                 "1) Readme: szybki start i co oznaczaja moduly.\n"
-                "2) Main: wybierz modele ML/STO i przygotuj lub wczytaj dane.\n"
-                "3) Trening: uruchom modele, sprawdz metryki i zapisz najlepszy wariant.\n"
+                "2) Main: wczytaj dane, wybierz classic ML, TabPFN, STO albo wlasny model.\n"
+                "3) Trening/predykcja: uruchom pipeline, sprawdz metryki, zapisz model i wyniki.\n"
                 "4) Visual: porownaj wykresy, drzewa decyzji/rozwiazan i dashboardy.\n"
-                "5) Analytics: generuj raporty, KPI, HTML, notebook i akcje.\n"
-                "6) Diagrams: buduj interaktywne schematy i eksportuj .drawio/SVG/Mermaid/HTML.\n"
+                "5) Diagrams: opisz proces, przeplyw produkcji, BPMN/UML/ERD albo pipeline operacyjny.\n"
+                "6) Report: zloz raport jak w Overleaf, dodaj PDF preview, pliki, ML/STO analytics i KPI.\n"
                 "7) Results: filtruj tabele, SQL, eksportuj CSV/raport.\n"
-                "8) Theory: przejdz przez instrukcje krokowe i autopokaz.\n"
+                "8) Theory: przejdz przez animacje classic ML, STO i TabPFN, z logika i wzorami.\n"
                 "Jesli chcesz, przeprowadze Cie teraz przez wybrany punkt (np. 'krok 3')."
             )
         if any(
@@ -695,11 +1206,23 @@ class AssistantService:
             )
         if any(k in question for k in ["analytics", "kpi", "notebook", "data analytics"]):
             return (
-                "Analytics to panel do pracy analitycznej, a nie tylko opis.\n"
+                "Report Studio to panel do pracy raportowej i analitycznej, a nie tylko opis.\n"
                 "- Wczytujesz CSV/TXT/TSV.\n"
                 "- Wybierasz workflow: jakosc danych, dashboard, raport, KPI, diagnostyka, market sizing albo notebook.\n"
-                "- Klikasz Uruchom analize, Otworz HTML, Wykonaj wszystko, Notebook .ipynb albo CSV akcji.\n"
-                "- Wyniki z Analytics mozna potem odtworzyc wykresem w Visual."
+                "- Report Builder dziala jak prosty Overleaf: po lewej zrodlo, po prawej podglad strony PDF, obok guide komend.\n"
+                "- Do raportu mozesz wstawic pliki z Visual, Diagrams, Report i Reports: obrazy, SVG, HTML, CSV albo tekst.\n"
+                "- Klikasz Uruchom analize, Otworz HTML, Wykonaj wszystko, Notebook .ipynb, CSV akcji albo eksport PDF.\n"
+                "- Wyniki z Report mozna potem odtworzyc wykresem w Visual i opisac diagramem w Diagrams."
+            )
+        if any(k in question for k in ["diagram z opisu", "smart diagram", "madry diagram", "zrob diagram"]):
+            return (
+                "W Diagrams mozesz zaczac od opisu slownego.\n"
+                "- Kliknij Z opisu.\n"
+                "- Wpisz proces strzalkami albo normalnym zdaniem, np. CSV -> walidacja -> model ML -> raport.\n"
+                "- Aplikacja dobierze szablon, ksztalty, kolory i etykiety polaczen.\n"
+                "- Jesli elementy sa zbyt ciasno, kliknij Auto layout i dopiero potem popraw detale recznie.\n"
+                "- Potem poprawiasz diagram recznie: przesuwasz elementy, zmieniasz kolor, dodajesz kontenery i eksportujesz.\n"
+                "To jest dobry start, gdy osoba nie wie jeszcze, czy potrzebuje Flowchart, Data Pipeline, Supply Chain czy System Architecture."
             )
         if any(
             k in question
@@ -707,12 +1230,33 @@ class AssistantService:
         ):
             return (
                 "Diagrams to interaktywny panel schematow.\n"
-                "- Wybierasz szablon: Flowchart, UML, ERD, BPMN, Network, Mind Map, Org Chart i inne.\n"
-                "- Dodajesz ksztalty i polaczenia.\n"
+                "- Wybierasz szablon: Flowchart, UML, ERD, BPMN, Network, Mind Map, Production Line, Value Stream Map, Supply Chain, Plant Layout, Andon, Energy Flow i inne.\n"
+                "- Dodajesz ksztalty albo gotowce: maszyna, magazyn, transport, QC, bufor WIP, sensor, PLC, Andon, energia, KPI, model ML.\n"
                 "- Przeciagasz elementy myszka, dwuklik zmienia tekst, prawy klik usuwa blok.\n"
                 "- Mozesz duplikowac zaznaczony element, usunac zaznaczony blok i uzyc Auto layout.\n"
                 "- Eksportujesz do .drawio, SVG, Mermaid albo HTML.\n"
                 "- Eksport HTML ma interaktywny podglad: przewijanie/przesuwanie widoku, chowanie etykiet i reset."
+            )
+        if any(k in question for k in ["tabpfn", "tabular prior", "nowoczesne"]):
+            return (
+                "TabPFN w tej aplikacji jest trzecia sciezka obok classic ML i heurystyk STO.\n"
+                "- Classic ML trenuje estimator, np. RandomForest, SVM albo XGBoost.\n"
+                "- TabPFN traktuje mala lub srednia tabele jako kontekst i korzysta z pretrenowanego priora tabelarycznego.\n"
+                "- Przed treningiem aplikacja waliduje X/y: rozmiar tabeli, braki, inf, zgodna liczba rekordow i minimum 2 klasy dla schedule.\n"
+                "- W praktyce porownujesz go na tym samym train/test: jakosc, opoznienie albo harmonogram.\n"
+                "- Najlepiej uzywac go jako szybki nowoczesny baseline, szczegolnie gdy nie chcesz stroic wielu parametrow.\n"
+                "- W Theory ta grupa pokazuje tez inne nowoczesne segmenty: XGBoost, MLP i Stacking.\n"
+                "- W raporcie opisuj go jako: y_hat = f_PFN(X_train, y_train, x_new)."
+            )
+        if any(k in question for k in ["pdf", "overleaf", "includegraphics", "includehtml", "report builder"]):
+            return (
+                "Report Builder sklada raport podobnie do Overleaf, tylko prosciej.\n"
+                "- Po lewej wpisujesz zrodlo: sekcje, wzory, listy i odwolania do plikow.\n"
+                "- W srodku widzisz jasny podglad strony A4, czyli symulacje ukladu PDF.\n"
+                "- Faktyczny PDF sprawdzisz przyciskiem Podglad PDF albo Eksport PDF.\n"
+                "- Pliki z Visual/Diagrams dodawaj przez biblioteke plikow albo komendy \\includegraphics{} i \\includehtml{}.\n"
+                "- Obrazy i SVG ida jako grafiki, HTML jako interaktywny iframe w raporcie HTML, CSV jako tabela podgladowa.\n"
+                "- Dobry raport ma pipeline: dane -> jakosc -> model/STO -> wykres/diagram -> decyzja -> ryzyka."
             )
         if any(k in question for k in ["decision tree", "solution tree", "drzewo"]):
             return (
@@ -779,9 +1323,10 @@ class AssistantService:
             return (
                 "Tu sa dwa rozne swiaty i nie wolno ich mieszac.\n"
                 "- ML uczy zaleznosci z danych: Random Forest usrednia wiele drzew, ExtraTrees losuje progi, boosting poprawia bledy, a regresja logistyczna uczy liniowa granice klas.\n"
+                "- TabPFN to osobny backend tabelaryczny: bierze tabele jako kontekst i porownujemy go z classic ML na tych samych metrykach.\n"
                 "- STO nie uczy modelu ML. STO uklada kolejke zlecen i liczy opoznienia: Tj = max(0, Cj - dj), a wynik to suma Tj.\n"
                 "- MT, MO i MZO to metody/reguly STO, wiec w animacji ML nie powinny byc pokazywane jako sposob dzialania machine learning.\n"
-                "Poprawny podglad: w Theory ML pokazuje cechy danych, drzewa/boosting/softmax, a zakladka heurystyk pokazuje MT/MO/MZO i ranking STO."
+                "Poprawny podglad: w Theory ML pokazuje cechy danych, drzewa/boosting/softmax, TabPFN pokazuje kontekst tabelaryczny, a zakladka heurystyk pokazuje MT/MO/MZO i ranking STO."
             )
         if "random forest" in question or "quality rf" in question:
             return (

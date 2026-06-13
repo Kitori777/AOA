@@ -1,13 +1,24 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pandas as pd
 import pytest
 
 from AOA.cli.helpers import AVAILABLE_ML_MODELS, AVAILABLE_STO_MODELS
 from AOA.core.data_generation import generate_production_data
 from AOA.core.mh_models import MH_MODEL_NAMES
-from AOA.core.ml_models import ML_MODEL_NAMES, ML_MODEL_SPECS, ML_MODELS_BY_TASK, get_ml_task
+from AOA.core.mh_models import custom as custom_mh_models
+from AOA.core.ml_models import (
+    ML_MODEL_NAMES,
+    ML_MODEL_SPECS,
+    ML_MODELS_BY_TASK,
+    get_ml_model_names,
+    get_ml_task,
+)
+from AOA.core.ml_models import custom as custom_ml_models
 from AOA.core.models import train_selected_models
+from AOA.core.sto_models import Job, run_selected_sto_models
 from AOA.gui.pages.theory_page.animation import ModelAnimationCard
 from AOA.gui.pages.theory_page.data import THEORY_MODELS
 
@@ -51,6 +62,61 @@ def test_cli_uses_ml_registry_model_names():
 
 def test_cli_uses_sto_registry_model_names():
     assert AVAILABLE_STO_MODELS == MH_MODEL_NAMES
+
+
+def test_custom_sklearn_model_is_saved_listed_and_trained(monkeypatch):
+    config_path = Path("models/.test_custom_ml_models.json")
+    if config_path.exists():
+        config_path.unlink()
+    monkeypatch.setattr(custom_ml_models, "CUSTOM_MODEL_CONFIG", config_path)
+    try:
+        config = custom_ml_models.save_custom_model_config(
+            name="Custom_DummyQuality",
+            task="quality",
+            label="Dummy Quality",
+            estimator="sklearn.dummy.DummyRegressor",
+            params={"strategy": "mean"},
+            scaler="none",
+        )
+
+        _, train_df, _ = generate_production_data(n=32, seed=456)
+        pack = train_selected_models(train_df, [config.name], backend="classic")
+
+        assert config.name in get_ml_model_names()
+        assert pack["selected_models"] == [config.name]
+        assert config.name in pack["ml_models"]
+        assert pack["quality"] is pack["ml_models"][config.name]
+    finally:
+        if config_path.exists():
+            config_path.unlink()
+
+
+def test_custom_sto_heuristic_is_saved_listed_and_run(monkeypatch):
+    config_path = Path("models/.test_custom_sto_heuristics.json")
+    if config_path.exists():
+        config_path.unlink()
+    monkeypatch.setattr(custom_mh_models, "CUSTOM_HEURISTIC_CONFIG", config_path)
+    try:
+        config = custom_mh_models.save_custom_heuristic_config(
+            name="Custom_STO_TestSlack",
+            label="Test Slack",
+            formula="d - p",
+            description="Najmniejszy zapas czasu pierwszy.",
+        )
+        jobs = [
+            Job("A", processing_time=5, deadline=30),
+            Job("B", processing_time=8, deadline=12),
+            Job("C", processing_time=3, deadline=20),
+        ]
+
+        result = run_selected_sto_models(jobs, [config.name])[0]
+
+        assert config.name in custom_mh_models.get_custom_heuristic_config(config.name).name
+        assert result["method"] == config.name
+        assert result["order"][0] == "B"
+    finally:
+        if config_path.exists():
+            config_path.unlink()
 
 
 @pytest.mark.parametrize("spec", ML_MODEL_SPECS, ids=lambda spec: spec.name)

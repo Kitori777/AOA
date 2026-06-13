@@ -3,6 +3,7 @@ import pandas as pd
 import pytest
 
 from AOA.core import models
+from AOA.core.ml_models.custom import available_sklearn_estimators
 from AOA.core.models import _emit_progress
 
 
@@ -93,6 +94,40 @@ def test_train_selected_models_uses_tabpfn_backend_when_requested(monkeypatch):
     assert pack["delay"] == {"kind": "tabpfn_reg"}
     assert pack["schedule"] == {"kind": "tabpfn_clf"}
     assert pack["backend"] == "tabpfn"
+
+
+def test_train_selected_models_uses_tabpfn_for_selected_variants(monkeypatch):
+    df = _sample_training_df()
+
+    monkeypatch.setattr(models, "train_tabpfn_regressor", lambda X, y: {"kind": "tabpfn_reg"})
+    monkeypatch.setattr(models, "train_tabpfn_classifier", lambda X, y: {"kind": "tabpfn_clf"})
+    monkeypatch.setattr(
+        models,
+        "_build_schedule_training_frame",
+        lambda *_args, **_kwargs: (
+            pd.DataFrame({"a": [1, 2], "b": [3, 4]}),
+            pd.Series(["MT", "MO"]),
+        ),
+    )
+
+    pack = models.train_selected_models(
+        df,
+        ["Quality_ET", "Delay_RF", "Schedule_LOG"],
+        backend="tabpfn",
+    )
+
+    assert pack["ml_models"]["Quality_ET"] == {"kind": "tabpfn_reg"}
+    assert pack["ml_models"]["Delay_RF"] == {"kind": "tabpfn_reg"}
+    assert pack["ml_models"]["Schedule_LOG"] == {"kind": "tabpfn_clf"}
+    assert pack["quality"] == {"kind": "tabpfn_reg"}
+    assert pack["delay"] == {"kind": "tabpfn_reg"}
+    assert pack["schedule"] == {"kind": "tabpfn_clf"}
+
+
+def test_available_estimators_exposes_xgboost_as_experimental_choice():
+    assert "xgboost.XGBRegressor" in available_sklearn_estimators("quality")
+    assert "xgboost.XGBRegressor" in available_sklearn_estimators("delay")
+    assert "xgboost.XGBClassifier" in available_sklearn_estimators("schedule")
 
 
 def test_emit_progress_supports_three_argument_callback():

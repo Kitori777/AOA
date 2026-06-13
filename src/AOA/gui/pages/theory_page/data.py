@@ -6,7 +6,7 @@ from typing import Literal
 from AOA.core.mh_models import get_mh_model_specs
 from AOA.core.ml_models import get_ml_model_specs
 
-ModelFamily = Literal["ml", "mh"]
+ModelFamily = Literal["ml", "mh", "tabpfn"]
 
 
 @dataclass(frozen=True)
@@ -154,6 +154,36 @@ MH_STEPS = (
     "Porownanie metod",
     "Ranking STO",
     "Rekomendacja",
+)
+
+TABPFN_STEPS = (
+    "Dane tabelaryczne",
+    "Cel predykcji",
+    "Czyszczenie cech",
+    "Kodowanie tabeli",
+    "Kontekst treningowy",
+    "Model pretrenowany",
+    "Inferencja na rekordzie",
+    "Rozklad predykcji",
+    "Niepewnosc wyniku",
+    "Walidacja",
+    "Kiedy uzyc",
+    "Zapis workflow",
+)
+
+MODERN_STEPS = (
+    "Dane i cel",
+    "Walidacja tabeli",
+    "Cechy X",
+    "Podzial train/test",
+    "Model bazowy",
+    "Uczenie",
+    "Predykcja",
+    "Metryki",
+    "Porownanie",
+    "Ryzyko przeuczenia",
+    "Kiedy uzyc",
+    "Zapis workflow",
 )
 
 
@@ -407,6 +437,214 @@ def _mh_pseudocode() -> tuple[str, ...]:
     )
 
 
+def _tabpfn_details(task: str) -> tuple[str, ...]:
+    target = "liczbe" if task != "schedule" else "klase"
+    return (
+        "Wczytujemy mala lub srednia tabele: kazdy wiersz to rekord, kolumny to cechy X.",
+        f"Wybieramy cel y, czyli {target}, ktora model ma przewidziec dla nowych rekordow.",
+        "Braki danych sa uzupelniane, a kolumny sa porzadkowane tak, aby backend dostal czysta macierz.",
+        "TabPFN patrzy na problem jak na zadanie tabelaryczne: zestaw przykladow uczy kontekstu predykcji.",
+        "Dane treningowe sa przekazywane jako kontekst, a nie jako dlugi klasyczny trening wielu epok.",
+        "Silnik TabPFN korzysta z modelu pretrenowanego na wielu sztucznych problemach tabelarycznych.",
+        "Dla nowego rekordu model porownuje go z kontekstem i przewiduje wynik w jednym przebiegu.",
+        "Klasyfikacja zwraca prawdopodobienstwa klas, a regresja zwraca wartosc liczbowa.",
+        "Patrzymy na pewnosc predykcji: rozklad klas, roznice wariantow albo stabilnosc wyniku.",
+        "Walidacja train/test nadal jest potrzebna, bo nawet nowoczesny model moze nie pasowac do danych.",
+        "TabPFN warto probowac, gdy masz dane tabelaryczne i chcesz mocny punkt odniesienia bez strojenia.",
+        "Aplikacja zapisuje wynik workflow tak, aby dało sie porownac TabPFN z klasycznymi modelami.",
+    )
+
+
+def _tabpfn_pseudocode(task: str) -> tuple[str, ...]:
+    estimator = "TabPFNClassifier" if task == "schedule" else "TabPFNRegressor"
+    return (
+        "X, y = prepare_tabular_dataset(df)",
+        "X = median_imputer.fit_transform(X)",
+        "task = detect_regression_or_classification(y)",
+        f"model = {estimator}(device='cpu')",
+        "model.fit(X_train, y_train)",
+        "context = learned_from_training_table",
+        "prediction = model.predict(X_new)",
+        "proba = model.predict_proba(X_new)  # klasyfikacja",
+        "uncertainty = inspect_prediction_distribution()",
+        "metrics = evaluate(y_test, prediction)",
+        "compare_with_classic_backend(metrics)",
+        "save_result_and_metadata()",
+    )
+
+
+def _modern_details(task: str, algorithm: str) -> tuple[str, ...]:
+    target = "klase harmonogramu" if task == "schedule" else "wartosc liczbowa"
+    return (
+        "Wczytujemy tabele i sprawdzamy, czy cechy sa kompletne, liczbowe i spojne.",
+        f"Cel y to {target}; od tego zalezy, czy model jest regresorem czy klasyfikatorem.",
+        "Aplikacja robi cechy X, uzupelnia braki i zachowuje ten sam podzial train/test do porownan.",
+        f"Model {algorithm} dostaje dane treningowe i uczy wzorzec decyzyjny inny niz klasyczny pojedynczy model.",
+        "Predykcja jest porownywana z wynikiem klasycznego ML oraz z baseline, zeby nie ufac tylko nazwie algorytmu.",
+        "Walidacja pokazuje, czy model faktycznie pomaga, czy tylko lepiej wyglada na treningu.",
+        "Patrzymy na metryki i stabilnosc: blad, pewnosc klas, przeuczenie, czas treningu i sens biznesowy.",
+        "Nowoczesny model warto zapisac dopiero wtedy, gdy poprawia decyzje albo daje czytelny benchmark.",
+        "Jesli dane sa male, sprawdz stabilnosc. Jesli sa duze, sprawdz czas i pamiec.",
+        "W raporcie opisujemy nie tylko wynik, ale tez dlaczego taki model byl sensowny dla problemu.",
+        "Najlepiej porownac kilka rodzin: boosting, siec neuronowa, stacking i TabPFN.",
+        "Aplikacja zapisuje wynik tak, aby mozna bylo wrocic do modelu, metryk i wybranych danych.",
+    )
+
+
+def _modern_pseudocode(task: str, estimator: str) -> tuple[str, ...]:
+    metric = "accuracy_or_f1" if task == "schedule" else "rmse_mae_r2"
+    return (
+        "X, y = prepare_features(df)",
+        "X = median_imputer.fit_transform(X)",
+        "X_train, X_test, y_train, y_test = split(X, y)",
+        f"model = {estimator}(params)",
+        "model.fit(X_train, y_train)",
+        "prediction = model.predict(X_test)",
+        f"metrics = {metric}(y_test, prediction)",
+        "compare_with_baseline_and_tabpfn(metrics)",
+        "save_model_and_report(metrics)",
+    )
+
+
+def _build_tabpfn_models() -> list[TheoryModel]:
+    configs = (
+        (
+            "tabpfn_quality",
+            "TabPFN Quality - jakosc",
+            "TabPFN Q",
+            "TabPFNRegressor",
+            "jakosc",
+            "Przewidziec jakosc bez recznego strojenia lasow i boostingu.",
+            "RMSE / MAE / R2 + stabilnosc predykcji",
+            (("wysoka jakosc", 0.69), ("srednia", 0.22), ("ryzyko", 0.09)),
+            "TabPFN quality: 0.84",
+        ),
+        (
+            "tabpfn_delay",
+            "TabPFN Delay - opoznienie",
+            "TabPFN D",
+            "TabPFNRegressor",
+            "opoznienie",
+            "Przewidziec opoznienie jako liczbe godzin na podstawie tabeli cech.",
+            "RMSE / MAE / R2 + blad na skrajnych przypadkach",
+            (("niski delay", 0.57), ("sredni", 0.29), ("wysoki", 0.14)),
+            "TabPFN delay: 2.9 h",
+        ),
+        (
+            "tabpfn_schedule",
+            "TabPFN Schedule - strategia",
+            "TabPFN S",
+            "TabPFNClassifier",
+            "schedule",
+            "Wybrac klase strategii harmonogramowania z prawdopodobienstwami.",
+            "Accuracy / F1 / macierz pomylek / pewnosc klasy",
+            (("strategia A", 0.54), ("strategia B", 0.31), ("strategia C", 0.15)),
+            "TabPFN schedule: A",
+        ),
+    )
+    models: list[TheoryModel] = []
+    for key, title, short, algorithm, task, goal, metric, probabilities, result in configs:
+        models.append(
+            TheoryModel(
+                key=key,
+                family="tabpfn",
+                title=title,
+                short_title=short,
+                subtitle=(
+                    "Nowoczesny backend dla danych tabelarycznych: mniej recznego strojenia, "
+                    "mocny benchmark dla malych i srednich tabel."
+                ),
+                model_type="Model foundation dla tabel",
+                algorithm=algorithm,
+                goal=goal,
+                metric=metric,
+                focus="Szybkie porownanie z klasycznym ML bez budowania wielu wariantow recznie.",
+                steps=TABPFN_STEPS,
+                step_details=_tabpfn_details(task),
+                pseudocode=_tabpfn_pseudocode(task),
+                next_steps=(
+                    "Porownaj TabPFN z klasycznym backendem na tym samym podziale train/test.",
+                    "Jesli wynik jest dobry, uzyj go jako mocnego benchmarku albo jako modelu roboczego.",
+                    "Jesli dataset jest duzy, sprawdz czas dzialania i rozwaz klasyczny model drzewiasty.",
+                ),
+                tip=(
+                    "TabPFN nie jest zwyklym drzewem ani boostingiem. Traktuj go jak gotowy, "
+                    "pretrenowany model do tabel, ktory dostaje Twoje dane jako kontekst."
+                ),
+                probabilities=probabilities,
+                result=result,
+            )
+        )
+    modern_configs = (
+        (
+            "modern_xgboost_quality",
+            "XGBoost Quality - jakosc",
+            "XGB Q",
+            "xgboost.XGBRegressor",
+            "jakosc",
+            "Gradient boosting z regularyzacja dla nieliniowej predykcji jakosci.",
+            "RMSE / MAE / R2 + kontrola przeuczenia",
+            (("poprawa", 0.61), ("bez zmian", 0.24), ("ryzyko", 0.15)),
+            "XGBoost quality: 0.86",
+        ),
+        (
+            "modern_mlp_delay",
+            "MLP Delay - opoznienie",
+            "MLP D",
+            "sklearn.neural_network.MLPRegressor",
+            "opoznienie",
+            "Siec neuronowa dla opoznien, gdy relacje cech sa nieliniowe i trudne dla modelu liniowego.",
+            "RMSE / MAE / R2 + skalowanie + stabilnosc",
+            (("niskie", 0.49), ("srednie", 0.34), ("wysokie", 0.17)),
+            "MLP delay: 2.7 h",
+        ),
+        (
+            "modern_stacking_schedule",
+            "Stacking Schedule - strategia",
+            "Stack S",
+            "sklearn.ensemble.StackingClassifier",
+            "schedule",
+            "Meta-model laczy kilka klasyfikatorow i wybiera strategie harmonogramu.",
+            "Accuracy / F1 / macierz pomylek + stabilnosc klas",
+            (("strategia A", 0.48), ("strategia B", 0.36), ("strategia C", 0.16)),
+            "Stacking schedule: A",
+        ),
+    )
+    for key, title, short, algorithm, task, goal, metric, probabilities, result in modern_configs:
+        models.append(
+            TheoryModel(
+                key=key,
+                family="tabpfn",
+                title=title,
+                short_title=short,
+                subtitle=(
+                    "Nowoczesny segment ML: porownanie boostingow, sieci, stacking i modeli tabelarycznych "
+                    "na tych samych danych oraz metrykach."
+                ),
+                model_type="Nowoczesny model tabelaryczny",
+                algorithm=algorithm,
+                goal=goal,
+                metric=metric,
+                focus="Sprawdzic, czy mocniejsza rodzina modeli daje realna przewage nad baseline.",
+                steps=MODERN_STEPS,
+                step_details=_modern_details(task, algorithm),
+                pseudocode=_modern_pseudocode(task, algorithm),
+                next_steps=(
+                    "Porownaj wynik z RandomForest, HistGradient i TabPFN.",
+                    "Sprawdz, czy poprawa metryk nie wynika z przeuczenia.",
+                    "Dopisz do raportu koszt: czas, stabilnosc i latwosc wyjasnienia.",
+                ),
+                tip=(
+                    "Nowoczesny model nie jest automatycznie lepszy. W aplikacji wygrywa ten, "
+                    "ktory po walidacji daje lepsza decyzje i da sie sensownie opisac w raporcie."
+                ),
+                probabilities=probabilities,
+                result=result,
+            )
+        )
+    return models
+
+
 def _build_ml_models() -> list[TheoryModel]:
     models: list[TheoryModel] = []
     for spec in get_ml_model_specs():
@@ -474,7 +712,9 @@ def _build_mh_models() -> list[TheoryModel]:
     return models
 
 
-THEORY_MODELS: tuple[TheoryModel, ...] = tuple(_build_ml_models() + _build_mh_models())
+THEORY_MODELS: tuple[TheoryModel, ...] = tuple(
+    _build_ml_models() + _build_mh_models() + _build_tabpfn_models()
+)
 
 
 def get_theory_models(family: ModelFamily | None = None) -> tuple[TheoryModel, ...]:

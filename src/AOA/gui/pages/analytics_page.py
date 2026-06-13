@@ -16,6 +16,7 @@ from AOA.core.data_analytics_service import (
     run_analytics_workflow,
 )
 from AOA.core.report_composer_service import (
+    REPORT_EXAMPLE_TEMPLATES,
     analysis_block,
     build_custom_report_html,
     build_custom_report_pdf,
@@ -23,40 +24,32 @@ from AOA.core.report_composer_service import (
     default_report_template,
     file_block,
     kpi_block,
+    ml_analytics_block,
+    pipeline_block,
+    prediction_plan_block,
     recommendation_block,
-    render_report_preview_text,
+    render_report_pdf_preview_text,
+    report_example_template,
+    sto_analytics_block,
 )
 from AOA.core.services import load_and_prepare_visual_file
 
 REPORT_BUILDER_GUIDE = [
-    (r"\title{Tytul}", "ustawia tytul dokumentu i naglowek eksportu HTML/PDF"),
-    (r"\maketitle", "wstawia widoczna strone/karte tytulowa w podgladzie HTML"),
-    (r"\tableofcontents", "tworzy prosty spis tresci z sekcji i podrozdzialow"),
-    (r"\section{Nazwa}", "tworzy duza sekcje raportu"),
-    (r"\subsection{Nazwa}", "tworzy mniejszy podrozdzial w aktualnej sekcji"),
-    (r"\textbf{tekst}", "pogrubia fragment tekstu w HTML/PDF"),
-    (r"\emph{tekst}", "kursywa / delikatne wyroznienie"),
-    (r"\code{fragment}", "krotki fragment kodu w linii tekstu"),
-    (r"\url{https://...}", "klikalny link w raporcie HTML"),
-    (r"$x = y + z$", "wstawia wzor w linii tekstu"),
-    (r"\equation{STO = \sum max(0, C_j - d_j)}", "wstawia widoczny blok wzoru"),
-    ("$$ RMSE = sqrt(mean((y - yhat)^2)) $$", "wstawia blok matematyczny jak w Quarto/Markdown"),
-    (r"\label{eq:sto} i \ref{eq:sto}", "oznacza miejsce i pozwala odwolac sie do niego w tekscie"),
-    (r"\caption{Opis}", "dodaje podpis pod ostatnim obrazem, tabela albo wykresem"),
-    (r"\footnote{uwaga}", "dodaje przypis w linii tekstu"),
-    (r"\pagebreak", "w PDF zaczyna nowa strone, w HTML dodaje przerwe strony do druku"),
-    ("::: {.callout-tip} tresc", "wstawia callout: note/tip/warning/danger"),
-    ("> cytat lub wazna uwaga", "wstawia cytat/uwage w raporcie"),
-    ("- [ ] zadanie / - [x] zrobione", "lista kontrolna jak w Quarto/Markdown"),
-    (r"\begin{itemize} ... \item ... \end{itemize}", "tworzy liste punktowana"),
-    (r"\includegraphics{plik.png}", "wstawia obraz, wykres PNG/JPG/SVG albo diagram SVG"),
-    (r"\includehtml{plik.html}", "osadza interaktywny HTML, np. wykres z Visual albo diagram"),
-    (
-        r"\begin{verbatim} ... \end{verbatim}",
-        "wstawia kod, logi albo surowy tekst bez formatowania",
-    ),
-    ("# / ## / ###", "dzialaja jak naglowki Markdown"),
-    ("- punkt listy", "szybka lista bez pisania itemize"),
+    ("START", r"\title{Tytul} | \maketitle | \tableofcontents", "tytul, karta tytulowa i spis tresci"),
+    ("STRUKTURA", r"\section{Nazwa} | \subsection{Nazwa}", "duze sekcje i mniejsze podrozdzialy"),
+    ("TEKST", r"\textbf{tekst} | \emph{tekst} | \code{fit()}", "pogrubienie, kursywa i kod w linii"),
+    ("LINK", r"\url{https://...}", "klikalny link w HTML"),
+    ("WZORY", r"$x=y+z$ | \equation{RMSE = sqrt(mean(e^2))}", "wzor w linii albo osobny blok"),
+    ("ODWOLANIA", r"\label{eq:sto} i \ref{eq:sto}", "oznaczenie miejsca i odwolanie w tekscie"),
+    ("PODPIS", r"\caption{Opis}", "podpis pod ostatnim obrazem, tabela albo wykresem"),
+    ("UKLAD", r"\pagebreak | \footnote{uwaga}", "nowa strona i przypis"),
+    ("UWAGA", "::: {.callout-tip} tresc | > cytat", "ramka note/tip/warning/danger albo cytat"),
+    ("LISTY", r"\begin{itemize} \item ... \end{itemize}", "lista punktowana w stylu LaTeX"),
+    ("CHECKLISTA", "- [ ] zadanie / - [x] zrobione", "lista kontrolna jak w Markdown"),
+    ("OBRAZ", r"\includegraphics{plik.png}", "PNG/JPG/SVG, np. wykres albo diagram SVG"),
+    ("HTML", r"\includehtml{plik.html}", "interaktywny Visual/Diagrams/raport HTML w iframe"),
+    ("KOD", r"\begin{verbatim} ... \end{verbatim}", "kod, logi albo surowy tekst"),
+    ("MARKDOWN", "# / ## / ### oraz - punkt", "szybkie naglowki i listy bez komend"),
 ]
 
 REPORT_BUILDER_SNIPPETS = {
@@ -75,6 +68,19 @@ REPORT_BUILDER_SNIPPETS = {
     "HTML": "\\includehtml{sciezka/do/raportu.html}\n",
     "Kod": "\\begin{verbatim}\nWklej kod, log albo tekst.\n\\end{verbatim}\n",
     "Pagebreak": "\\pagebreak\n",
+    "ML analiza": ml_analytics_block(),
+    "STO analiza": sto_analytics_block(),
+    "Plan predykcji": prediction_plan_block(),
+    "Pipeline": pipeline_block(),
+    "Ryzyka": (
+        "\\section{Ryzyka i ograniczenia}\n"
+        "\\begin{itemize}\n"
+        "\\item Jakosc danych: braki, duplikaty, nietypowe wartosci.\n"
+        "\\item Ryzyko modelu: przeuczenie, drift danych, zbyt mala probka.\n"
+        "\\item Ryzyko operacyjne: brak danych w czasie rzeczywistym, opozniona reakcja.\n"
+        "\\item Decyzja: co robimy, gdy model ma niska pewnosc.\n"
+        "\\end{itemize}\n"
+    ),
 }
 
 
@@ -93,6 +99,11 @@ class AnalyticsPage(ctk.CTkFrame):
         self.report_builder_window = None
         self.full_report_editor: ctk.CTkTextbox | None = None
         self.full_report_preview: ctk.CTkTextbox | None = None
+        self.report_asset_var = ctk.StringVar(value="Brak plikow")
+        self.report_asset_paths: dict[str, Path] = {}
+        self.report_asset_menu = None
+        first_example = next(iter(REPORT_EXAMPLE_TEMPLATES), "Szybki raport decyzyjny")
+        self.report_example_var = ctk.StringVar(value=first_example)
 
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(2, weight=1)
@@ -107,14 +118,14 @@ class AnalyticsPage(ctk.CTkFrame):
         header.grid_columnconfigure(0, weight=1)
         ctk.CTkLabel(
             header,
-            text="Analytics Studio - raporty, KPI, diagnostyka i rekomendacje",
+            text="Report Studio - raporty, KPI, diagnostyka i rekomendacje",
             font=("Arial", 25, "bold"),
         ).grid(row=0, column=0, sticky="w", padx=18, pady=(14, 2))
         ctk.CTkLabel(
             header,
             text=(
-                "Modul inspirowany Data Analytics: jakosc danych, dashboardy, raporty, KPI, "
-                "diagnostyka metryk, analiza biznesowa, market sizing i plan notebooka."
+                "Centrum raportow: gotowe szablony, jakosc danych, dashboardy, KPI, "
+                "diagnostyka metryk, ML/STO, market sizing, PDF preview i plan notebooka."
             ),
             text_color="#cbd5e1",
             wraplength=1180,
@@ -175,8 +186,8 @@ class AnalyticsPage(ctk.CTkFrame):
         ctk.CTkLabel(
             controls,
             text=(
-                "Tu nie tylko wybierasz: uruchamiasz analize, generujesz HTML, pelny pakiet workflow, "
-                "notebook i liste akcji do dalszej pracy."
+                "Tu testujesz raporty na gotowych formatach, uruchamiasz analize, generujesz HTML, "
+                "pelny pakiet workflow, notebook i liste akcji do dalszej pracy."
             ),
             text_color="#94a3b8",
         ).grid(row=2, column=0, columnspan=6, sticky="w", padx=12, pady=(0, 12))
@@ -196,10 +207,10 @@ class AnalyticsPage(ctk.CTkFrame):
         self.assistant_sections["report_builder"] = composer
         composer.grid(row=0, column=1, rowspan=2, sticky="nsew", padx=(8, 16), pady=16)
         composer.grid_columnconfigure(0, weight=1)
-        composer.grid_rowconfigure(4, weight=1)
+        composer.grid_rowconfigure(7, weight=1)
         ctk.CTkLabel(
             composer,
-            text="Report Builder - jak LaTeX",
+            text="Report Builder - pelny edytor",
             font=("Arial", 20, "bold"),
         ).grid(row=0, column=0, sticky="w", padx=14, pady=(14, 4))
         ctk.CTkEntry(
@@ -207,8 +218,45 @@ class AnalyticsPage(ctk.CTkFrame):
             textvariable=self.report_title_var,
             placeholder_text="Tytul raportu",
         ).grid(row=1, column=0, sticky="ew", padx=14, pady=(0, 8))
+        ctk.CTkButton(
+            composer,
+            text="Otworz pelny edytor raportu",
+            command=self.open_report_builder_window,
+            height=42,
+        ).grid(row=2, column=0, sticky="ew", padx=14, pady=(0, 10))
+        ctk.CTkLabel(
+            composer,
+            text=(
+                "Pisanie raportu jest teraz w osobnym pelnym oknie: edytor po lewej, "
+                "podglad strony po prawej, biblioteka plikow i guide obok."
+            ),
+            text_color="#bfdbfe",
+            justify="left",
+            wraplength=620,
+        ).grid(row=3, column=0, sticky="ew", padx=14, pady=(0, 10))
+        example_frame = ctk.CTkFrame(composer, fg_color="#0b1220", corner_radius=10)
+        example_frame.grid(row=4, column=0, sticky="ew", padx=14, pady=(0, 10))
+        example_frame.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(
+            example_frame,
+            text="Gotowe formaty raportow do testowania",
+            text_color="#bfdbfe",
+            font=("Arial", 12, "bold"),
+        ).grid(row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(8, 4))
+        ctk.CTkOptionMenu(
+            example_frame,
+            values=list(REPORT_EXAMPLE_TEMPLATES),
+            variable=self.report_example_var,
+            width=260,
+        ).grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 10))
+        ctk.CTkButton(
+            example_frame,
+            text="Wczytaj przyklad",
+            command=self.apply_report_example,
+            width=140,
+        ).grid(row=1, column=1, sticky="e", padx=(6, 10), pady=(0, 10))
         tools = ctk.CTkFrame(composer, fg_color="transparent")
-        tools.grid(row=2, column=0, sticky="ew", padx=14, pady=(0, 8))
+        tools.grid(row=5, column=0, sticky="ew", padx=14, pady=(0, 8))
         for idx in range(4):
             tools.grid_columnconfigure(idx, weight=1)
         ctk.CTkButton(tools, text="Dodaj wynik", command=self.add_current_result_to_report).grid(
@@ -247,19 +295,41 @@ class AnalyticsPage(ctk.CTkFrame):
         ctk.CTkButton(tools, text="Odśwież podgląd", command=self.update_report_preview).grid(
             row=2, column=3, sticky="ew", padx=(5, 0), pady=(6, 0)
         )
+        ctk.CTkButton(tools, text="ML analiza", command=self.add_ml_analytics_block).grid(
+            row=3, column=0, sticky="ew", padx=(0, 5), pady=(6, 0)
+        )
+        ctk.CTkButton(tools, text="STO analiza", command=self.add_sto_analytics_block).grid(
+            row=3, column=1, sticky="ew", padx=5, pady=(6, 0)
+        )
+        ctk.CTkButton(tools, text="Plan predykcji", command=self.add_prediction_plan_block).grid(
+            row=3, column=2, sticky="ew", padx=5, pady=(6, 0)
+        )
+        ctk.CTkButton(
+            tools, text="Ryzyka", command=lambda: self.insert_report_snippet("Ryzyka")
+        ).grid(row=3, column=3, sticky="ew", padx=(5, 0), pady=(6, 0))
+        ctk.CTkButton(tools, text="Pipeline", command=self.add_pipeline_block).grid(
+            row=4, column=0, sticky="ew", padx=(0, 5), pady=(6, 0)
+        )
+        ctk.CTkButton(tools, text="Plik z projektu", command=self.add_selected_asset_to_report).grid(
+            row=4, column=1, sticky="ew", padx=5, pady=(6, 0)
+        )
+        ctk.CTkButton(tools, text="PDF preview", command=self.preview_custom_report_pdf).grid(
+            row=4, column=2, sticky="ew", padx=5, pady=(6, 0)
+        )
+        ctk.CTkButton(tools, text="Eksport PDF", command=self.export_custom_report_pdf).grid(
+            row=4, column=3, sticky="ew", padx=(5, 0), pady=(6, 0)
+        )
         ctk.CTkLabel(
             composer,
             text="Źródło raportu po lewej, podgląd po prawej",
             text_color="#bfdbfe",
-        ).grid(row=3, column=0, sticky="w", padx=14, pady=(0, 6))
+        ).grid(row=6, column=0, sticky="w", padx=14, pady=(0, 6))
         editor_grid = ctk.CTkFrame(composer, fg_color="transparent")
-        editor_grid.grid(row=4, column=0, sticky="nsew", padx=14, pady=(0, 10))
+        editor_grid.grid(row=7, column=0, sticky="nsew", padx=14, pady=(0, 10))
+        editor_grid.grid_remove()
         editor_grid.grid_columnconfigure(0, weight=1)
         editor_grid.grid_columnconfigure(1, weight=1)
         editor_grid.grid_rowconfigure(0, weight=1)
-        ctk.CTkButton(tools, text="Eksport PDF", command=self.export_custom_report_pdf).grid(
-            row=3, column=0, columnspan=4, sticky="ew", padx=0, pady=(6, 0)
-        )
         self.report_editor = ctk.CTkTextbox(editor_grid, wrap="word", font=("Consolas", 12))
         self.report_editor.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
         self.report_editor.insert("end", default_report_template(self.report_title_var.get()))
@@ -273,7 +343,7 @@ class AnalyticsPage(ctk.CTkFrame):
             text_color="#94a3b8",
             wraplength=560,
             justify="left",
-        ).grid(row=5, column=0, sticky="ew", padx=14, pady=(0, 12))
+        ).grid(row=8, column=0, sticky="ew", padx=14, pady=(0, 8))
         self.update_report_preview()
 
     def load_file(self) -> None:
@@ -390,6 +460,12 @@ class AnalyticsPage(ctk.CTkFrame):
             ("KPI", self.add_kpi_block),
             ("Wykres", self.add_chart_block),
             ("Rekomendacje", self.add_recommendations_block),
+            ("ML", self.add_ml_analytics_block),
+            ("STO", self.add_sto_analytics_block),
+            ("Plan pred.", self.add_prediction_plan_block),
+            ("Pipeline", self.add_pipeline_block),
+            ("Ryzyka", lambda: self.insert_report_snippet("Ryzyka")),
+            ("Pliki", self.refresh_report_asset_menu),
             ("Podglad HTML", self.preview_custom_report),
             ("Podglad PDF", self.preview_custom_report_pdf),
             ("Eksport PDF", self.export_custom_report_pdf),
@@ -397,8 +473,29 @@ class AnalyticsPage(ctk.CTkFrame):
         ]
         for idx, (label, command) in enumerate(actions):
             ctk.CTkButton(toolbar, text=label, command=command).grid(
-                row=0, column=idx, sticky="ew", padx=5, pady=8
+                row=idx // 10, column=idx % 10, sticky="ew", padx=5, pady=8
             )
+        ctk.CTkLabel(
+            toolbar,
+            text="Przykladowy format:",
+            text_color="#bfdbfe",
+            font=("Arial", 12, "bold"),
+        ).grid(row=2, column=0, sticky="e", padx=5, pady=(0, 8))
+        ctk.CTkOptionMenu(
+            toolbar,
+            values=list(REPORT_EXAMPLE_TEMPLATES),
+            variable=self.report_example_var,
+        ).grid(row=2, column=1, columnspan=3, sticky="ew", padx=5, pady=(0, 8))
+        ctk.CTkButton(
+            toolbar,
+            text="Wczytaj przyklad raportu",
+            command=self.apply_report_example,
+        ).grid(row=2, column=4, columnspan=2, sticky="ew", padx=5, pady=(0, 8))
+        ctk.CTkButton(
+            toolbar,
+            text="Wroc do pustego szablonu",
+            command=self.reset_report_builder,
+        ).grid(row=2, column=6, columnspan=2, sticky="ew", padx=5, pady=(0, 8))
 
         workspace = ctk.CTkFrame(window, corner_radius=16, fg_color="#0b1220")
         workspace.grid(row=2, column=0, sticky="nsew", padx=14, pady=(0, 14))
@@ -410,7 +507,7 @@ class AnalyticsPage(ctk.CTkFrame):
         ctk.CTkLabel(workspace, text="Źrodlo raportu", font=("Arial", 16, "bold")).grid(
             row=0, column=0, sticky="w", padx=12, pady=(12, 6)
         )
-        ctk.CTkLabel(workspace, text="Podglad HTML / PDF", font=("Arial", 16, "bold")).grid(
+        ctk.CTkLabel(workspace, text="Podglad strony A4 / PDF", font=("Arial", 16, "bold")).grid(
             row=0, column=1, sticky="w", padx=12, pady=(12, 6)
         )
         ctk.CTkLabel(workspace, text="Guide komend", font=("Arial", 16, "bold")).grid(
@@ -422,16 +519,51 @@ class AnalyticsPage(ctk.CTkFrame):
         self.full_report_editor.insert("end", self.report_editor.get("1.0", "end").strip())
         self.full_report_editor.bind("<KeyRelease>", lambda _event: self.update_report_preview())
 
-        self.full_report_preview = ctk.CTkTextbox(workspace, wrap="word", font=("Segoe UI", 13))
+        self.full_report_preview = ctk.CTkTextbox(
+            workspace,
+            wrap="word",
+            font=("Times New Roman", 14),
+            fg_color="#f8fafc",
+            text_color="#0f172a",
+            border_width=10,
+            border_color="#d1d5db",
+        )
         self.full_report_preview.grid(row=1, column=1, sticky="nsew", padx=6, pady=(0, 12))
         self.full_report_preview.configure(state="disabled")
 
         guide_panel = ctk.CTkFrame(workspace, fg_color="#111827", corner_radius=12)
         guide_panel.grid(row=1, column=2, sticky="nsew", padx=(6, 12), pady=(0, 12))
         guide_panel.grid_columnconfigure(0, weight=1)
-        guide_panel.grid_rowconfigure(1, weight=1)
+        guide_panel.grid_rowconfigure(2, weight=1)
+        asset_panel = ctk.CTkFrame(guide_panel, fg_color="#0b1220", corner_radius=10)
+        asset_panel.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 6))
+        asset_panel.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(
+            asset_panel,
+            text="Pliki do raportu",
+            font=("Arial", 13, "bold"),
+        ).grid(row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(8, 4))
+        self.report_asset_menu = ctk.CTkOptionMenu(
+            asset_panel,
+            values=["Brak plikow"],
+            variable=self.report_asset_var,
+            width=260,
+        )
+        self.report_asset_menu.grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 8))
+        ctk.CTkButton(
+            asset_panel,
+            text="Wstaw",
+            command=self.add_selected_asset_to_report,
+            width=82,
+        ).grid(row=1, column=1, sticky="e", padx=(4, 10), pady=(0, 8))
+        ctk.CTkButton(
+            asset_panel,
+            text="Odswiez biblioteke: Visual, Diagrams, Analytics, Reports",
+            command=self.refresh_report_asset_menu,
+        ).grid(row=2, column=0, columnspan=2, sticky="ew", padx=10, pady=(0, 10))
+
         snippets = ctk.CTkFrame(guide_panel, fg_color="transparent")
-        snippets.grid(row=0, column=0, sticky="ew", padx=10, pady=10)
+        snippets.grid(row=1, column=0, sticky="ew", padx=10, pady=(4, 10))
         for idx in range(2):
             snippets.grid_columnconfigure(idx, weight=1)
         for idx, label in enumerate(REPORT_BUILDER_SNIPPETS):
@@ -443,11 +575,12 @@ class AnalyticsPage(ctk.CTkFrame):
             ).grid(row=idx // 2, column=idx % 2, sticky="ew", padx=4, pady=4)
 
         guide = ctk.CTkTextbox(guide_panel, wrap="word", font=("Segoe UI", 12))
-        guide.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 10))
+        guide.grid(row=2, column=0, sticky="nsew", padx=10, pady=(0, 10))
         guide.insert("end", self._report_builder_guide_text())
         guide.configure(state="disabled")
 
         self.update_report_preview()
+        self.refresh_report_asset_menu(show_status=False)
         self.full_report_editor.focus_set()
 
     def close_report_builder_window(self) -> None:
@@ -472,18 +605,25 @@ class AnalyticsPage(ctk.CTkFrame):
             "KOMENDY",
             "-------",
         ]
-        for command, description in REPORT_BUILDER_GUIDE:
-            lines.append(f"{command}\n  {description}\n")
+        for group, command, description in REPORT_BUILDER_GUIDE:
+            lines.append(f"[{group}] {command}\n  {description}\n")
         lines.extend(
             [
+                "PLIKI Z APLIKACJI",
+                "----------------",
+                "Przycisk Pliki odswieza biblioteke z katalogow data/diagrams, data/visual, data/analytics i data/reports.",
+                "Wstaw obiekt, gdy chcesz dolaczyc diagram, wykres HTML, SVG, PNG, CSV albo fragment tekstu.",
+                "Obraz trafi jako \\includegraphics{}, a interaktywny HTML jako \\includehtml{}.",
+                "",
                 "PRZYKLADOWY PRZEPLYW",
                 "-------------------",
                 "1. Ustaw tytul raportu.",
                 "2. Dodaj \\section{Cel raportu}.",
-                "3. Kliknij Dodaj wynik, KPI albo Wykres.",
-                "4. Dodaj \\includegraphics{} lub \\includehtml{} dla plikow z Visual/Diagrams.",
-                "5. Uzyj Podglad HTML lub Podglad PDF, zeby sprawdzic finalny wyglad.",
-                "6. Na koncu dodaj \\section{Wnioski} i liste \\item.",
+                "3. Kliknij Pipeline, zeby opisac cala droge dane -> decyzja.",
+                "4. Kliknij Dodaj wynik, KPI, ML, STO albo Plan predykcji.",
+                "5. Wstaw plik z Visual/Diagrams przez biblioteke plikow.",
+                "6. Uzyj podgladu PDF-like, potem Podglad HTML lub Podglad PDF.",
+                "7. Na koncu dodaj \\section{Wnioski} i liste \\item.",
                 "",
                 "PRZYDATNE WSTAWKI",
                 "----------------",
@@ -549,6 +689,92 @@ class AnalyticsPage(ctk.CTkFrame):
         self._append_to_builder("\n" + recommendation_block() + "\n")
         self.status_var.set("Dodano blok rekomendacji.")
 
+    def add_ml_analytics_block(self) -> None:
+        self._append_to_builder("\n" + ml_analytics_block() + "\n")
+        self.status_var.set("Dodano blok analityki ML.")
+
+    def add_sto_analytics_block(self) -> None:
+        self._append_to_builder("\n" + sto_analytics_block() + "\n")
+        self.status_var.set("Dodano blok analityki STO.")
+
+    def add_prediction_plan_block(self) -> None:
+        self._append_to_builder("\n" + prediction_plan_block() + "\n")
+        self.status_var.set("Dodano plan predykcji i wdrozenia.")
+
+    def add_pipeline_block(self) -> None:
+        self._append_to_builder("\n" + pipeline_block() + "\n")
+        self.status_var.set("Dodano pipeline decyzyjny.")
+
+    def _discover_report_assets(self) -> dict[str, Path]:
+        roots = [
+            DATA_DIR / "diagrams",
+            DATA_DIR / "visual",
+            DATA_DIR / "analytics",
+            DATA_DIR / "reports",
+            DATA_DIR,
+        ]
+        supported = {
+            ".csv",
+            ".tsv",
+            ".txt",
+            ".md",
+            ".tex",
+            ".json",
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".svg",
+            ".html",
+            ".htm",
+            ".pdf",
+        }
+        assets: list[Path] = []
+        seen: set[Path] = set()
+        for root in roots:
+            if not root.exists():
+                continue
+            for path in root.rglob("*"):
+                if not path.is_file() or path.suffix.lower() not in supported:
+                    continue
+                resolved = path.resolve()
+                if resolved in seen:
+                    continue
+                seen.add(resolved)
+                assets.append(path)
+        assets.sort(key=lambda item: item.stat().st_mtime if item.exists() else 0, reverse=True)
+        labels: dict[str, Path] = {}
+        for path in assets[:80]:
+            try:
+                rel = path.relative_to(DATA_DIR)
+            except ValueError:
+                rel = path
+            label = str(rel).replace("\\", "/")
+            labels[label] = path
+        return labels
+
+    def refresh_report_asset_menu(self, show_status: bool = True) -> None:
+        self.report_asset_paths = self._discover_report_assets()
+        values = list(self.report_asset_paths) or ["Brak plikow"]
+        self.report_asset_var.set(values[0])
+        if self.report_asset_menu is not None:
+            try:
+                self.report_asset_menu.configure(values=values)
+            except Exception:
+                pass
+        if show_status:
+            self.status_var.set(f"Odswiezono biblioteke plikow: {len(self.report_asset_paths)}.")
+
+    def add_selected_asset_to_report(self) -> None:
+        if not self.report_asset_paths:
+            self.refresh_report_asset_menu(show_status=False)
+        label = self.report_asset_var.get()
+        path = self.report_asset_paths.get(label)
+        if path is None:
+            self.add_file_to_report()
+            return
+        self._append_to_builder("\n" + file_block(path) + "\n")
+        self.status_var.set(f"Wstawiono plik z projektu: {label}")
+
     def add_file_to_report(self) -> None:
         path = filedialog.askopenfilename(
             title="Dodaj plik do raportu",
@@ -569,6 +795,16 @@ class AnalyticsPage(ctk.CTkFrame):
             return
         self._append_to_builder("\n" + file_block(Path(path)) + "\n")
         self.status_var.set(f"Dodano plik do raportu: {Path(path).name}")
+
+    def apply_report_example(self) -> None:
+        name = self.report_example_var.get()
+        if not name:
+            return
+        editor = self._active_report_editor()
+        editor.delete("1.0", "end")
+        editor.insert("end", report_example_template(name, self.report_title_var.get()))
+        self.update_report_preview()
+        self.status_var.set(f"Wczytano przykladowy format raportu: {name}.")
 
     def reset_report_builder(self) -> None:
         if not messagebox.askyesno(
@@ -653,7 +889,10 @@ class AnalyticsPage(ctk.CTkFrame):
     def update_report_preview(self) -> None:
         if not hasattr(self, "report_preview"):
             return
-        preview = render_report_preview_text(self._report_source())
+        preview = render_report_pdf_preview_text(
+            self._report_source(),
+            title=self.report_title_var.get(),
+        )
         for widget in (
             getattr(self, "report_preview", None),
             getattr(self, "full_report_preview", None),
@@ -709,7 +948,7 @@ class AnalyticsPage(ctk.CTkFrame):
         )
         self.last_saved_path = path
         self.status_var.set(f"Wykonano wszystko: {len(results)} workflow.")
-        self.title_label.configure(text="Pelny pakiet Data Analytics | HTML zapisany i otwarty")
+        self.title_label.configure(text="Pelny pakiet Report Studio | HTML zapisany i otwarty")
         self.output_box.configure(state="normal")
         self.output_box.delete("1.0", "end")
         self.output_box.insert(

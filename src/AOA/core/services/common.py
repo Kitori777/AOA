@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from AOA.core.mh_models import MH_MODEL_NAMES as STO_MODEL_NAMES
-from AOA.core.ml_models import ML_MODEL_NAMES
+from AOA.core.mh_models import MH_MODEL_NAMES as STATIC_STO_MODEL_NAMES
+from AOA.core.mh_models import get_mh_model_names
+from AOA.core.ml_models import ML_MODEL_NAMES as STATIC_ML_MODEL_NAMES
+from AOA.core.ml_models import get_ml_model_names
 from AOA.messages import (
     DEADLINE_MIN_GT_MAX,
     MUST_BE_FLOAT,
@@ -12,6 +14,9 @@ from AOA.messages import (
     PROD_MIN_GT_MAX,
     TEST_SIZE_TOO_LARGE,
 )
+
+ML_MODEL_NAMES = STATIC_ML_MODEL_NAMES
+STO_MODEL_NAMES = STATIC_STO_MODEL_NAMES
 
 
 def _parse_positive_int(value, field_name: str) -> int:
@@ -38,8 +43,10 @@ def _parse_positive_float(value, field_name: str) -> float:
 
 def split_selected_models(selected_models: list[str]) -> tuple[list[str], list[str]]:
     selected_models = selected_models or []
-    ml_models = [name for name in selected_models if name in ML_MODEL_NAMES]
-    sto_models = [name for name in selected_models if name in STO_MODEL_NAMES]
+    ml_model_names = get_ml_model_names()
+    ml_models = [name for name in selected_models if name in ml_model_names]
+    sto_model_names = get_mh_model_names()
+    sto_models = [name for name in selected_models if name in sto_model_names]
     return ml_models, sto_models
 
 

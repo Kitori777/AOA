@@ -16,11 +16,24 @@ def default_report_template(title: str = "Wlasny raport AOA") -> str:
     return "\n".join(
         [
             rf"\title{{{title}}}",
+            r"\maketitle",
+            r"\tableofcontents",
+            "",
             r"\section{Cel raportu}",
             "Opisz tutaj, co sprawdzasz i jaka decyzje ma wspierac raport.",
             "",
+            r"\section{Pipeline pracy}",
+            "Dane -> walidacja -> ML/STO/TabPFN -> wizualizacje -> diagramy -> decyzja.",
+            "",
             r"\section{Dane i wyniki}",
             "Dodaj wynik analizy, tabele z plikow, wizualizacje albo diagramy.",
+            "",
+            r"\section{Analityka ML}",
+            "Opisz cel predykcji, wybrane cechy X, model, metryki i interpretacje wyniku.",
+            "",
+            r"\section{Analityka STO / heurystyki}",
+            r"\equation{STO = \sum_j max(0, C_j - d_j)}",
+            "Porownaj kolejnosci, opoznienia, bufor oraz najlepsza metode.",
             "",
             r"\section{Wnioski}",
             r"\begin{itemize}",
@@ -30,6 +43,136 @@ def default_report_template(title: str = "Wlasny raport AOA") -> str:
             "",
         ]
     )
+
+
+REPORT_EXAMPLE_TEMPLATES = {
+    "Szybki raport decyzyjny": "\n".join(
+        [
+            r"\title{Szybki raport decyzyjny}",
+            r"\maketitle",
+            r"\tableofcontents",
+            "",
+            r"\section{Cel}",
+            "Jaka decyzje ma wesprzec raport: wybor modelu, zmiana procesu albo kontrola ryzyka.",
+            "",
+            r"\section{Najwazniejszy wynik}",
+            r"\textbf{Wniosek:} wpisz jedno zdanie, ktore ma zostac zapamietane.",
+            "",
+            r"\section{Dowody}",
+            r"\begin{itemize}",
+            r"\item Metryka/KPI: wpisz wartosc i kierunek zmiany.",
+            r"\item Wykres lub tabela: wstaw plik z Visual, Diagrams albo Reports.",
+            r"\item Ograniczenie: wpisz, czego dane jeszcze nie pokazuja.",
+            r"\end{itemize}",
+            "",
+            r"\section{Rekomendowana akcja}",
+            "Co robimy teraz, kto odpowiada i kiedy sprawdzamy efekt.",
+            "",
+        ]
+    ),
+    "Raport ML": "\n".join(
+        [
+            r"\title{Raport ML}",
+            r"\maketitle",
+            r"\tableofcontents",
+            "",
+            r"\section{Cel predykcji}",
+            "Cel y: jakosc, opoznienie albo schedule. Quality/Delay to regresja, Schedule to klasyfikacja.",
+            "",
+            r"\section{Dane i cechy}",
+            r"\begin{itemize}",
+            r"\item X: cechy wejsciowe, np. czas, termin, koszt, material, segment.",
+            r"\item y: wartosc docelowa albo klasa.",
+            r"\item Walidacja: ten sam podzial train/test dla porownywanych modeli.",
+            r"\end{itemize}",
+            "",
+            r"\section{Model i metryki}",
+            "Porownaj baseline, classic ML, TabPFN, XGBoost, MLP albo Stacking.",
+            r"\equation{\hat{y}=f(X)}",
+            r"\equation{RMSE=\sqrt{\frac{1}{n}\sum_i(y_i-\hat{y}_i)^2}}",
+            "",
+            r"\section{Interpretacja}",
+            "Czy wynik jest wystarczajacy do decyzji i gdzie model moze sie mylic.",
+            "",
+        ]
+    ),
+    "Raport STO": "\n".join(
+        [
+            r"\title{Raport STO i harmonogramowanie}",
+            r"\maketitle",
+            r"\tableofcontents",
+            "",
+            r"\section{Cel kolejkowania}",
+            "Ulozyc zadania tak, aby zmniejszyc opoznienia, bufor albo ryzyko naruszenia terminu.",
+            "",
+            r"\section{Oznaczenia}",
+            r"\begin{itemize}",
+            r"\item p_j: czas wykonania zadania.",
+            r"\item d_j: deadline zadania.",
+            r"\item C_j: czas zakonczenia w kolejce.",
+            r"\item T_j=max(0,C_j-d_j): dodatnie opoznienie.",
+            r"\end{itemize}",
+            r"\equation{STO=\sum_j T_j}",
+            "",
+            r"\section{Porownanie metod}",
+            "Porownaj EDD, SPT, LPT, Slack, Critical Ratio, MOpt, Genetic albo wlasna heurystyke.",
+            "",
+            r"\section{Decyzja}",
+            "Ktora kolejnosc jest najlepsza i jakie ryzyko zostaje.",
+            "",
+        ]
+    ),
+    "Raport pipeline": "\n".join(
+        [
+            r"\title{Raport pipeline end-to-end}",
+            r"\maketitle",
+            r"\tableofcontents",
+            "",
+            r"\section{Mapa procesu}",
+            "Dane -> walidacja -> model/STO -> wizualizacja -> raport -> decyzja.",
+            "",
+            r"\section{Kontrole jakosci}",
+            r"- [ ] Braki danych sprawdzone",
+            r"- [ ] Typy kolumn sprawdzone",
+            r"- [ ] Metryki modelu porownane",
+            r"- [ ] Diagram procesu dolaczony",
+            "",
+            r"\section{Pliki}",
+            "Wstaw wykres, diagram, CSV albo HTML przez biblioteke plikow w Report Builderze.",
+            "",
+            r"\section{Ryzyka i monitoring}",
+            "Kiedy wynik uznajemy za podejrzany i kiedy odswiezamy dane/model.",
+            "",
+        ]
+    ),
+    "Raport dla zarzadu": "\n".join(
+        [
+            r"\title{Raport dla zarzadu}",
+            r"\maketitle",
+            "",
+            r"\section{Executive summary}",
+            "Jednozdaniowa odpowiedz: co sie dzieje i jaka decyzje rekomendujemy.",
+            "",
+            r"\section{KPI}",
+            r"\begin{itemize}",
+            r"\item Wynik glowny: wpisz metryke.",
+            r"\item Zmiana: wpisz trend albo roznice wzgledem planu.",
+            r"\item Pewnosc: wpisz ograniczenia danych.",
+            r"\end{itemize}",
+            "",
+            r"\section{Rekomendacja}",
+            "Decyzja, koszt/ryzyko i nastepny krok.",
+            "",
+        ]
+    ),
+}
+
+
+def report_example_template(name: str, title: str = "Moj raport AOA") -> str:
+    """Return a ready-to-edit report example for non-technical users."""
+    if name in REPORT_EXAMPLE_TEMPLATES:
+        return REPORT_EXAMPLE_TEMPLATES[name]
+    return default_report_template(title)
 
 
 def analysis_block(title: str, body: str, recommended_chart: str = "") -> str:
@@ -70,6 +213,108 @@ def recommendation_block() -> str:
     )
 
 
+def ml_analytics_block() -> str:
+    return "\n".join(
+        [
+            r"\section{Analityka ML}",
+            r"\subsection{Cel predykcji}",
+            "Cel y: wpisz, czy model przewiduje jakosc, opoznienie albo klase harmonogramu.",
+            "",
+            r"\subsection{Cechy i dane}",
+            r"\begin{itemize}",
+            r"\item X: cechy wejściowe, np. czas, termin, koszt, material, rozmiar, obciążenie.",
+            r"\item y: wartosc docelowa albo klasa.",
+            r"\item Braki danych: opisz, czy zostaly uzupelnione mediana albo inną metoda.",
+            r"\end{itemize}",
+            "",
+            r"\subsection{Model i metryki}",
+            r"\begin{itemize}",
+            r"\item Model: RandomForest / ExtraTrees / GradientBoosting / HistGradient / SVM / KNN / XGBoost / TabPFN.",
+            r"\item Regresja: RMSE, MAE, R2.",
+            r"\item Klasyfikacja: accuracy, precision, recall, F1.",
+            r"\item Interpretacja: napisz, czy wynik jest wystarczajacy do decyzji.",
+            r"\end{itemize}",
+            "",
+            r"\equation{\hat{y} = f(X)}",
+            r"\equation{RMSE = \sqrt{\frac{1}{n}\sum_i(y_i-\hat{y}_i)^2}}",
+            "",
+        ]
+    )
+
+
+def sto_analytics_block() -> str:
+    return "\n".join(
+        [
+            r"\section{Analityka STO / harmonogramowanie}",
+            r"\subsection{Cel}",
+            "Celem jest ulozenie kolejnosci zadan tak, aby zmniejszyc opoznienia, czas oczekiwania albo ryzyko naruszenia SLA.",
+            "",
+            r"\subsection{Oznaczenia}",
+            r"\begin{itemize}",
+            r"\item p_j: czas wykonania zadania j.",
+            r"\item d_j: termin/deadline zadania j.",
+            r"\item C_j: czas zakonczenia zadania j w wybranej kolejnosci.",
+            r"\item T_j: dodatnie opoznienie zadania j.",
+            r"\item STO: suma dodatnich opoznien.",
+            r"\end{itemize}",
+            "",
+            r"\equation{C_j = \sum_{k \le j} p_k}",
+            r"\equation{T_j = max(0, C_j - d_j)}",
+            r"\equation{STO = \sum_j T_j}",
+            "",
+            r"\subsection{Porownanie metod}",
+            r"\begin{itemize}",
+            r"\item MT/EDD: najblizszy termin pierwszy.",
+            r"\item MO/SPT: najkrotszy czas pierwszy.",
+            r"\item MZO/LPT: najdluzszy czas pierwszy.",
+            r"\item MOPT/GENETIC/custom: szukanie lepszej kolejnosci przez warianty albo wzor score.",
+            r"\end{itemize}",
+            "",
+        ]
+    )
+
+
+def prediction_plan_block() -> str:
+    return "\n".join(
+        [
+            r"\section{Plan predykcji i wdrozenia}",
+            r"\begin{itemize}",
+            r"\item Co przewidujemy: jakosc, opoznienie, harmonogram, ryzyko, popyt albo czas realizacji.",
+            r"\item Dane wymagane przed predykcja: lista kolumn, jednostki, typy i zakresy wartosci.",
+            r"\item Model startowy: prosty baseline oraz mocniejszy model porownawczy.",
+            r"\item Walidacja: train/test, metryki, kontrola przeciekow danych i stabilnosc po segmentach.",
+            r"\item Decyzja po predykcji: co uzytkownik ma zrobic z wynikiem.",
+            r"\item Monitoring: kiedy wynik uznajemy za podejrzany i kiedy trenowac ponownie.",
+            r"\end{itemize}",
+            "",
+            "Pytanie kontrolne: czy model ma pomagac w decyzji, automatycznie wybierac akcje, czy tylko ostrzegac?",
+            "",
+        ]
+    )
+
+
+def pipeline_block() -> str:
+    return "\n".join(
+        [
+            r"\section{Pipeline decyzyjny}",
+            "Ten blok opisuje cala sciezke od danych do decyzji, zeby raport nie byl tylko zbiorem wykresow.",
+            "",
+            r"\begin{itemize}",
+            r"\item 1. Dane: zrodlo pliku, zakres dat, kolumny, jednostki i wlasciciel danych.",
+            r"\item 2. Jakosc: braki, duplikaty, wartosci odstajace, kolumny stale i typy danych.",
+            r"\item 3. Model: classic ML, TabPFN albo heurystyka STO, zalezne od celu decyzji.",
+            r"\item 4. Walidacja: train/test, metryki, porownanie z baseline i kontrola segmentow.",
+            r"\item 5. Wizualizacje: wykresy z Visual, diagram procesu albo tabela wynikow.",
+            r"\item 6. Decyzja: co robimy, gdy wynik jest dobry, slaby albo niepewny.",
+            r"\item 7. Monitoring: kiedy odswiezamy dane, model i raport.",
+            r"\end{itemize}",
+            "",
+            r"\equation{decyzja = f(dane, metryki, ryzyko, koszt)}",
+            "",
+        ]
+    )
+
+
 def render_report_preview_text(source: str, max_chars: int = 9000) -> str:
     html = latexish_to_html(source)
     text = re.sub(r"<h2[^>]*>", "\n## ", html)
@@ -81,6 +326,48 @@ def render_report_preview_text(source: str, max_chars: int = 9000) -> str:
     text = re.sub(r"[ \t]+", " ", text)
     text = re.sub(r"\n\s+", "\n", text).strip()
     return text[:max_chars] + ("\n... [podglad skrocony]" if len(text) > max_chars else "")
+
+
+def render_report_pdf_preview_text(
+    source: str,
+    title: str = "AOA Report",
+    max_chars: int = 11000,
+) -> str:
+    """Return a page-like text preview for the in-app Report Builder."""
+    text = render_report_preview_text(source, max_chars=max_chars)
+    report_title = _extract_title(source) or title
+    width = 72
+    page_lines = [
+        "PODGLAD STRONY A4 - symulacja ukladu PDF".center(width),
+        "",
+        report_title.center(width),
+        "",
+        ("_" * width),
+        "",
+    ]
+    for line in text.splitlines():
+        if not line.strip():
+            page_lines.append("")
+            continue
+        if line.startswith("## "):
+            page_lines.extend(["", line[3:].upper(), "-" * min(width, len(line) + 4)])
+            continue
+        if len(line) <= width:
+            page_lines.append(line)
+            continue
+        start = 0
+        while start < len(line):
+            page_lines.append(line[start : start + width])
+            start += width
+    page_lines.extend(
+        [
+            "",
+            ("_" * width),
+            "Strona 1 | marginesy, szerokosc linii i podzial sa przyblizeniem.",
+            "Kliknij 'Podglad PDF', aby otworzyc faktycznie wygenerowany plik PDF.",
+        ]
+    )
+    return "\n".join(page_lines)
 
 
 def file_block(path: str | Path, max_rows: int = 12) -> str:
@@ -106,10 +393,10 @@ def build_custom_report_html(source: str, title: str = "AOA Custom Report") -> s
         "<!doctype html><html lang='pl'><head><meta charset='utf-8'>"
         f"<title>{escape(title)}</title>"
         "<style>"
-        "body{margin:0;background:#eef4fb;color:#0f172a;font-family:Segoe UI,Arial,sans-serif;}"
-        "header{background:#0f2a44;color:white;padding:30px 42px;border-bottom:5px solid #1f8fff;}"
-        "main{max-width:1120px;margin:0 auto;padding:28px 32px 48px;}"
-        "section{background:white;border:1px solid #cbd5e1;border-radius:10px;margin:18px 0;padding:20px 24px;box-shadow:0 8px 22px #0f172a12;}"
+        "body{margin:0;background:#dbe4ee;color:#0f172a;font-family:Segoe UI,Arial,sans-serif;}"
+        "header{background:#0f2a44;color:white;padding:26px 42px;border-bottom:5px solid #1f8fff;}"
+        "main{max-width:940px;min-height:1200px;margin:28px auto 52px;background:white;padding:56px 64px;box-shadow:0 24px 70px #0f172a38;border:1px solid #cbd5e1;}"
+        "section{background:white;border:0;border-top:1px solid #e2e8f0;border-radius:0;margin:22px 0 0;padding:22px 0 4px;box-shadow:none;}"
         "h1,h2,h3{margin:0 0 12px;}p{line-height:1.58;margin:8px 0;}ul{line-height:1.55;}"
         "pre{white-space:pre-wrap;background:#0f172a;color:#e2e8f0;border-radius:8px;padding:14px;overflow:auto;}"
         "table{border-collapse:collapse;width:100%;margin:12px 0;font-size:14px;}th,td{border:1px solid #cbd5e1;padding:8px;text-align:left;}th{background:#dbeafe;}"
@@ -128,6 +415,7 @@ def build_custom_report_html(source: str, title: str = "AOA Custom Report") -> s
         ".checklist{list-style:none;margin-left:-18px}.checklist input{margin-right:8px;}"
         ".page-break{break-after:page;border-top:2px dashed #cbd5e1;margin:28px 0;padding-top:8px;color:#64748b;font-size:12px;text-transform:uppercase;}"
         "blockquote{border-left:5px solid #94a3b8;margin:12px 0;padding:8px 14px;background:#f8fafc;color:#334155;}"
+        "@media print{body{background:white}header{display:none}main{margin:0;box-shadow:none;border:0;max-width:none;min-height:auto;padding:24mm 20mm;}}"
         "</style></head><body>"
         f"<header><h1>{escape(_extract_title(source) or title)}</h1><p>Raport skladany w AOA Report Builder.</p></header>"
         f"<main>{body}</main></body></html>"

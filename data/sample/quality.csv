@@ -1,0 +1,6 @@
+batch_id,temp_c,pressure_bar,cycle_min,defect_rate,accepted
+Q001,181,6.2,42,0.03,yes
+Q002,194,7.0,39,0.12,no
+Q003,176,5.8,45,0.02,yes
+Q004,203,7.4,36,0.18,no
+Q005,188,6.5,41,0.07,yes

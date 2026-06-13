@@ -1,5 +1,6 @@
 import webbrowser
 from datetime import datetime
+from pathlib import Path
 from tkinter import filedialog, messagebox
 
 import customtkinter as ctk
@@ -100,6 +101,15 @@ class VisualPage(ctk.CTkFrame):
         ctk.CTkButton(
             html_nav, text="Następny widok", command=self.next_chart, width=170, height=34
         ).grid(row=1, column=0, sticky="ew")
+        ctk.CTkButton(
+            html_nav,
+            text="Pliki HTML/dane",
+            command=self._open_file_manager,
+            width=170,
+            height=34,
+            fg_color="#155e75",
+            hover_color="#0e7490",
+        ).grid(row=2, column=0, sticky="ew", pady=(6, 0))
         ctk.CTkLabel(
             control,
             text="Tryb drzewa: automatycznie wybierana jest najlepsza metoda STO.",
@@ -165,6 +175,12 @@ class VisualPage(ctk.CTkFrame):
             "Po narysowaniu wykresu pojawi się raport: zakresy, braki, korelacje, odstające punkty i podpowiedzi interpretacji."
         )
 
+    def _open_file_manager(self):
+        app = self.winfo_toplevel()
+        opener = getattr(app, "open_file_manager_window", None)
+        if callable(opener):
+            opener()
+
     def load_file(self):
         path = filedialog.askopenfilename(
             title="Wybierz plik z danymi",
@@ -179,19 +195,50 @@ class VisualPage(ctk.CTkFrame):
         if not path:
             return
         try:
-            result = load_and_prepare_visual_file(path)
-            self.df_vis = result["df"]
-            columns = result["columns"]
-            self.x_menu.configure(values=columns)
-            self.y_menu.configure(values=columns)
-            self.z_menu.configure(values=columns)
-            self.x_var.set(result["x_default"])
-            self.y_var.set(result["y_default"])
-            self.z_var.set(result.get("z_default", result["y_default"]))
-            self._refresh_tree_models()
+            self.load_path(path)
             self.draw_plot()
         except Exception as e:
             messagebox.showerror("Błąd", str(e))
+
+    def load_path(self, path: str | Path) -> None:
+        result = load_and_prepare_visual_file(str(path))
+        self.df_vis = result["df"]
+        columns = result["columns"]
+        self.x_menu.configure(values=columns)
+        self.y_menu.configure(values=columns)
+        self.z_menu.configure(values=columns)
+        self.x_var.set(result["x_default"])
+        self.y_var.set(result["y_default"])
+        self.z_var.set(result.get("z_default", result["y_default"]))
+        self._refresh_tree_models()
+
+    def load_sample_data(self) -> None:
+        sample_path = DATA_DIR / "sample" / "sample_table.csv"
+        if not sample_path.exists():
+            raise FileNotFoundError(f"Brak pliku sample: {sample_path}")
+        self.load_path(sample_path)
+
+    def auto_chart_from_sample(self) -> None:
+        if self.df_vis is None:
+            self.load_sample_data()
+        numeric_columns = self.df_vis.select_dtypes(include="number").columns.tolist()
+        if len(numeric_columns) >= 2:
+            self.x_var.set(numeric_columns[0])
+            self.y_var.set(numeric_columns[1])
+            self.plot_type.set("Scatter")
+        elif numeric_columns:
+            self.x_var.set(numeric_columns[0])
+            self.y_var.set(numeric_columns[0])
+            self.plot_type.set("Histogram")
+        else:
+            self.plot_type.set("Production Dashboard")
+        self.draw_plot()
+
+    def draw_sample_from_prompt(self, prompt: str) -> None:
+        if self.df_vis is None:
+            self.load_sample_data()
+        self.command_var.set(prompt)
+        self.draw_from_prompt()
 
     def _refresh_tree_models(self):
         if self.df_vis is None or "sto_model" not in self.df_vis.columns:

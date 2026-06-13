@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from AOA.core.report_composer_service import (
+    REPORT_EXAMPLE_TEMPLATES,
     analysis_block,
     build_custom_report_html,
     build_custom_report_pdf,
@@ -9,7 +10,9 @@ from AOA.core.report_composer_service import (
     kpi_block,
     latexish_to_html,
     recommendation_block,
+    render_report_pdf_preview_text,
     render_report_preview_text,
+    report_example_template,
 )
 
 
@@ -144,3 +147,24 @@ def test_report_builder_blocks_and_preview_text() -> None:
     assert "Metryka:" in preview
     assert "## Wykres ceny" in preview
     assert "Rekomendacje" in preview
+
+
+def test_pdf_preview_text_looks_like_page_not_terminal_dump() -> None:
+    source = "\n".join([r"\title{Raport}", r"\section{Cel}", "Najwazniejszy wniosek."])
+
+    preview = render_report_pdf_preview_text(source, title="Raport")
+
+    assert "PODGLAD STRONY A4" in preview
+    assert "Kliknij 'Podglad PDF'" in preview
+    assert "====" not in preview
+
+
+def test_ready_report_examples_are_renderable_for_users() -> None:
+    assert {"Raport ML", "Raport STO", "Raport pipeline"} <= set(REPORT_EXAMPLE_TEMPLATES)
+
+    source = report_example_template("Raport ML")
+    html = build_custom_report_html(source, "Raport ML")
+
+    assert "Cel predykcji" in html
+    assert "RMSE" in html
+    assert "AOA Report Builder" in html
