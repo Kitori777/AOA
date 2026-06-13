@@ -113,11 +113,17 @@ ML_MODELS_BY_TASK: dict[ModelTask, tuple[str, ...]] = {
 
 
 def get_ml_model_specs() -> tuple[MLModelSpec, ...]:
-    return ML_MODEL_SPECS
+    from .custom import get_custom_model_specs
+
+    return (*ML_MODEL_SPECS, *get_custom_model_specs())
+
+
+def get_ml_model_names() -> set[str]:
+    return {spec.name for spec in get_ml_model_specs()}
 
 
 def get_ml_task(model_name: str) -> ModelTask:
-    for spec in ML_MODEL_SPECS:
+    for spec in get_ml_model_specs():
         if spec.name == model_name:
             return spec.task
     raise ValueError(f"Nieznany model ML: {model_name}")

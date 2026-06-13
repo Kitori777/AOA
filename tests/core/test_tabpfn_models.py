@@ -52,3 +52,23 @@ def test_train_tabpfn_classifier_uses_model_fit(monkeypatch):
 
     assert isinstance(model, DummyClassifier)
     assert calls["shape"] == (3, 3)
+
+
+def test_tabpfn_rejects_mismatched_lengths(monkeypatch):
+    monkeypatch.setattr(tabpfn_models, "TABPFN_AVAILABLE", True)
+
+    X = pd.DataFrame({"a": [1.0, 2.0, 3.0]})
+    y = pd.Series([0.1, 0.2])
+
+    with pytest.raises(ValueError, match="tej samej liczby rekordow"):
+        tabpfn_models.train_tabpfn_regressor(X, y)
+
+
+def test_tabpfn_classifier_requires_two_classes(monkeypatch):
+    monkeypatch.setattr(tabpfn_models, "TABPFN_AVAILABLE", True)
+
+    X = pd.DataFrame({"a": [1.0, 2.0, 3.0]})
+    y = np.array(["A", "A", "A"])
+
+    with pytest.raises(ValueError, match="co najmniej 2 klas"):
+        tabpfn_models.train_tabpfn_classifier(X, y)

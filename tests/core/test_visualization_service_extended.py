@@ -155,6 +155,10 @@ def test_build_d3_dashboard_html_report_contains_multi_panel_dashboard():
     assert 'id="bars"' in html
     assert 'id="missingness"' in html
     assert "numericColumns" in html
+    assert 'id="ctl-full"' in html
+    assert 'id="ctl-export-csv"' in html
+    assert 'id="ctl-export-json"' in html
+    assert "applyScale" in html
 
 
 @pytest.mark.parametrize(

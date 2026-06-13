@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from html import escape
 from pathlib import Path
@@ -20,6 +21,18 @@ DRAWIO_TEMPLATES = [
     "System Architecture",
     "Decision Tree",
     "Kanban Board",
+    "Production Line",
+    "Warehouse Flow",
+    "Quality Control",
+    "ML Production Pipeline",
+    "Logistics Route",
+    "Maintenance Flow",
+    "Value Stream Map",
+    "Supply Chain",
+    "Plant Layout",
+    "Andon Incident",
+    "Energy Media Flow",
+    "Inventory Replenishment",
 ]
 
 DRAWIO_SHAPES = [
@@ -41,6 +54,26 @@ DRAWIO_SHAPES = [
     "terminator",
     "swimlane",
     "container",
+    "machine",
+    "warehouse",
+    "conveyor",
+    "inspection",
+    "sensor",
+    "robot",
+    "truck",
+    "buffer",
+    "kpi",
+    "risk",
+    "model",
+    "operator",
+    "supplier",
+    "customer",
+    "station",
+    "kanban",
+    "pallet",
+    "plc",
+    "andon",
+    "energy",
 ]
 
 
@@ -245,7 +278,281 @@ def template_nodes_edges(template: str) -> tuple[list[DiagramNode], list[Diagram
             DiagramNode("card3", "Task C", "note", 640, 140),
         ]
         return nodes, []
+    if template == "Production Line":
+        nodes = [
+            DiagramNode("raw", "Surowiec\nwejscie", "warehouse", 60, 200, 170, 90, "#f8fafc"),
+            DiagramNode("m1", "Maszyna 1\nciecie", "machine", 290, 190, 170, 110, "#dbeafe", "#2563eb"),
+            DiagramNode("buffer", "Bufor WIP\nkolejka", "buffer", 520, 205, 150, 80, "#fef9c3", "#ca8a04"),
+            DiagramNode("m2", "Maszyna 2\nmontaz", "machine", 730, 190, 170, 110, "#dbeafe", "#2563eb"),
+            DiagramNode("qc", "Kontrola\njakosci", "inspection", 960, 190, 170, 110, "#dcfce7", "#16a34a"),
+            DiagramNode("out", "Wyrob gotowy", "warehouse", 1190, 200, 170, 90, "#f0fdf4", "#16a34a"),
+        ]
+        return nodes, [
+            DiagramEdge("raw", "m1", "partia"),
+            DiagramEdge("m1", "buffer", "WIP"),
+            DiagramEdge("buffer", "m2", "kolejka"),
+            DiagramEdge("m2", "qc", "test"),
+            DiagramEdge("qc", "out", "OK"),
+        ]
+    if template == "Warehouse Flow":
+        nodes = [
+            DiagramNode("inbound", "Przyjecie\npalet", "truck", 70, 170, 170, 100, "#dbeafe"),
+            DiagramNode("scan", "Skan / WMS", "sensor", 300, 170, 160, 90, "#ede9fe", "#7c3aed"),
+            DiagramNode("stock", "Magazyn\nlokacje", "warehouse", 530, 150, 190, 130, "#f8fafc"),
+            DiagramNode("pick", "Picking", "operator", 790, 170, 160, 90, "#dcfce7"),
+            DiagramNode("pack", "Pakowanie", "process", 1010, 170, 160, 90, "#fef9c3"),
+            DiagramNode("ship", "Wysylka", "truck", 1230, 170, 170, 100, "#dcfce7", "#16a34a"),
+        ]
+        return nodes, [
+            DiagramEdge("inbound", "scan"),
+            DiagramEdge("scan", "stock"),
+            DiagramEdge("stock", "pick"),
+            DiagramEdge("pick", "pack"),
+            DiagramEdge("pack", "ship"),
+        ]
+    if template == "Quality Control":
+        nodes = [
+            DiagramNode("sample", "Probka\nz produkcji", "document", 70, 170, 170, 90, "#f8fafc"),
+            DiagramNode("measure", "Pomiar\nczujniki", "sensor", 310, 160, 170, 110, "#dbeafe"),
+            DiagramNode("rules", "Czy OK?", "decision", 560, 150, 150, 130, "#fef9c3", "#ca8a04"),
+            DiagramNode("rework", "Poprawka /\nrework", "risk", 790, 70, 180, 90, "#fee2e2", "#dc2626"),
+            DiagramNode("release", "Zwolnij\npartie", "inspection", 790, 280, 180, 90, "#dcfce7", "#16a34a"),
+            DiagramNode("report", "Raport QC", "document", 1040, 185, 170, 90, "#ede9fe", "#7c3aed"),
+        ]
+        return nodes, [
+            DiagramEdge("sample", "measure"),
+            DiagramEdge("measure", "rules"),
+            DiagramEdge("rules", "rework", "NOK"),
+            DiagramEdge("rework", "measure", "ponownie"),
+            DiagramEdge("rules", "release", "OK"),
+            DiagramEdge("release", "report"),
+        ]
+    if template == "ML Production Pipeline":
+        nodes = [
+            DiagramNode("data", "Dane CSV\nprodukcja", "database", 70, 190, 170, 100, "#f8fafc"),
+            DiagramNode("features", "Cechy X\nczyszczenie", "process", 300, 190, 170, 90, "#dbeafe"),
+            DiagramNode("train", "Trening ML\nfit(X,y)", "model", 530, 170, 190, 130, "#ede9fe", "#7c3aed"),
+            DiagramNode("metrics", "Metryki\nRMSE/MAE/R2", "kpi", 790, 190, 180, 90, "#fef9c3", "#ca8a04"),
+            DiagramNode("predict", "Predykcja\nnowe dane", "model", 1040, 170, 190, 130, "#dcfce7", "#16a34a"),
+        ]
+        return nodes, [
+            DiagramEdge("data", "features"),
+            DiagramEdge("features", "train"),
+            DiagramEdge("train", "metrics"),
+            DiagramEdge("metrics", "predict", "zaakceptuj"),
+        ]
+    if template == "Logistics Route":
+        nodes = [
+            DiagramNode("depot", "Depot", "warehouse", 80, 220, 160, 90, "#dbeafe"),
+            DiagramNode("route", "Optymalizacja\ntrasy", "model", 330, 195, 190, 130, "#ede9fe", "#7c3aed"),
+            DiagramNode("truck1", "Pojazd A", "truck", 610, 90, 170, 90, "#dcfce7"),
+            DiagramNode("truck2", "Pojazd B", "truck", 610, 310, 170, 90, "#fef9c3"),
+            DiagramNode("customer", "Klient /\npunkt dostawy", "operator", 890, 205, 180, 110, "#f8fafc"),
+        ]
+        return nodes, [
+            DiagramEdge("depot", "route"),
+            DiagramEdge("route", "truck1", "trasa 1"),
+            DiagramEdge("route", "truck2", "trasa 2"),
+            DiagramEdge("truck1", "customer"),
+            DiagramEdge("truck2", "customer"),
+        ]
+    if template == "Maintenance Flow":
+        nodes = [
+            DiagramNode("sensor", "Alarm\nczujnika", "sensor", 80, 180, 160, 90, "#fee2e2", "#dc2626"),
+            DiagramNode("triage", "Ocena\nryzyka", "risk", 310, 165, 170, 120, "#fef9c3", "#ca8a04"),
+            DiagramNode("work", "Zlecenie\nutrzymania", "document", 560, 180, 180, 90, "#f8fafc"),
+            DiagramNode("team", "Technik /\noperator", "operator", 820, 170, 170, 110, "#dbeafe"),
+            DiagramNode("done", "Maszyna\nsprawna", "machine", 1080, 170, 180, 110, "#dcfce7", "#16a34a"),
+        ]
+        return nodes, [
+            DiagramEdge("sensor", "triage"),
+            DiagramEdge("triage", "work"),
+            DiagramEdge("work", "team"),
+            DiagramEdge("team", "done"),
+        ]
+    if template == "Value Stream Map":
+        nodes = [
+            DiagramNode("supplier", "Dostawca", "supplier", 60, 190, 160, 90, "#f8fafc"),
+            DiagramNode("stock_in", "Zapas wej.\n2 dni", "buffer", 270, 200, 150, 76, "#fef9c3", "#ca8a04"),
+            DiagramNode("cut", "Proces 1\nciecie\nCT 4 min", "station", 480, 180, 180, 110, "#dbeafe", "#2563eb"),
+            DiagramNode("wip", "WIP\n18 szt.", "kanban", 720, 200, 150, 76, "#ffedd5", "#ea580c"),
+            DiagramNode("assembly", "Proces 2\nmontaz\nCT 7 min", "station", 930, 180, 180, 110, "#dbeafe", "#2563eb"),
+            DiagramNode("customer", "Klient", "customer", 1180, 190, 160, 90, "#dcfce7", "#16a34a"),
+            DiagramNode("info", "Plan / MRP\nzamowienia", "document", 510, 40, 300, 80, "#ede9fe", "#7c3aed"),
+        ]
+        return nodes, [
+            DiagramEdge("supplier", "stock_in", "dostawy"),
+            DiagramEdge("stock_in", "cut"),
+            DiagramEdge("cut", "wip", "partie"),
+            DiagramEdge("wip", "assembly"),
+            DiagramEdge("assembly", "customer", "wysylka"),
+            DiagramEdge("customer", "info", "popyt"),
+            DiagramEdge("info", "supplier", "plan"),
+        ]
+    if template == "Supply Chain":
+        nodes = [
+            DiagramNode("supplier", "Supplier\nmaterial", "supplier", 60, 180, 170, 100, "#f8fafc"),
+            DiagramNode("inbound", "Inbound\ntransport", "truck", 300, 180, 170, 90, "#dbeafe"),
+            DiagramNode("plant", "Plant\nprodukcja", "machine", 540, 165, 190, 120, "#dbeafe", "#2563eb"),
+            DiagramNode("warehouse", "DC / magazyn", "warehouse", 800, 175, 190, 100, "#fef9c3", "#ca8a04"),
+            DiagramNode("retail", "Klient / sklep", "customer", 1060, 180, 180, 100, "#dcfce7", "#16a34a"),
+            DiagramNode("risk", "Ryzyko\nlead time", "risk", 545, 340, 180, 90, "#fee2e2", "#dc2626"),
+        ]
+        return nodes, [
+            DiagramEdge("supplier", "inbound"),
+            DiagramEdge("inbound", "plant"),
+            DiagramEdge("plant", "warehouse"),
+            DiagramEdge("warehouse", "retail"),
+            DiagramEdge("risk", "plant", "alert"),
+        ]
+    if template == "Plant Layout":
+        nodes = [
+            DiagramNode("zone_a", "Strefa A\nciecie", "container", 70, 90, 260, 170, "#dbeafe", "#2563eb"),
+            DiagramNode("zone_b", "Strefa B\nmontaz", "container", 410, 90, 260, 170, "#dcfce7", "#16a34a"),
+            DiagramNode("zone_c", "Strefa C\npakowanie", "container", 750, 90, 260, 170, "#fef9c3", "#ca8a04"),
+            DiagramNode("dock", "Dok / wysylka", "truck", 1090, 120, 180, 110, "#ffedd5", "#ea580c"),
+            DiagramNode("forklift", "Transport\nwewn.", "truck", 410, 340, 190, 90, "#ede9fe", "#7c3aed"),
+            DiagramNode("qc", "QC", "inspection", 750, 340, 160, 90, "#dcfce7", "#16a34a"),
+        ]
+        return nodes, [
+            DiagramEdge("zone_a", "zone_b", "material"),
+            DiagramEdge("zone_b", "zone_c", "WIP"),
+            DiagramEdge("zone_c", "dock", "palety"),
+            DiagramEdge("forklift", "zone_b"),
+            DiagramEdge("qc", "zone_c"),
+        ]
+    if template == "Andon Incident":
+        nodes = [
+            DiagramNode("andon", "ANDON\nalarm", "andon", 80, 170, 160, 100, "#fee2e2", "#dc2626"),
+            DiagramNode("stop", "Zatrzymaj\nlinie?", "decision", 310, 150, 150, 130, "#fef9c3", "#ca8a04"),
+            DiagramNode("leader", "Lider\nreakcja", "operator", 560, 155, 170, 120, "#dbeafe", "#2563eb"),
+            DiagramNode("cause", "Przyczyna\n5 why", "document", 810, 170, 180, 90, "#f8fafc"),
+            DiagramNode("fix", "Akcja\nkorygujaca", "process", 1060, 170, 190, 90, "#dcfce7", "#16a34a"),
+        ]
+        return nodes, [
+            DiagramEdge("andon", "stop"),
+            DiagramEdge("stop", "leader", "tak"),
+            DiagramEdge("leader", "cause"),
+            DiagramEdge("cause", "fix"),
+        ]
+    if template == "Energy Media Flow":
+        nodes = [
+            DiagramNode("energy", "Energia\nwejscie", "energy", 70, 190, 170, 90, "#fef9c3", "#ca8a04"),
+            DiagramNode("air", "Sprezone\npowietrze", "plc", 310, 90, 170, 90, "#dbeafe", "#2563eb"),
+            DiagramNode("water", "Woda /\nchlodzenie", "plc", 310, 290, 170, 90, "#dbeafe", "#2563eb"),
+            DiagramNode("machine", "Maszyna\nzuzycie", "machine", 590, 190, 190, 110, "#ede9fe", "#7c3aed"),
+            DiagramNode("meter", "Liczniki\nkWh / m3", "sensor", 860, 190, 170, 90, "#dcfce7", "#16a34a"),
+            DiagramNode("kpi", "KPI\nkoszt/szt.", "kpi", 1110, 190, 170, 90, "#fef9c3", "#ca8a04"),
+        ]
+        return nodes, [
+            DiagramEdge("energy", "machine"),
+            DiagramEdge("air", "machine"),
+            DiagramEdge("water", "machine"),
+            DiagramEdge("machine", "meter"),
+            DiagramEdge("meter", "kpi"),
+        ]
+    if template == "Inventory Replenishment":
+        nodes = [
+            DiagramNode("demand", "Popyt\nsprzedaz", "customer", 60, 170, 170, 90, "#dcfce7", "#16a34a"),
+            DiagramNode("forecast", "Prognoza\nML", "model", 300, 155, 180, 120, "#ede9fe", "#7c3aed"),
+            DiagramNode("rop", "Punkt\nzamowienia", "kanban", 560, 170, 170, 90, "#fef9c3", "#ca8a04"),
+            DiagramNode("po", "Zamowienie\nPO", "document", 800, 170, 170, 90, "#f8fafc"),
+            DiagramNode("supplier", "Dostawca", "supplier", 1040, 170, 170, 90, "#dbeafe"),
+            DiagramNode("stock", "Stan\nmagazynu", "warehouse", 560, 330, 180, 100, "#f8fafc"),
+        ]
+        return nodes, [
+            DiagramEdge("demand", "forecast"),
+            DiagramEdge("forecast", "rop"),
+            DiagramEdge("rop", "po"),
+            DiagramEdge("po", "supplier"),
+            DiagramEdge("supplier", "stock"),
+            DiagramEdge("stock", "rop", "poziom"),
+        ]
     return [DiagramNode("n1", "Double click idea", "rounded", 120, 120)], []
+
+
+def smart_diagram_from_description(
+    description: str,
+) -> tuple[list[DiagramNode], list[DiagramEdge], str, str]:
+    """Build a starter diagram from a plain-language process description."""
+    compact = description.lower()
+    if any(word in compact for word in ["api", "system", "baza", "dashboard", "serwer"]):
+        template = "System Architecture"
+    elif any(word in compact for word in ["csv", "dane", "model", "metryk", "raport", "walid"]):
+        template = "Data Pipeline"
+    elif any(word in compact for word in ["dostaw", "magazyn", "transport", "wysyl", "logist"]):
+        template = "Supply Chain"
+    elif any(word in compact for word in ["qc", "jakosc", "produkc", "linia", "pakow"]):
+        template = "Production Line"
+    else:
+        template = "Flowchart"
+
+    raw_parts = re.split(r"\s*(?:->|=>|→|,|;|\n)\s*", description)
+    parts = [part.strip(" .:-") for part in raw_parts if part.strip(" .:-")]
+    if len(parts) < 2:
+        parts = ["Start", description.strip(), "Wynik"]
+    parts = parts[:10]
+
+    nodes: list[DiagramNode] = []
+    edges: list[DiagramEdge] = []
+    for idx, part in enumerate(parts):
+        shape, fill, stroke = smart_shape_style(part, idx, len(parts))
+        node = DiagramNode(
+            id=f"s{idx + 1}",
+            label=part[:42],
+            shape=shape,
+            x=80 + idx * 230,
+            y=150 if idx % 2 == 0 else 270,
+            width=190 if shape not in {"database", "decision"} else 170,
+            height=74 if shape != "decision" else 88,
+            fill=fill,
+            stroke=stroke,
+        )
+        nodes.append(node)
+        if idx > 0:
+            edges.append(DiagramEdge(f"s{idx}", node.id, smart_edge_label(parts[idx - 1], part)))
+    return nodes, edges, template, "wybrano ksztalty, kolory i polaczenia z tekstu"
+
+
+def smart_shape_style(label_text: str, index: int, total: int) -> tuple[str, str, str]:
+    text = label_text.lower()
+    if index == 0 and any(
+        word in text for word in ["start", "wejsc", "dostaw", "klient", "uzytkownik"]
+    ):
+        return "terminator", "#dcfce7", "#16a34a"
+    if index == total - 1 and any(
+        word in text for word in ["wynik", "raport", "wysyl", "koniec", "dashboard"]
+    ):
+        return "terminator", "#dbeafe", "#2563eb"
+    if any(word in text for word in ["czy", "ok", "decyz", "warunek", "quality"]):
+        return "decision", "#fef9c3", "#ca8a04"
+    if any(word in text for word in ["baza", "csv", "dane", "database", "sql"]):
+        return "database", "#ede9fe", "#7c3aed"
+    if any(word in text for word in ["model", "ml", "tabpfn", "predyk"]):
+        return "model", "#ede9fe", "#7c3aed"
+    if any(word in text for word in ["qc", "jakosc", "kontrola", "test"]):
+        return "inspection", "#dcfce7", "#16a34a"
+    if any(word in text for word in ["ryzyk", "blad", "alert", "awaria"]):
+        return "risk", "#fee2e2", "#dc2626"
+    if any(word in text for word in ["magazyn", "warehouse"]):
+        return "warehouse", "#f1f5f9", "#111827"
+    if any(word in text for word in ["transport", "wysyl", "trasa"]):
+        return "truck", "#dbeafe", "#2563eb"
+    return "process", "#dbeafe", "#2563eb"
+
+
+def smart_edge_label(previous: str, current: str) -> str:
+    del previous
+    current_lower = current.lower()
+    if any(word in current_lower for word in ["walid", "kontrola", "qc", "test"]):
+        return "sprawdz"
+    if any(word in current_lower for word in ["model", "predyk", "metryk"]):
+        return "ucz/ocen"
+    if any(word in current_lower for word in ["raport", "dashboard"]):
+        return "pokaz"
+    if any(word in current_lower for word in ["transport", "wysyl"]):
+        return "przekaz"
+    return "dalej"
 
 
 def _drawio_style(node: DiagramNode) -> str:
@@ -268,6 +575,26 @@ def _drawio_style(node: DiagramNode) -> str:
         "terminator": "rounded=1;arcSize=50;whiteSpace=wrap;html=1;",
         "swimlane": "swimlane;whiteSpace=wrap;html=1;startSize=34;",
         "container": "rounded=1;whiteSpace=wrap;html=1;container=1;collapsible=0;",
+        "machine": "shape=process;whiteSpace=wrap;html=1;",
+        "warehouse": "shape=mxgraph.flowchart.off-page_reference;whiteSpace=wrap;html=1;",
+        "conveyor": "shape=process;whiteSpace=wrap;html=1;rounded=1;",
+        "inspection": "shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;",
+        "sensor": "ellipse;whiteSpace=wrap;html=1;",
+        "robot": "shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;",
+        "truck": "shape=mxgraph.transport.truck;html=1;whiteSpace=wrap;",
+        "buffer": "shape=internalStorage;whiteSpace=wrap;html=1;",
+        "kpi": "shape=card;whiteSpace=wrap;html=1;",
+        "risk": "shape=warning;whiteSpace=wrap;html=1;",
+        "model": "shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;",
+        "operator": "shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;",
+        "supplier": "shape=mxgraph.flowchart.off-page_reference;whiteSpace=wrap;html=1;",
+        "customer": "shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;",
+        "station": "shape=process;whiteSpace=wrap;html=1;",
+        "kanban": "shape=card;whiteSpace=wrap;html=1;",
+        "pallet": "shape=process;whiteSpace=wrap;html=1;rounded=1;",
+        "plc": "shape=component;whiteSpace=wrap;html=1;",
+        "andon": "shape=warning;whiteSpace=wrap;html=1;",
+        "energy": "shape=lightning;whiteSpace=wrap;html=1;",
     }.get(node.shape, "rounded=1;whiteSpace=wrap;html=1;")
     return f"{base}fillColor={node.fill};strokeColor={node.stroke};"
 

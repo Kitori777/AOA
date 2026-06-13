@@ -11,6 +11,9 @@ ANALYTICS_WORKFLOWS = [
     "Executive Summary",
     "Build Dashboard",
     "Build Report",
+    "ML Analytics",
+    "STO Analytics",
+    "Prediction Plan",
     "Design KPIs",
     "KPI Reporting",
     "Metric Diagnostics",
@@ -261,6 +264,9 @@ def _workflow_index() -> AnalyticsResult:
             "- Executive Summary: krotkie podsumowanie decyzyjne do raportu.",
             "- Build Dashboard: lista kart KPI i wykresow do odtworzenia w Visual.",
             "- Build Report: gotowy raport tekstowy do zapisania lub wklejenia do dokumentu.",
+            "- ML Analytics: plan predykcji, metryki, walidacja i interpretacja modeli ML.",
+            "- STO Analytics: porownanie kolejek, opoznien, buforow i heurystyk STO.",
+            "- Prediction Plan: co trzeba przygotowac, zeby predykcja byla uzywalna w decyzji.",
             "- Design KPIs: propozycje metryk, driverow i guardrails.",
             "- KPI Reporting: status wybranej metryki i segmentow.",
             "- Metric Diagnostics: wyjasnienie, co moze pchac metryke w gore lub dol.",
@@ -378,6 +384,109 @@ def run_analytics_workflow(
             "- Zacznij od walidacji jakosci danych, potem obejrzyj dashboard i segmenty metryki.",
         ]
         return AnalyticsResult("Build Report", "\n".join(lines), "Dashboard")
+
+    if workflow == "ML Analytics":
+        metric = _safe_metric(df, metric)
+        correlations = _top_correlations(df, metric)
+        lines = [
+            "ANALITYKA ML",
+            "============",
+            "Cel: przygotowac dane i raport tak, aby bylo wiadomo, co model przewiduje, jak to mierzyc i czy wynik nadaje sie do decyzji.",
+            "",
+            "Profil danych:",
+            *_basic_profile(df),
+            "",
+            "Cel predykcji:",
+            f"- Proponowany target y: {metric or 'wybierz kolumne liczbową albo klase'}",
+            "- X: pozostale cechy po oczyszczeniu, kodowaniu kategorii i uzupelnieniu brakow.",
+            "- Regresja: jakosc, opoznienie, czas, koszt, ryzyko liczbowo.",
+            "- Klasyfikacja: harmonogram, decyzja, status, segment albo klasa ryzyka.",
+            "",
+            "Modele do porownania:",
+            "- Baseline: Linear/Ridge albo LogisticRegression.",
+            "- Drzewa: RandomForest, ExtraTrees, DecisionTree.",
+            "- Boosting: GradientBoosting, HistGradient, XGBoost.",
+            "- Modele wrazliwe na skale: SVM/SVR, KNN, MLP.",
+            "- TabPFN: eksperymentalny backend dla malych/średnich danych tabularnych.",
+            "",
+            "Metryki:",
+            "- Regresja: RMSE, MAE, R2, blad po segmentach.",
+            "- Klasyfikacja: accuracy, precision, recall, F1, macierz pomylek.",
+            "- Operacyjnie: ile decyzji zmienia model i jaki jest koszt bledu.",
+            "",
+            "Najsilniejsze korelacje z metryka:",
+            *correlations,
+            "",
+            "Do raportu dodaj:",
+            "- Model Diagnostics, Regression Plot, CorrelationMatrix, Outlier Map.",
+            "- Tabele cech, opis targetu, metryki train/test i rekomendacje.",
+        ]
+        return AnalyticsResult("ML Analytics", "\n".join(lines), "Model Diagnostics")
+
+    if workflow == "STO Analytics":
+        duration_col = "czas_produkcji_h" if "czas_produkcji_h" in df.columns else _safe_metric(df, metric)
+        deadline_col = "termin_h" if "termin_h" in df.columns else None
+        stats = _metric_stats(df, duration_col)
+        lines = [
+            "ANALITYKA STO / HEURYSTYKI",
+            "==========================",
+            "Cel: porownac kolejnosci zadan, opoznienia i bufor, a potem opisac, ktora metoda jest najlepsza i dlaczego.",
+            "",
+            "Wymagane dane:",
+            f"- p_j / czas wykonania: {duration_col or 'brak - wskaż kolumne czasu'}",
+            f"- d_j / termin: {deadline_col or 'brak - wskaż termin/deadline'}",
+            "- opcjonalnie: priorytet, maszyna, klient, material, koszt przestoju.",
+            "",
+            "Statystyki czasu wykonania:",
+            *_format_stats(stats, duration_col),
+            "",
+            "Wzory:",
+            "- C_j = suma czasow p_k dla zadan przed j i zadania j.",
+            "- T_j = max(0, C_j - d_j).",
+            "- STO = suma T_j; im mniej, tym lepiej.",
+            "",
+            "Metody do opisania:",
+            "- MT/EDD: najblizszy termin pierwszy.",
+            "- MO/SPT: najkrotszy czas pierwszy.",
+            "- MZO/LPT: najdluzszy czas pierwszy.",
+            "- Slack / Critical ratio / wlasne heurystyki: score dla kazdego zadania.",
+            "- MOPT/GENETIC: przeszukiwanie wielu wariantow kolejnosci.",
+            "",
+            "Do raportu dodaj:",
+            "- Ranking metod STO, wykres Gantta, SolutionTree i tabele opoznien po zadaniu.",
+            "- Wniosek: najlepsza metoda, roznica do najgorszej, ryzyko spoznien i rekomendowana kolejnosc.",
+        ]
+        return AnalyticsResult("STO Analytics", "\n".join(lines), "SolutionTree")
+
+    if workflow == "Prediction Plan":
+        metric = _safe_metric(df, metric)
+        dimension = _safe_dimension_for_metric(df, metric, dimension)
+        lines = [
+            "PLAN PREDYKCJI",
+            "==============",
+            "Ten workflow opisuje, co trzeba przygotowac, zeby predykcja w aplikacji byla zrozumiala i uzywalna.",
+            "",
+            "1. Decyzja:",
+            "- Co uzytkownik zrobi po wyniku modelu?",
+            "- Czy model ma ostrzegac, rekomendowac, czy automatycznie wybierac akcje?",
+            "",
+            "2. Dane:",
+            f"- Proponowany target: {metric or 'wybierz cel'}",
+            f"- Proponowany wymiar kontroli: {dimension or 'wybierz segment'}",
+            "- Sprawdz braki, duplikaty, jednostki, zakresy i przecieki danych.",
+            "",
+            "3. Model:",
+            "- Zacznij od baseline, potem porownaj las, boosting, SVM/KNN/MLP/XGBoost/TabPFN.",
+            "- Zapisz, ktory model wygrywa i na jakiej metryce.",
+            "",
+            "4. Walidacja:",
+            "- Train/test, segmenty, outliery, stabilnosc, drift.",
+            "- Dla STO: porownaj ranking metod i koszt opoznien.",
+            "",
+            "5. Raport:",
+            "- Dodaj Analityke ML, Analityke STO, Ryzyka, Plan akcji i wykresy HTML.",
+        ]
+        return AnalyticsResult("Prediction Plan", "\n".join(lines), "Build Report")
 
     if workflow == "Design KPIs":
         lines = [

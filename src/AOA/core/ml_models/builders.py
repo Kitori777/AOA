@@ -20,6 +20,8 @@ from sklearn.preprocessing import RobustScaler, StandardScaler
 from sklearn.svm import SVR
 from sklearn.tree import DecisionTreeRegressor
 
+from .custom import build_custom_model, get_custom_model_config
+
 
 @dataclass(frozen=True)
 class ModelFactory:
@@ -255,6 +257,9 @@ def build_regressor(model_name: str):
     try:
         return REGRESSOR_FACTORIES[model_name].factory()
     except KeyError:
+        config = get_custom_model_config(model_name)
+        if config is not None and config.task in {"quality", "delay"}:
+            return build_custom_model(model_name)
         raise ValueError(f"Nieznany model regresyjny ML: {model_name}") from None
 
 
@@ -262,4 +267,7 @@ def build_classifier(model_name: str):
     try:
         return CLASSIFIER_FACTORIES[model_name].factory()
     except KeyError:
+        config = get_custom_model_config(model_name)
+        if config is not None and config.task == "schedule":
+            return build_custom_model(model_name)
         raise ValueError(f"Nieznany model klasyfikacyjny ML: {model_name}") from None

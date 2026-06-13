@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import tkinter as tk
 from datetime import datetime
 from functools import partial
@@ -14,6 +15,7 @@ from AOA.core.drawio_service import (
     DiagramEdge,
     DiagramNode,
     save_diagram,
+    smart_diagram_from_description,
     template_nodes_edges,
 )
 
@@ -45,6 +47,39 @@ SIZE_PRESETS = [
     ("Duzy", 260, 130),
 ]
 
+STYLE_PRESETS = {
+    "neutral": ("#ffffff", "#111827"),
+    "process": ("#dbeafe", "#2563eb"),
+    "success": ("#dcfce7", "#16a34a"),
+    "warning": ("#fef9c3", "#ca8a04"),
+    "danger": ("#fee2e2", "#dc2626"),
+    "data": ("#ede9fe", "#7c3aed"),
+    "note": ("#ffedd5", "#ea580c"),
+}
+
+QUICK_BLOCKS = {
+    "Maszyna": ("machine", "Maszyna\noperacja", "process", "Szeroki"),
+    "Magazyn": ("warehouse", "Magazyn\nlokacja", "neutral", "Szeroki"),
+    "Transport": ("truck", "Transport\ntrasa", "process", "Szeroki"),
+    "Kontrola QC": ("inspection", "Kontrola\njakosci", "success", "Wysoki"),
+    "Bufor WIP": ("buffer", "Bufor WIP\nkolejka", "warning", "Standard"),
+    "Czujnik": ("sensor", "Czujnik\npomiar", "data", "Standard"),
+    "Operator": ("operator", "Operator\nrola", "neutral", "Wysoki"),
+    "Robot": ("robot", "Robot\nstanowisko", "process", "Wysoki"),
+    "Ryzyko": ("risk", "Ryzyko\nblokada", "danger", "Standard"),
+    "Model ML": ("model", "Model ML\npredykcja", "data", "Szeroki"),
+    "KPI": ("kpi", "KPI\nmetryka", "warning", "Standard"),
+    "Przeplyw danych": ("database", "Dane\nwejscie", "data", "Standard"),
+    "Dostawca": ("supplier", "Dostawca\nmaterial", "neutral", "Szeroki"),
+    "Klient": ("customer", "Klient\nodbiorca", "success", "Szeroki"),
+    "Stacja": ("station", "Stacja\nproces", "process", "Szeroki"),
+    "Kanban": ("kanban", "Kanban\nsygnal", "warning", "Standard"),
+    "Paleta": ("pallet", "Paleta\npartia", "neutral", "Standard"),
+    "PLC": ("plc", "PLC\nsterowanie", "data", "Standard"),
+    "Andon": ("andon", "ANDON\nalarm", "danger", "Standard"),
+    "Energia": ("energy", "Energia\nmedia", "warning", "Standard"),
+}
+
 
 class DrawIOPage(ctk.CTkFrame):
     def __init__(self, parent):
@@ -58,6 +93,11 @@ class DrawIOPage(ctk.CTkFrame):
         self.template_var = ctk.StringVar(value="Flowchart")
         self.shape_var = ctk.StringVar(value="rounded")
         self.label_var = ctk.StringVar(value="New block")
+        self.fill_var = ctk.StringVar(value="Bialy")
+        self.stroke_var = ctk.StringVar(value="Ciemny")
+        self.size_var = ctk.StringVar(value="Standard")
+        self.style_var = ctk.StringVar(value="neutral")
+        self.quick_block_var = ctk.StringVar(value="Maszyna")
         self.source_var = ctk.StringVar(value="")
         self.target_var = ctk.StringVar(value="")
         self.edge_label_var = ctk.StringVar(value="")
@@ -104,70 +144,131 @@ class DrawIOPage(ctk.CTkFrame):
         controls = ctk.CTkFrame(self, corner_radius=18, fg_color="#111827")
         self.assistant_sections["controls"] = controls
         controls.grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 8))
-        controls.grid_columnconfigure(8, weight=1)
+        controls.grid_columnconfigure((0, 1, 2, 3, 4), weight=1)
 
+        def _group(column: int, title: str) -> ctk.CTkFrame:
+            frame = ctk.CTkFrame(controls, fg_color="#0f172a", corner_radius=12)
+            frame.grid(row=0, column=column, sticky="nsew", padx=8, pady=10)
+            frame.grid_columnconfigure((0, 1), weight=1)
+            ctk.CTkLabel(
+                frame,
+                text=title,
+                font=("Arial", 12, "bold"),
+                text_color="#bfdbfe",
+            ).grid(row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(8, 4))
+            return frame
+
+        template_group = _group(0, "1. Szablon")
         self.template_menu = ctk.CTkOptionMenu(
-            controls, values=DRAWIO_TEMPLATES, variable=self.template_var, width=170
+            template_group, values=DRAWIO_TEMPLATES, variable=self.template_var
         )
-        self.template_menu.grid(row=0, column=0, padx=(12, 6), pady=(12, 6))
-        ctk.CTkButton(controls, text="Wczytaj szablon", command=self.load_template, width=130).grid(
-            row=0, column=1, padx=6, pady=(12, 6)
+        self.template_menu.grid(row=1, column=0, columnspan=2, sticky="ew", padx=10, pady=4)
+        ctk.CTkButton(template_group, text="Wczytaj", command=self.load_template).grid(
+            row=2, column=0, sticky="ew", padx=10, pady=(4, 10)
         )
+        ctk.CTkButton(template_group, text="Pomysly", command=self.show_diagram_guide).grid(
+            row=2, column=1, sticky="ew", padx=10, pady=(4, 10)
+        )
+        ctk.CTkButton(template_group, text="Z opisu", command=self.show_smart_diagram_builder).grid(
+            row=3, column=0, columnspan=2, sticky="ew", padx=10, pady=(0, 10)
+        )
+
+        element_group = _group(1, "2. Element")
         self.shape_menu = ctk.CTkOptionMenu(
-            controls, values=DRAWIO_SHAPES, variable=self.shape_var, width=145
+            element_group, values=DRAWIO_SHAPES, variable=self.shape_var
         )
-        self.shape_menu.grid(row=0, column=2, padx=6, pady=(12, 6))
+        self.shape_menu.grid(row=1, column=0, sticky="ew", padx=10, pady=4)
         ctk.CTkEntry(
-            controls,
+            element_group,
             textvariable=self.label_var,
             placeholder_text="Nazwa elementu",
-            width=170,
-        ).grid(row=0, column=3, padx=6, pady=(12, 6))
-        ctk.CTkButton(controls, text="Dodaj ksztalt", command=self.add_shape, width=125).grid(
-            row=0, column=4, padx=6, pady=(12, 6)
+        ).grid(row=1, column=1, sticky="ew", padx=10, pady=4)
+        ctk.CTkButton(element_group, text="Dodaj", command=self.add_shape).grid(
+            row=2, column=0, sticky="ew", padx=10, pady=4
         )
-        ctk.CTkButton(controls, text="Duplikuj", command=self.duplicate_selected, width=95).grid(
-            row=0, column=5, padx=6, pady=(12, 6)
+        ctk.CTkButton(element_group, text="Duplikuj", command=self.duplicate_selected).grid(
+            row=2, column=1, sticky="ew", padx=10, pady=4
+        )
+        ctk.CTkOptionMenu(
+            element_group,
+            values=list(QUICK_BLOCKS),
+            variable=self.quick_block_var,
+        ).grid(row=3, column=0, sticky="ew", padx=10, pady=4)
+        ctk.CTkButton(
+            element_group,
+            text="Wstaw gotowiec",
+            command=self.add_quick_block,
+        ).grid(row=3, column=1, sticky="ew", padx=10, pady=4)
+        ctk.CTkButton(element_group, text="Notatka", command=lambda: self.add_quick_shape("note")).grid(
+            row=4, column=0, sticky="ew", padx=10, pady=(4, 10)
         )
         ctk.CTkButton(
-            controls, text="Usun zaznaczony", command=self.delete_selected, width=130
-        ).grid(row=0, column=6, padx=6, pady=(12, 6))
-        ctk.CTkButton(controls, text="Auto layout", command=self.auto_layout, width=110).grid(
-            row=0, column=7, padx=6, pady=(12, 6)
-        )
-        ctk.CTkButton(controls, text="Wyczysc", command=self.clear_diagram, width=95).grid(
-            row=0, column=8, padx=6, pady=(12, 6)
+            element_group,
+            text="Kontener",
+            command=lambda: self.add_quick_shape("container"),
+        ).grid(row=4, column=1, sticky="ew", padx=10, pady=(4, 10))
+
+        style_group = _group(2, "3. Styl")
+        ctk.CTkOptionMenu(
+            style_group,
+            values=[label for label, _color in FILL_PALETTE],
+            variable=self.fill_var,
+        ).grid(row=1, column=0, sticky="ew", padx=10, pady=4)
+        ctk.CTkOptionMenu(
+            style_group,
+            values=[label for label, _color in STROKE_PALETTE],
+            variable=self.stroke_var,
+        ).grid(row=1, column=1, sticky="ew", padx=10, pady=4)
+        ctk.CTkOptionMenu(
+            style_group,
+            values=[label for label, _width, _height in SIZE_PRESETS],
+            variable=self.size_var,
+        ).grid(row=2, column=0, sticky="ew", padx=10, pady=4)
+        ctk.CTkOptionMenu(
+            style_group,
+            values=list(STYLE_PRESETS),
+            variable=self.style_var,
+        ).grid(row=2, column=1, sticky="ew", padx=10, pady=4)
+        ctk.CTkButton(style_group, text="Zastosuj styl", command=self.apply_selected_style).grid(
+            row=3, column=0, columnspan=2, sticky="ew", padx=10, pady=(4, 10)
         )
 
-        self.source_menu = ctk.CTkOptionMenu(
-            controls, values=[""], variable=self.source_var, width=135
-        )
-        self.source_menu.grid(row=1, column=0, padx=(12, 6), pady=(6, 12))
-        self.target_menu = ctk.CTkOptionMenu(
-            controls, values=[""], variable=self.target_var, width=135
-        )
-        self.target_menu.grid(row=1, column=1, padx=6, pady=(6, 12))
+        edge_group = _group(3, "4. Polaczenia")
+        self.source_menu = ctk.CTkOptionMenu(edge_group, values=[""], variable=self.source_var)
+        self.source_menu.grid(row=1, column=0, sticky="ew", padx=10, pady=4)
+        self.target_menu = ctk.CTkOptionMenu(edge_group, values=[""], variable=self.target_var)
+        self.target_menu.grid(row=1, column=1, sticky="ew", padx=10, pady=4)
         ctk.CTkEntry(
-            controls,
+            edge_group,
             textvariable=self.edge_label_var,
-            placeholder_text="Etykieta polaczenia",
-            width=170,
-        ).grid(row=1, column=2, padx=6, pady=(6, 12))
-        ctk.CTkButton(controls, text="Dodaj polaczenie", command=self.add_edge, width=145).grid(
-            row=1, column=3, padx=6, pady=(6, 12)
+            placeholder_text="Etykieta",
+        ).grid(row=2, column=0, columnspan=2, sticky="ew", padx=10, pady=4)
+        ctk.CTkButton(edge_group, text="Dodaj polaczenie", command=self.add_edge).grid(
+            row=3, column=0, columnspan=2, sticky="ew", padx=10, pady=(4, 10)
+        )
+
+        file_group = _group(4, "5. Eksport i akcje")
+        ctk.CTkButton(file_group, text="Auto layout", command=self.auto_layout).grid(
+            row=1, column=0, sticky="ew", padx=10, pady=4
+        )
+        ctk.CTkButton(file_group, text="Wyczysc", command=self.clear_diagram).grid(
+            row=1, column=1, sticky="ew", padx=10, pady=4
+        )
+        ctk.CTkButton(file_group, text="Usun zaznaczony", command=self.delete_selected).grid(
+            row=2, column=0, columnspan=2, sticky="ew", padx=10, pady=4
         )
         ctk.CTkButton(
-            controls, text="Eksport .drawio", command=lambda: self.export("drawio"), width=125
-        ).grid(row=1, column=4, padx=6, pady=(6, 12))
+            file_group, text=".drawio", command=lambda: self.export("drawio")
+        ).grid(row=3, column=0, sticky="ew", padx=10, pady=4)
+        ctk.CTkButton(file_group, text="SVG", command=lambda: self.export("svg")).grid(
+            row=3, column=1, sticky="ew", padx=10, pady=4
+        )
         ctk.CTkButton(
-            controls, text="Eksport SVG", command=lambda: self.export("svg"), width=110
-        ).grid(row=1, column=5, padx=6, pady=(6, 12))
-        ctk.CTkButton(
-            controls, text="Eksport Mermaid", command=lambda: self.export("mermaid"), width=130
-        ).grid(row=1, column=6, padx=6, pady=(6, 12))
-        ctk.CTkButton(
-            controls, text="Eksport HTML", command=lambda: self.export("html"), width=115
-        ).grid(row=1, column=7, padx=6, pady=(6, 12))
+            file_group, text="Mermaid", command=lambda: self.export("mermaid")
+        ).grid(row=4, column=0, sticky="ew", padx=10, pady=(4, 10))
+        ctk.CTkButton(file_group, text="HTML", command=lambda: self.export("html")).grid(
+            row=4, column=1, sticky="ew", padx=10, pady=(4, 10)
+        )
 
     def _build_canvas(self) -> None:
         body = ctk.CTkFrame(self, corner_radius=18, fg_color="#0b1220")
@@ -286,20 +387,293 @@ class DrawIOPage(ctk.CTkFrame):
 
     def _add_shape_at(self, x: int, y: int) -> None:
         index = len(self.nodes) + 1
+        width, height = self._selected_size()
+        fill, stroke = self._selected_colors()
         node = DiagramNode(
             id=f"n{index}",
             label=self.label_var.get().strip() or f"Node {index}",
             shape=self.shape_var.get(),
             x=x,
             y=y,
-            fill="#ffffff",
-            stroke="#111827",
+            width=width,
+            height=height,
+            fill=fill,
+            stroke=stroke,
         )
         self.nodes.append(node)
         self.selected_node_id = node.id
         self.status_var.set(f"Dodano: {node.label}")
         self._refresh_node_menus()
         self._draw_preview()
+
+    def add_quick_shape(self, shape: str) -> None:
+        self.shape_var.set(shape)
+        if shape == "note":
+            self.style_var.set("note")
+            self.label_var.set("Notatka")
+        elif shape == "container":
+            self.style_var.set("data")
+            self.label_var.set("Sekcja / grupa")
+            self.size_var.set("Duzy")
+        self.apply_style_to_controls()
+        self.add_shape()
+
+    def add_quick_block(self) -> None:
+        shape, label, style, size = QUICK_BLOCKS.get(
+            self.quick_block_var.get(), QUICK_BLOCKS["Maszyna"]
+        )
+        self.shape_var.set(shape)
+        self.label_var.set(label)
+        self.style_var.set(style)
+        self.size_var.set(size)
+        self.apply_style_to_controls()
+        self.add_shape()
+
+    def apply_style_to_controls(self) -> None:
+        fill, stroke = STYLE_PRESETS.get(self.style_var.get(), STYLE_PRESETS["neutral"])
+        fill_label = next((label for label, color in FILL_PALETTE if color == fill), self.fill_var.get())
+        stroke_label = next((label for label, color in STROKE_PALETTE if color == stroke), self.stroke_var.get())
+        self.fill_var.set(fill_label)
+        self.stroke_var.set(stroke_label)
+
+    def apply_selected_style(self) -> None:
+        self.apply_style_to_controls()
+        node = self._node_by_id(self.selected_node_id or "")
+        if node is None:
+            self.status_var.set("Styl ustawiony dla nowych elementow. Zaznacz element, aby go przemalowac.")
+            return
+        fill, stroke = self._selected_colors()
+        width, height = self._selected_size()
+        node.fill = fill
+        node.stroke = stroke
+        node.width = width
+        node.height = height
+        self.status_var.set(f"Zastosowano styl do: {node.label}")
+        self._draw_preview()
+
+    def _selected_colors(self) -> tuple[str, str]:
+        fill = next((color for label, color in FILL_PALETTE if label == self.fill_var.get()), "#ffffff")
+        stroke = next((color for label, color in STROKE_PALETTE if label == self.stroke_var.get()), "#111827")
+        return fill, stroke
+
+    def _selected_size(self) -> tuple[int, int]:
+        return next(
+            ((width, height) for label, width, height in SIZE_PRESETS if label == self.size_var.get()),
+            (180, 72),
+        )
+
+    def show_diagram_guide(self) -> None:
+        guide = ctk.CTkToplevel(self)
+        guide.title("Guide: jak wymyslic i zbudowac diagram")
+        guide.geometry("980x760")
+        guide.minsize(820, 620)
+        guide.transient(self.winfo_toplevel())
+        guide.grab_set()
+        guide.grid_columnconfigure(0, weight=1)
+        guide.grid_rowconfigure(1, weight=1)
+        ctk.CTkLabel(
+            guide,
+            text="Jak zrobic dowolny diagram",
+            font=("Segoe UI", 24, "bold"),
+        ).grid(row=0, column=0, sticky="w", padx=20, pady=(18, 8))
+        text = ctk.CTkTextbox(guide, wrap="word")
+        text.grid(row=1, column=0, sticky="nsew", padx=20, pady=(0, 14))
+        text.insert(
+            "1.0",
+            (
+                "1. Najpierw wybierz typ myslenia, nie ksztalt.\n"
+                "   Flowchart: kroki procesu i decyzje. UML Class: klasy, pola i metody. ERD: tabele i relacje. BPMN: proces biznesowy. "
+                "Network/System Architecture: komponenty systemu. Mind Map: burza pomyslow. Swimlane: odpowiedzialnosc osob lub dzialow.\n\n"
+                "2. Dobierz ksztalty.\n"
+                "   rounded/process = zwykly krok. diamond/decision = pytanie lub warunek. terminator = start/koniec. database/cylinder = dane. "
+                "document = raport lub plik. actor = uzytkownik. container/swimlane = grupa, modul albo dzial.\n\n"
+                "3. Dobierz kolory wedlug znaczenia.\n"
+                "   Zielony = OK/sukces. Zolty = decyzja lub ostrzezenie. Czerwony = blad/ryzyko. Niebieski = system/proces. Fioletowy = dane/analityka. "
+                "Kolory ustawiasz w pasku: wypelnienie, obramowanie, rozmiar i styl.\n\n"
+                "4. Buduj diagram w trzech warstwach.\n"
+                "   Najpierw dodaj glowny przeplyw od lewej do prawej albo z gory na dol. Potem dodaj decyzje i wyjatki. Na koncu dodaj notatki, kontenery i etykiety polaczen.\n\n"
+                "5. Polaczenia opisuj czasownikami.\n"
+                "   Dobre etykiety to: yes/no, request, validate, save, retry, error, 1:N, creates, uses. Dzieki temu diagram da sie czytac bez tlumaczenia autora.\n\n"
+                "6. Uzywaj szablonow jako startu.\n"
+                "   Flowchart do procesu. Data Pipeline do danych. System Architecture do aplikacji. ERD Database do baz. Swimlane do odpowiedzialnosci. "
+                "Po wczytaniu szablonu mozesz wszystko przesuwac, zmieniac tekst, kolor, rozmiar i eksportowac.\n\n"
+                "7. Szybka kontrola jakosci.\n"
+                "   Diagram jest dobry, gdy ma tytul/logiczny start, czytelny kierunek, malo krzyzujacych sie linii, opisane decyzje i maksymalnie jeden sens na element.\n\n"
+                "8. Eksport.\n"
+                "   .drawio do dalszej edycji, SVG do dokumentu, Mermaid do README, HTML do interaktywnego podgladu."
+            ),
+        )
+        text.configure(state="disabled")
+        ctk.CTkButton(guide, text="Zamknij", command=guide.destroy, width=140).grid(
+            row=2, column=0, sticky="e", padx=20, pady=(0, 18)
+        )
+
+    def show_smart_diagram_builder(self) -> None:
+        dialog = ctk.CTkToplevel(self)
+        dialog.title("Madry generator diagramu z opisu")
+        dialog.geometry("980x760")
+        dialog.minsize(820, 620)
+        dialog.transient(self.winfo_toplevel())
+        dialog.grab_set()
+        dialog.grid_columnconfigure(0, weight=1)
+        dialog.grid_rowconfigure(2, weight=1)
+
+        ctk.CTkLabel(
+            dialog,
+            text="Opisz proces, a aplikacja dobierze diagram",
+            font=("Segoe UI", 24, "bold"),
+        ).grid(row=0, column=0, sticky="w", padx=20, pady=(18, 4))
+        ctk.CTkLabel(
+            dialog,
+            text=(
+                "Mozesz pisac naturalnie albo strzalkami. Przyklady: "
+                "dostawca -> magazyn -> produkcja -> QC -> wysylka; "
+                "CSV -> walidacja -> model ML -> raport; klient -> API -> baza -> dashboard."
+            ),
+            text_color="#cbd5e1",
+            wraplength=900,
+            justify="left",
+        ).grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 10))
+
+        text = ctk.CTkTextbox(dialog, wrap="word", font=("Segoe UI", 14))
+        text.grid(row=2, column=0, sticky="nsew", padx=20, pady=(0, 12))
+        text.insert(
+            "1.0",
+            "Dostawca -> magazyn -> kontrola jakosci -> produkcja -> model ML przewiduje ryzyko -> raport dla kierownika",
+        )
+
+        presets = ctk.CTkFrame(dialog, fg_color="transparent")
+        presets.grid(row=3, column=0, sticky="ew", padx=20, pady=(0, 8))
+        for col in range(4):
+            presets.grid_columnconfigure(col, weight=1)
+        examples = [
+            ("Produkcja", "Dostawca -> magazyn -> linia produkcyjna -> QC -> pakowanie -> wysylka"),
+            ("Dane/ML", "CSV -> walidacja danych -> cechy X -> model ML -> metryki -> raport"),
+            ("System", "Uzytkownik -> panel GUI -> API -> baza danych -> dashboard -> alert"),
+            ("Logistyka", "Zamowienie -> kompletacja -> transport -> magazyn klienta -> potwierdzenie"),
+        ]
+
+        def _set_example(value: str) -> None:
+            text.delete("1.0", "end")
+            text.insert("1.0", value)
+
+        for idx, (label_text, example) in enumerate(examples):
+            ctk.CTkButton(
+                presets,
+                text=label_text,
+                command=lambda value=example: _set_example(value),
+            ).grid(row=0, column=idx, sticky="ew", padx=5)
+
+        footer = ctk.CTkFrame(dialog, fg_color="transparent")
+        footer.grid(row=4, column=0, sticky="ew", padx=20, pady=(0, 18))
+        footer.grid_columnconfigure(0, weight=1)
+
+        def _build() -> None:
+            description = text.get("1.0", "end").strip()
+            if not description:
+                messagebox.showwarning("Diagram z opisu", "Najpierw opisz proces albo wybierz przyklad.")
+                return
+            self.nodes, self.edges, template, note = smart_diagram_from_description(description)
+            self.template_var.set(template)
+            self.selected_node_id = self.nodes[0].id if self.nodes else None
+            self.status_var.set(f"Zbudowano z opisu: {template} | {note}")
+            self._refresh_node_menus()
+            self._draw_preview()
+            dialog.destroy()
+
+        ctk.CTkLabel(
+            footer,
+            text="Po wygenerowaniu nadal mozesz przesuwac elementy, zmieniac kolory, dodawac kontenery i eksportowac.",
+            text_color="#bfdbfe",
+        ).grid(row=0, column=0, sticky="w", padx=(0, 10))
+        ctk.CTkButton(footer, text="Zbuduj diagram", command=_build, width=170).grid(
+            row=0, column=1, padx=6
+        )
+        ctk.CTkButton(footer, text="Zamknij", command=dialog.destroy, width=130).grid(
+            row=0, column=2, padx=6
+        )
+
+    def _diagram_from_description(
+        self, description: str
+    ) -> tuple[list[DiagramNode], list[DiagramEdge], str, str]:
+        return smart_diagram_from_description(description)
+
+    def _unused_legacy_diagram_from_description(
+        self, description: str
+    ) -> tuple[list[DiagramNode], list[DiagramEdge], str, str]:
+        compact = description.lower()
+        if any(word in compact for word in ["api", "system", "baza", "dashboard", "serwer"]):
+            template = "System Architecture"
+        elif any(word in compact for word in ["csv", "dane", "model", "metryk", "raport", "walid"]):
+            template = "Data Pipeline"
+        elif any(word in compact for word in ["dostaw", "magazyn", "transport", "wysyl", "logist"]):
+            template = "Supply Chain"
+        elif any(word in compact for word in ["qc", "jakosc", "produkc", "linia", "pakow"]):
+            template = "Production Line"
+        else:
+            template = "Flowchart"
+
+        raw_parts = re.split(r"\s*(?:->|=>|→|,|;|\n)\s*", description)
+        parts = [part.strip(" .:-") for part in raw_parts if part.strip(" .:-")]
+        if len(parts) < 2:
+            parts = ["Start", description.strip(), "Wynik"]
+        parts = parts[:10]
+
+        nodes: list[DiagramNode] = []
+        edges: list[DiagramEdge] = []
+        for idx, part in enumerate(parts):
+            shape, fill, stroke = self._smart_shape_style(part, idx, len(parts))
+            node = DiagramNode(
+                id=f"s{idx + 1}",
+                label=part[:42],
+                shape=shape,
+                x=80 + idx * 230,
+                y=150 if idx % 2 == 0 else 270,
+                width=190 if shape not in {"database", "decision"} else 170,
+                height=74 if shape != "decision" else 88,
+                fill=fill,
+                stroke=stroke,
+            )
+            nodes.append(node)
+            if idx > 0:
+                edges.append(DiagramEdge(f"s{idx}", node.id, self._smart_edge_label(parts[idx - 1], part)))
+        return nodes, edges, template, "wybrano ksztalty, kolory i polaczenia z tekstu"
+
+    @staticmethod
+    def _smart_shape_style(label_text: str, index: int, total: int) -> tuple[str, str, str]:
+        text = label_text.lower()
+        if index == 0 and any(word in text for word in ["start", "wejsc", "dostaw", "klient", "uzytkownik"]):
+            return "terminator", "#dcfce7", "#16a34a"
+        if index == total - 1 and any(word in text for word in ["wynik", "raport", "wysyl", "koniec", "dashboard"]):
+            return "terminator", "#dbeafe", "#2563eb"
+        if any(word in text for word in ["czy", "ok", "decyz", "warunek", "quality"]):
+            return "decision", "#fef9c3", "#ca8a04"
+        if any(word in text for word in ["baza", "csv", "dane", "database", "sql"]):
+            return "database", "#ede9fe", "#7c3aed"
+        if any(word in text for word in ["model", "ml", "tabpfn", "predyk"]):
+            return "model", "#ede9fe", "#7c3aed"
+        if any(word in text for word in ["qc", "jakosc", "kontrola", "test"]):
+            return "inspection", "#dcfce7", "#16a34a"
+        if any(word in text for word in ["ryzyk", "blad", "alert", "awaria"]):
+            return "risk", "#fee2e2", "#dc2626"
+        if any(word in text for word in ["magazyn", "warehouse"]):
+            return "warehouse", "#f1f5f9", "#111827"
+        if any(word in text for word in ["transport", "wysyl", "trasa"]):
+            return "truck", "#dbeafe", "#2563eb"
+        return "process", "#dbeafe", "#2563eb"
+
+    @staticmethod
+    def _smart_edge_label(previous: str, current: str) -> str:
+        current_lower = current.lower()
+        if any(word in current_lower for word in ["walid", "kontrola", "qc", "test"]):
+            return "sprawdz"
+        if any(word in current_lower for word in ["model", "predyk", "metryk"]):
+            return "ucz/ocen"
+        if any(word in current_lower for word in ["raport", "dashboard"]):
+            return "pokaz"
+        if any(word in current_lower for word in ["transport", "wysyl"]):
+            return "przekaz"
+        return "dalej"
 
     def add_edge(self) -> None:
         source = self.source_var.get()
@@ -400,6 +774,8 @@ class DrawIOPage(ctk.CTkFrame):
         if node is None:
             return
         node.fill = color
+        fill_label = next((label for label, item_color in FILL_PALETTE if item_color == color), self.fill_var.get())
+        self.fill_var.set(fill_label)
         self.status_var.set(f"Zmieniono kolor: {node.label}")
         self._draw_preview()
 
@@ -408,6 +784,8 @@ class DrawIOPage(ctk.CTkFrame):
         if node is None:
             return
         node.stroke = color
+        stroke_label = next((label for label, item_color in STROKE_PALETTE if item_color == color), self.stroke_var.get())
+        self.stroke_var.set(stroke_label)
         self.status_var.set(f"Zmieniono obramowanie: {node.label}")
         self._draw_preview()
 
@@ -426,6 +804,11 @@ class DrawIOPage(ctk.CTkFrame):
             return
         node.width = width
         node.height = height
+        size_label = next(
+            (label for label, item_width, item_height in SIZE_PRESETS if item_width == width and item_height == height),
+            self.size_var.get(),
+        )
+        self.size_var.set(size_label)
         self.status_var.set(f"Zmieniono rozmiar: {node.label} ({width}x{height})")
         self._draw_preview()
 
@@ -595,6 +978,7 @@ class DrawIOPage(ctk.CTkFrame):
         self._drag_node_id = node.id
         self._drag_offset = (x - node.x, y - node.y)
         self.source_var.set(node.id)
+        self._sync_controls_from_node(node)
         self.status_var.set(f"Zaznaczono: {node.label}. Przeciagnij, aby przesunac.")
         self._draw_preview()
 
@@ -649,6 +1033,7 @@ class DrawIOPage(ctk.CTkFrame):
         self.selected_node_id = node.id
         self._context_node_id = node.id
         self.source_var.set(node.id)
+        self._sync_controls_from_node(node)
         self.status_var.set(f"Menu edycji: {node.label}")
         self._draw_preview()
         try:
@@ -671,6 +1056,23 @@ class DrawIOPage(ctk.CTkFrame):
         self.target_menu.configure(values=values)
         self.source_var.set(values[0])
         self.target_var.set(values[1] if len(values) > 1 else values[0])
+
+    def _sync_controls_from_node(self, node: DiagramNode) -> None:
+        self.shape_var.set(node.shape)
+        self.label_var.set(node.label.replace("\\n", " "))
+        fill_label = next((label for label, color in FILL_PALETTE if color == node.fill), self.fill_var.get())
+        stroke_label = next((label for label, color in STROKE_PALETTE if color == node.stroke), self.stroke_var.get())
+        size_label = next(
+            (
+                label
+                for label, width, height in SIZE_PRESETS
+                if width == node.width and height == node.height
+            ),
+            self.size_var.get(),
+        )
+        self.fill_var.set(fill_label)
+        self.stroke_var.set(stroke_label)
+        self.size_var.set(size_label)
 
     def _draw_preview(self) -> None:
         self.canvas.delete("all")
@@ -764,6 +1166,83 @@ class DrawIOPage(ctk.CTkFrame):
                 y + h,
                 x,
                 y + h,
+                fill=fill,
+                outline=outline,
+                width=width,
+            )
+        elif node.shape in {"warehouse", "supplier"}:
+            self.canvas.create_polygon(
+                x,
+                y + h * 0.35,
+                x + w / 2,
+                y,
+                x + w,
+                y + h * 0.35,
+                x + w,
+                y + h,
+                x,
+                y + h,
+                fill=fill,
+                outline=outline,
+                width=width,
+            )
+            for bay in range(1, 4):
+                bx = x + bay * w / 4
+                self.canvas.create_line(bx, y + h * 0.42, bx, y + h - 10, fill=outline, width=1)
+        elif node.shape in {"truck"}:
+            self.canvas.create_rectangle(x + 6, y + h * 0.25, x + w * 0.68, y + h * 0.75, fill=fill, outline=outline, width=width)
+            self.canvas.create_polygon(
+                x + w * 0.68,
+                y + h * 0.38,
+                x + w * 0.88,
+                y + h * 0.38,
+                x + w - 8,
+                y + h * 0.75,
+                x + w * 0.68,
+                y + h * 0.75,
+                fill=fill,
+                outline=outline,
+                width=width,
+            )
+            for wheel_x in (x + w * 0.25, x + w * 0.78):
+                self.canvas.create_oval(wheel_x - 9, y + h * 0.72, wheel_x + 9, y + h * 0.72 + 18, fill="#111827", outline="")
+        elif node.shape in {"machine", "station"}:
+            self.canvas.create_rectangle(x, y + 8, x + w, y + h, fill=fill, outline=outline, width=width)
+            self.canvas.create_rectangle(x + 12, y, x + w - 12, y + 18, fill="#eef2ff", outline=outline, width=1)
+            self.canvas.create_oval(x + w - 42, y + 28, x + w - 18, y + 52, fill="#f8fafc", outline=outline, width=2)
+            self.canvas.create_line(x + 18, y + h - 18, x + w - 18, y + h - 18, fill=outline, width=2)
+        elif node.shape in {"kanban", "kpi"}:
+            self.canvas.create_rectangle(x, y, x + w, y + h, fill=fill, outline=outline, width=width)
+            self.canvas.create_rectangle(x, y, x + w, y + 22, fill="#e0f2fe", outline=outline, width=1)
+            self.canvas.create_line(x + 16, y + 42, x + w - 16, y + 42, fill=outline, width=2)
+            self.canvas.create_line(x + 16, y + 58, x + w - 34, y + 58, fill=outline, width=2)
+        elif node.shape in {"andon", "risk"}:
+            self.canvas.create_polygon(
+                x + w / 2,
+                y,
+                x + w,
+                y + h,
+                x,
+                y + h,
+                fill=fill,
+                outline=outline,
+                width=width,
+            )
+            self.canvas.create_text(x + w / 2, y + h * 0.45, text="!", fill=outline, font=("Segoe UI", 18, "bold"))
+        elif node.shape in {"energy"}:
+            self.canvas.create_polygon(
+                x + w * 0.55,
+                y,
+                x + w * 0.32,
+                y + h * 0.46,
+                x + w * 0.52,
+                y + h * 0.46,
+                x + w * 0.38,
+                y + h,
+                x + w * 0.72,
+                y + h * 0.38,
+                x + w * 0.52,
+                y + h * 0.38,
                 fill=fill,
                 outline=outline,
                 width=width,

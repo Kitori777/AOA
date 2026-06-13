@@ -93,4 +93,10 @@ MH_MODEL_FOCUS = {spec.name: spec.focus for spec in MH_MODEL_SPECS}
 
 
 def get_mh_model_specs() -> tuple[MHModelSpec, ...]:
-    return MH_MODEL_SPECS
+    from .custom import get_custom_heuristic_specs
+
+    return (*MH_MODEL_SPECS, *get_custom_heuristic_specs())
+
+
+def get_mh_model_names() -> set[str]:
+    return {spec.name for spec in get_mh_model_specs()}

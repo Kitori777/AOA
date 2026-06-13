@@ -16,7 +16,9 @@ class ReadmePage(ctk.CTkFrame):
         header = ctk.CTkFrame(self)
         header.pack(fill="x", padx=20, pady=(16, 8))
         ctk.CTkLabel(
-            header, text="Interaktywna instrukcja użytkownika", font=("Arial", 24, "bold")
+            header,
+            text="AOA - interaktywna instrukcja uzytkownika",
+            font=("Arial", 24, "bold"),
         ).pack(anchor="w", padx=16, pady=(14, 4))
         ctk.CTkLabel(
             header,
@@ -24,6 +26,22 @@ class ReadmePage(ctk.CTkFrame):
             font=("Segoe UI", 13),
             text_color="#cbd5e1",
         ).pack(anchor="w", padx=16, pady=(0, 14))
+
+        quick = ctk.CTkFrame(self, fg_color="#0f1d2b", corner_radius=16)
+        quick.pack(fill="x", padx=20, pady=(0, 8))
+        for idx in range(5):
+            quick.grid_columnconfigure(idx, weight=1)
+        quick_actions = [
+            ("Release-check", self._open_release_check),
+            ("Pliki AOA", self._open_file_manager),
+            ("Sample Main", self._prepare_sample_main),
+            ("Report Builder", self._open_report_builder),
+            ("Zapytaj ALICE", self._open_alice),
+        ]
+        for idx, (label, command) in enumerate(quick_actions):
+            ctk.CTkButton(quick, text=label, command=command, height=38).grid(
+                row=0, column=idx, sticky="ew", padx=8, pady=12
+            )
 
         body = ctk.CTkFrame(self)
         body.pack(fill="both", expand=True, padx=20, pady=(6, 20))
@@ -46,6 +64,30 @@ class ReadmePage(ctk.CTkFrame):
         self.content = ctk.CTkScrollableFrame(body)
         self.content.grid(row=0, column=1, sticky="nsew", padx=(12, 0), pady=0)
         self.content.grid_columnconfigure(0, weight=1)
+
+    def _run_app_task(self, task_name: str) -> None:
+        app = self.winfo_toplevel()
+        runner = getattr(app, "_run_assistant_task", None)
+        if callable(runner):
+            runner(task_name)
+
+    def _open_release_check(self) -> None:
+        self._run_app_task("app:release_check")
+
+    def _open_file_manager(self) -> None:
+        self._run_app_task("files:open")
+
+    def _prepare_sample_main(self) -> None:
+        self._run_app_task("app:samples")
+
+    def _open_report_builder(self) -> None:
+        self._run_app_task("analytics:report_builder")
+
+    def _open_alice(self) -> None:
+        app = self.winfo_toplevel()
+        toggle = getattr(app, "_toggle_assistant_window", None)
+        if callable(toggle):
+            toggle()
 
     def _show_step(self, index: int) -> None:
         self.active_index = index

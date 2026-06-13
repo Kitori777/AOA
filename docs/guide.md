@@ -1,377 +1,213 @@
-# 📊 PRODUCTION OPTIMIZATION – INSTRUKCJA UŻYTKOWNIKA
+# AOA - Aplikacja Optymalnego Algorytmowania - instrukcja uzytkownika
+
+Ten przewodnik opisuje aktualny sposob pracy w aplikacji AOA: od danych, przez
+modele ML/STO/TabPFN, po wizualizacje, diagramy, raporty i pomoc ALICE.
+
+## 1. Najszybszy przeplyw pracy
+
+1. Wejdz w `Main`.
+2. Wczytaj plik CSV/TXT/TSV albo wygeneruj dane przykladowe.
+3. Ustaw parametry generowania danych.
+4. Wybierz modele ML, backend TabPFN albo heurystyki STO.
+5. Uruchom trening lub analize.
+6. Sprawdz metryki w logu i w `Results`.
+7. Zobacz wykresy w `Visual`.
+8. Zbuduj diagram procesu w `Diagrams`.
+9. Przygotuj raport w `Report`.
+10. Jesli nie wiesz, co oznacza wynik, zapytaj `ALICE`.
+
+## 2. Parametry generowania danych
+
+| Pole | Typ | Przyklad | Co oznacza |
+| --- | --- | --- | --- |
+| Liczba rekordow | calkowita | `5000` | ile wierszy danych wygenerowac |
+| Liczba maszyn | calkowita | `1` | ile maszyn uwzglednic w danych |
+| Test size | ulamkowa 0-1 | `0.2` | jaka czesc danych idzie na test |
+| Seed | calkowita | `42` | powtarzalnosc losowania |
+| Czas prod. min/max [h] | calkowita albo ulamkowa | `1`, `48` | zakres czasu produkcji |
+| Bufor terminu min/max [h] | calkowita albo ulamkowa | `1`, `72` | zapas dodawany do terminu |
 
-═════════════════════════════════════════════════════
+Zasady walidacji:
 
-## 📋 PRZEGLĄD
+- liczba rekordow, liczba maszyn i seed musza byc liczbami calkowitymi,
+- `test_size` musi byc wieksze od `0` i mniejsze od `1`,
+- minimum czasu/bufora musi byc mniejsze od maksimum,
+- czasy i bufory moga byc ulamkowe, np. `1.5`.
 
-Aplikacja umożliwia analizę danych produkcyjnych, trenowanie modeli uczenia maszynowego oraz wspomaganie decyzji związanych z planowaniem produkcji.
+## 3. Modele ML
 
-System wspiera obecnie dwa główne obszary działania:
+`Quality` i `Delay` sa regresja, bo przewiduja liczbe. Metryki to `RMSE`,
+`MAE` i `R2`.
 
-- modele ML do predykcji jakości, opóźnień i strategii harmonogramowania,
-- modele heurystyczne STO do porównywania kolejności realizacji zleceń.
+`Schedule` jest klasyfikacja, bo wybiera klase lub strategie harmonogramu.
+Metryki to m.in. `Accuracy`, `F1` i prawdopodobienstwa klas.
 
-Aplikacja pozwala między innymi na:
+Klasyczne modele:
 
-- generowanie własnych danych testowych,
-- wybór parametrów generowania danych,
-- wybór wielu modeli ML do jednoczesnego treningu,
-- zapis wielu modeli do osobnych plików,
-- analizę kolejności zleceń według różnych metod heurystycznych,
-- wizualizację danych i modeli,
-- przegląd wyników analitycznych w interfejsie graficznym.
+- Random Forest,
+- ExtraTrees,
+- Gradient Boosting,
+- HistGradient Boosting,
+- Logistic Regression dla harmonogramu.
+
+Backend `TabPFN`:
+
+- Quality/Delay uzywa `TabPFNRegressor`,
+- Schedule uzywa `TabPFNClassifier`,
+- przed treningiem aplikacja sprawdza rozmiar X/y, braki, NaN, inf, minimalna
+  liczbe rekordow i minimum dwie klasy przy klasyfikacji.
+
+Nowoczesne modele w Theory:
 
-### Obsługiwane modele ML
+- `TabPFN` - kontekst tabelaryczny i pretrenowany prior,
+- `XGBoost` - boosting z kara za zlozonosc drzewa,
+- `MLP` - siec neuronowa, skalowanie, aktywacje i backprop,
+- `Stacking` - kilka modeli bazowych i meta-model.
 
-- **Random Forest** – predykcja jakości,
-- **Gradient Boosting** – predykcja opóźnień,
-- **Random Forest** – wybór strategii harmonogramowania.
+## 4. Wlasny model ML
 
-### Obsługiwane modele STO
+Kliknij `+ Wlasny model ML`, jesli chcesz dodac model, ktorego nie ma na liscie.
 
-- **MT** – sortowanie według terminu realizacji,
-- **MO** – sortowanie według najkrótszego czasu wykonania,
-- **MZO** – sortowanie według najdłuższego czasu wykonania,
-- **MOPT** – dokładna metoda optymalna minimalizująca STO,
-- **GENETIC** – model genetyczny / optymalizacyjny minimalizujący STO.
+Najprostsza sciezka:
 
-═════════════════════════════════════════════════════
+1. Wybierz preset, np. RandomForest, ExtraTrees, SVR, KNN, Ridge, HistGradient,
+   LogisticRegression albo XGBoost.
+2. Wybierz zadanie: jakosc/regresja, opoznienie/regresja albo harmonogram/klasyfikacja.
+3. Wybierz estymator.
+4. Wybierz skalowanie: `none`, `standard` albo `robust`.
+5. Ustaw parametry JSON.
+6. Kliknij `Zapisz model`.
+7. Zaznacz nowy model na liscie i uruchom trening.
 
-## 🎓 TRYB UCZENIA – trenowanie modeli ML
+Przyklady parametrow:
 
-### 1. Wybór modeli
+```json
+{
+  "n_estimators": 300,
+  "min_samples_leaf": 2,
+  "random_state": 42,
+  "n_jobs": -1
+}
+```
 
-Użytkownik może zaznaczyć jeden lub wiele modeli jednocześnie:
+```json
+{
+  "C": 12.0,
+  "epsilon": 0.08,
+  "gamma": "scale"
+}
+```
 
-- **Quality** – przewidywanie jakości produkcji,
-- **Delay** – przewidywanie opóźnienia realizacji,
-- **Schedule** – przewidywanie strategii harmonogramowania.
+Typy parametrow:
 
-W odróżnieniu od wcześniejszych wersji aplikacji można zaznaczyć kilka modeli równocześnie i trenować je podczas jednej operacji.
+- calkowite: `n_estimators`, `max_depth`, `min_samples_leaf`, `max_iter`,
+  `n_neighbors`, `random_state`, `n_jobs`,
+- ulamkowe: `learning_rate`, `alpha`, `C`, `epsilon`, `subsample`,
+  `max_features`, `l2_regularization`,
+- tekstowe: `gamma`, `kernel`, `weights`, `class_weight`, `strategy`.
 
-### 2. Parametry generowania danych
+XGBoost jest dostepny jako `xgboost.XGBRegressor` albo
+`xgboost.XGBClassifier`, jesli pakiet `xgboost` jest zainstalowany.
 
-W aplikacji można samodzielnie określić parametry generowanego zbioru danych, między innymi:
+## 5. Heurystyki STO
 
-- liczbę rekordów,
-- liczbę maszyn,
-- `test_size`,
-- `seed`,
-- minimalny i maksymalny czas produkcji,
-- minimalny i maksymalny bufor terminu,
-- wybór kształtów,
-- wybór materiałów.
+STO porownuje kolejnosci zlecen. Dla kolejki liczone sa:
 
-### 3. Struktura danych wejściowych
+```text
+C_j = czas zakonczenia zlecenia j
+d_j = termin zlecenia j
+T_j = max(0, C_j - d_j)
+STO = suma T_j
+```
 
-Dane wejściowe w formacie CSV powinny zawierać kolumny:
+Im mniejsze STO, tym lepsza kolejka.
 
-- `cena`
-- `odpad`
-- `termin_h`
-- `czas_produkcji_h`
-- `ksztalt`
-- `material`
-- `x`
-- `y`
-- `z`
+Dostepne metody obejmuja m.in. `MT/EDD`, `MO/SPT`, `MZO/LPT`, `MOPT`,
+`GENETIC`, `SLACK`, `CR`, `NEH`, `LOCAL_SEARCH` i `RANDOM_RESTART`.
 
-### 4. Ważna zmiana – termin w godzinach
+## 6. Wlasna heurystyka STO
 
-W obecnej wersji aplikacji termin realizacji jest zapisany jako:
+Kliknij `+ Wlasna heurystyka STO`, jesli chcesz opisac wlasna regule sortowania.
+Heurystyka liczy score dla kazdego zlecenia i sortuje rosnaco.
 
-- `termin_h`
+Dostepne zmienne:
 
-czyli termin w godzinach, a nie w dniach.
+- `p` - czas wykonania,
+- `d` - termin,
+- `slack` - zapas czasu,
+- `cr` - critical ratio,
+- `urgency` - pilnosc,
+- `i` - numer zlecenia,
+- `n` - liczba zlecen.
 
-Podczas generowania danych system pilnuje, aby nie powstały terminy niemożliwe do realizacji, co oznacza że:
+Przyklady:
 
-- `termin_h` jest zawsze większy od `czas_produkcji_h`
+```text
+d
+p
+d - p
+d / p
+d - 1.5 * p
+0.7 * d + 0.3 * p
+```
 
-Dzięki temu generowany zbiór jest bardziej realistyczny i spójny logicznie.
+## 7. Visual
 
-### 5. Start treningu
+`Visual` sluzy do wykresow i HTML. Dostepne biblioteki to Matplotlib, Seaborn,
+Plotly, Altair i NetworkX. Mozesz tworzyc dashboardy, diagnostyki, heatmapy,
+wykresy 3D, Gantt, SolutionTree, sieci, korelacje i mapy brakow.
 
-Aby rozpocząć trening:
+`SolutionTree` w HTML pozwala klikac wezly, chowac galezie, resetowac widok i
+porownywac warianty. Zielony oznacza najlepsza sciezke, zolty wariant sprawdzony
+lub porownany.
 
-- zaznacz wybrane modele ML,
-- wygeneruj dane lub wczytaj plik CSV,
-- kliknij przycisk **„Trenuj wybrane modele”**,
-- obserwuj komunikaty i postęp w polu logów.
+## 8. Diagrams
 
-### 6. Zapis modeli
+`Diagrams` pozwala budowac flowchart, UML, ERD, BPMN, data pipeline, supply
+chain, VSM, plant layout, andon, energy flow i inne schematy.
 
-Wytrenowane modele zapisywane są automatycznie do katalogu `models/`.
+Mozesz:
 
-Każdy model zapisywany jest jako osobny plik z nazwą zawierającą między innymi:
+- dodawac ksztalty i gotowe bloki,
+- przeciagac elementy,
+- edytowac tekst dwuklikiem,
+- zmieniac kolory i style,
+- laczyc elementy,
+- uzyc `Auto layout`,
+- eksportowac `.drawio`, SVG, Mermaid i HTML.
 
-- wybrane modele,
-- parametry generowania,
-- wybrane kształty,
-- wybrane materiały,
-- znacznik czasu.
+Przycisk `Z opisu` buduje diagram ze zdania, np.:
 
-Dzięki temu można później łatwo porównywać wiele różnych eksperymentów i wersji treningu.
+```text
+Dostawca -> magazyn -> QC -> produkcja -> model ML -> raport
+```
 
-═════════════════════════════════════════════════════
+## 9. Report i Report Builder
 
-## 🧠 TRYB STO – analiza kolejności zleceń
+`Report` uruchamia workflowy: data quality, dashboard, raport, KPI, metric
+diagnostics, market sizing, notebook, correlation explorer, outlier analysis i
+inne.
 
-### 1. Cel analizy STO
+Pelny `Report Builder` otwiera osobne okno:
 
-Moduł STO służy do porównania różnych sposobów ustawienia kolejności zleceń.
+- po lewej piszesz raport,
+- w srodku widzisz podglad strony/PDF,
+- po prawej masz guide komend i pliki projektu,
+- mozesz wstawic sekcje, KPI, ML, STO, pipeline, ryzyka, wykresy, diagramy,
+  obrazy, HTML i kod,
+- eksportujesz HTML, Markdown, TeX albo PDF.
 
-Dla każdego wybranego modelu obliczana jest suma dodatnich opóźnień, czyli:
+## 10. ALICE
 
-- opóźnienie liczone tylko wtedy, gdy zakończenie zlecenia przekracza jego termin,
-- wartości dodatnie są sumowane,
-- wynik końcowy określany jest jako **STO**.
+ALICE jest przewodnikiem po aplikacji. Mozesz pytac:
 
-Im mniejsze STO, tym lepsza kolejność realizacji zleceń.
+- co robi konkretny modul,
+- jaki model wybrac,
+- czym jest SVM, XGBoost, TabPFN albo STO,
+- jak czytac wykres,
+- jak zrobic diagram,
+- jak napisac raport,
+- jak przejsc caly pipeline od danych do decyzji.
 
-### 2. Dane wejściowe
-
-Użytkownik podaje ręcznie:
-
-- listę zleceń, np. `Z1,Z2,Z3`
-- czasy wykonania, np. `10,20,100`
-- terminy, np. `150,30,110`
-
-Liczba zleceń, czasów i terminów musi być taka sama.
-
-### 3. Modele STO
-
-#### **MT**
-Model sortuje zlecenia według terminu realizacji rosnąco.
-
-#### **MO**
-Model sortuje zlecenia według najkrótszego czasu wykonania.
-
-#### **MZO**
-Model sortuje zlecenia według najdłuższego czasu wykonania.
-
-#### **MOPT**
-
-Metoda optymalna wyznacza kolejność o minimalnej sumie dodatnich opóźnień STO.
-
-#### **GENETIC**
-Model genetyczny / optymalizacyjny szuka takiej kolejności zleceń, która daje możliwie najmniejsze STO.
-
-### 4. Wyniki analizy STO
-
-Po uruchomieniu analizy aplikacja pokazuje:
-
-- kolejność zleceń dla każdego wybranego modelu,
-- wartość STO dla każdego modelu,
-- przebieg liczenia krok po kroku,
-- informację, który model był najlepszy,
-- informację, który model był najgorszy.
-
-Raport STO pojawia się tylko wtedy, gdy zaznaczono przynajmniej jeden model heurystyczny STO.
-
-### 5. Przykład
-
-Dla danych:
-
-- zlecenia: `Z1, Z2, Z3`
-- czasy: `10, 20, 100`
-- terminy: `150, 30, 110`
-
-możliwe wyniki są następujące:
-
-- **MT** → `Z2, Z3, Z1` → STO = `10`
-- **MO** → `Z1, Z2, Z3` → STO = `20`
-- **MZO** → `Z3, Z2, Z1` → STO = `90`
-
-Na tej podstawie aplikacja wskaże najlepszą i najgorszą kolejność.
-
-═════════════════════════════════════════════════════
-
-## 🔍 TRYB ROZWIĄZANIA – predykcja i priorytety
-
-### 1. Wybór modelu i danych
-
-Aby wykonać predykcję:
-
-- kliknij **„Rozwiąż istniejące modele”**,
-- wskaż zapisany model `.pkl`,
-- wybierz plik danych `.csv`.
-
-### 2. Predykcje i priorytety
-
-W zależności od zawartości pliku modelu aplikacja może obliczyć:
-
-- `pred_quality` – przewidywaną jakość,
-- `pred_delay` – przewidywane opóźnienie,
-- `priority` – wskaźnik priorytetu wyznaczany jako relacja jakości do przewidywanego opóźnienia.
-
-### 3. Wyniki
-
-Wyniki:
-
-- są wyświetlane w aplikacji,
-- zapisywane są do pliku `data/wynik_priority.csv`,
-- prezentują między innymi TOP 10 zleceń o najwyższym priorytecie.
-
-═════════════════════════════════════════════════════
-
-## 📈 WIZUALIZACJA DANYCH
-
-### 1. Wczytanie pliku
-
-Wybierz plik CSV zawierający dane, które chcesz analizować.
-
-### 2. Wybór parametrów wykresu
-
-Użytkownik może:
-
-- wybrać kolumny dla osi **X** i **Y**,
-- określić typ wykresu.
-
-Dostępne typy wykresów:
-
-- Scatter,
-- Line,
-- Histogram,
-- Boxplot,
-- Count Plot,
-- Strip Plot,
-- Swarm Plot,
-- Point Plot,
-- Bar Estimate,
-- Gantt,
-- Treemap,
-- Sunburst,
-- Funnel,
-- Waterfall,
-- Radar Chart,
-- Stacked Bar,
-- Binned Scatter,
-- Faceted Scatter,
-- Interactive Brush,
-- SolutionTree,
-- ML Decision Tree,
-- Network Graph,
-- Circular Network,
-- Spring Network,
-- Shell Network,
-- Kamada-Kawai Network,
-- Tree Network,
-- CorrelationMatrix,
-- SimilarityMatrix.
-
-### 3. Generowanie wykresu
-
-Aby utworzyć wykres:
-
-- kliknij przycisk **„Rysuj”**,
-- wykres zostanie wyświetlony w dolnym panelu aplikacji.
-
-### 4. Zastosowanie wizualizacji
-
-Wizualizacje pomagają analizować:
-
-- zależności pomiędzy cechami,
-- rozkłady danych,
-- podobieństwa i korelacje,
-- przebieg harmonogramu produkcji,
-- uproszczoną strukturę modelu decyzyjnego.
-
-═════════════════════════════════════════════════════
-
-## 🧾 PODGLĄD DANYCH I TRANSFORMACJE
-
-### 1. Wczytanie danych
-
-- przejdź do zakładki **Results**,
-- kliknij **„Wczytaj plik CSV”**,
-- wybierz plik, który chcesz przeanalizować.
-
-### 2. Wybór kolumn
-
-Możesz zaznaczyć:
-
-- wszystkie kolumny,
-- tylko wybrane kolumny do analizy.
-
-### 3. Dostępne transformacje danych
-
-#### Surowe
-Dane pozostają w oryginalnej postaci.
-
-#### MinMax Normalizacja
-Skalowanie wartości do przedziału 0–1.
-
-#### Standaryzacja
-Transformacja do średniej 0 i odchylenia standardowego 1.
-
-#### Logarytm
-Zmniejszenie wpływu wartości skrajnych przy użyciu funkcji `log1p`.
-
-#### Skalowanie 0–1
-Proste przeskalowanie każdej kolumny do przedziału 0–1.
-
-### 4. Viewer i raport danych
-
-Od wersji 0.5.0 zakładka **Results** działa jako viewer/reporting studio. Nie ma już osobnych przycisków regresji i klasyfikacji. Użytkownik może teraz:
-
-- filtrować dane tekstowo,
-- sortować po wybranej kolumnie,
-- ograniczyć liczbę widocznych wierszy,
-- sprawdzić profil kolumny,
-- zobaczyć raport braków danych i duplikatów,
-- wyeksportować aktualnie widoczny widok do CSV.
-
-Metryki modeli ML są pokazywane po treningu w CLI/GUI jako porównanie `train` oraz `test`, aby odróżnić dopasowanie na danych uczących od jakości na danych niewidzianych.
-
-═════════════════════════════════════════════════════
-
-## 🛠️ ROZWIĄZYWANIE PROBLEMÓW
-
-**„Brak danych”**  
-Wczytaj lub wygeneruj plik CSV.
-
-**„Nie wybrano kolumny”**  
-Zaznacz co najmniej jedną kolumnę do analizy.
-
-**Brak danych treningowych**  
-Najpierw wygeneruj dane lub wczytaj plik CSV.
-
-**Brak modelu STO**  
-Zaznacz przynajmniej jeden model STO: `MT`, `MO`, `MZO`, `MOPT` lub `GENETIC`.
-
-**Niska jakość predykcji**  
-Zwiększ liczbę danych lub popraw ich jakość.
-
-**Brak modelu `.pkl`**  
-Upewnij się, że w katalogu `models/` znajduje się zapisany model.
-
-═════════════════════════════════════════════════════
-
-## 📁 LOKALIZACJA PLIKÓW
-
-**Modele:**  
-pliki `.pkl` w katalogu `models/`
-
-**Dane:**  
-pliki CSV w katalogu projektu lub w folderze `data/`
-
-**Wyniki predykcji:**  
-`data/wynik_priority.csv`
-
-**Dokumentacja:**  
-`docs/guide.md`  
-`docs/theory.md`
-
-
-## Rozszerzone modele ML i heurystyki STO
-
-W bieżącej wersji panel wyboru modeli został rozszerzony tak, aby użytkownik mógł porównywać różne podejścia dla podobnych celów. W trybie `classic` dostępnych jest 12 wariantów ML:
-
-- `Quality`, `Quality_ET`, `Quality_GB`, `Quality_HGB` — cztery modele regresyjne dla jakości, patrzące odpowiednio na stabilność lasu, większą losowość ExtraTrees, poprawianie błędów przez boosting oraz szybki boosting histogramowy.
-- `Delay`, `Delay_RF`, `Delay_ET`, `Delay_HGB` — cztery modele regresyjne dla opóźnień, skupione na ryzyku przekroczenia terminu i dużych błędach.
-- `Schedule`, `Schedule_ET`, `Schedule_GB`, `Schedule_LOG` — cztery klasyfikatory strategii harmonogramowania, od modeli drzewiastych po prosty baseline liniowy.
-
-Modele heurystyczne STO zostały rozszerzone do zestawu 13 metod: `MT`, `MO`, `MZO`, `MOPT`, `GENETIC`, `SLACK`, `CR`, `EDD_SPT`, `SPT_EDD`, `LPT_EDD`, `NEH`, `LOCAL_SEARCH`, `RANDOM_RESTART`. Każda metoda ma opis, na co patrzy: termin, czas obróbki, zapas, dokładne minimum STO, krytyczność, wariant wstawiania lub lokalne poprawki kolejności.
-
-Architektura została przygotowana modułowo: definicje modeli ML znajdują się w `src/AOA/core/ml_models/`, a definicje heurystyk w `src/AOA/core/mh_models/`. Dzięki temu można później dopisywać kolejne warianty bez przeciążania głównych plików aplikacji.
+ALICE korzysta z lokalnej bazy `docs/alice_brain.json` oraz z dokumentacji
+projektu.

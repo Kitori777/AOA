@@ -13,7 +13,8 @@ from itertools import permutations
 
 import pandas as pd
 
-from AOA.core.mh_models import MH_MODEL_NAMES
+from AOA.core.mh_models import get_mh_model_names
+from AOA.core.mh_models.custom import get_custom_heuristic_config, sequence_custom_heuristic
 
 
 @dataclass(frozen=True)
@@ -416,10 +417,16 @@ def run_selected_sto_models(jobs: list[Job], selected_methods: list[str]) -> lis
 
     results: list[dict] = []
     for method in selected_methods:
-        if method not in MH_MODEL_NAMES or method not in method_map:
+        if method not in get_mh_model_names():
             raise ValueError(f"Nieznana metoda STO: {method}")
 
-        sequence = method_map[method](jobs)
+        custom_config = get_custom_heuristic_config(method)
+        if method in method_map:
+            sequence = method_map[method](jobs)
+        elif custom_config is not None:
+            sequence = sequence_custom_heuristic(jobs, custom_config)
+        else:
+            raise ValueError(f"Nieznana metoda STO: {method}")
         evaluation = evaluate_sequence(sequence)
 
         result = {

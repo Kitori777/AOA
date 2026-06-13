@@ -7,6 +7,7 @@ from AOA.core.drawio_service import (
     build_mermaid,
     build_svg,
     save_diagram,
+    smart_diagram_from_description,
     template_nodes_edges,
 )
 
@@ -70,3 +71,36 @@ def test_save_diagram_writes_supported_formats(tmp_path) -> None:
 
         assert output.exists()
         assert output.read_text(encoding="utf-8").strip()
+
+
+def test_smart_diagram_from_description_builds_data_pipeline() -> None:
+    nodes, edges, template, note = smart_diagram_from_description(
+        "CSV -> walidacja danych -> cechy X -> model ML -> metryki -> raport"
+    )
+
+    assert template == "Data Pipeline"
+    assert len(nodes) == 6
+    assert len(edges) == 5
+    assert nodes[0].shape == "database"
+    assert any(node.shape == "model" for node in nodes)
+    assert edges[0].label == "sprawdz"
+    assert edges[-1].label == "pokaz"
+    assert "ksztalty" in note
+
+
+def test_smart_diagram_from_description_builds_supply_chain() -> None:
+    nodes, edges, template, _note = smart_diagram_from_description(
+        "Dostawca -> magazyn -> transport -> klient"
+    )
+
+    assert template == "Supply Chain"
+    assert [node.shape for node in nodes] == ["terminator", "warehouse", "truck", "process"]
+    assert [edge.label for edge in edges] == ["dalej", "przekaz", "dalej"]
+
+
+def test_smart_diagram_from_description_has_safe_fallback() -> None:
+    nodes, edges, template, _note = smart_diagram_from_description("opis bez strzalek")
+
+    assert template == "Flowchart"
+    assert [node.label for node in nodes] == ["Start", "opis bez strzalek", "Wynik"]
+    assert len(edges) == 2

@@ -140,28 +140,28 @@ GUIDE_STEPS: tuple[GuideStep, ...] = (
         ),
     ),
     GuideStep(
-        "8. Analytics Studio",
+        "8. Report Studio",
         "Uruchamiasz gotowe workflowy analityczne: jakosc danych, KPI, dashboard, raport, segmenty, korelacje, outliery, trendy i plan notebooka.",
         (
-            "Wejdz w Analytics.",
+            "Wejdz w Report.",
             "Wczytaj dane albo uzyj danych juz przygotowanych w aplikacji.",
             "Wybierz workflow, metryke i wymiar.",
             "Kliknij Uruchom analize albo Wykonaj wszystko.",
             "Zapisz wynik jako HTML, notebook albo CSV akcji.",
         ),
-        "Analytics nie jest tylko lista opcji. To panel, w ktorym wykonujesz realna analize i dostajesz tekst, rekomendowany wykres, podsumowanie oraz nastepne akcje.",
+        "Report Studio nie jest tylko lista opcji. To panel, w ktorym wykonujesz realna analize i dostajesz tekst, rekomendowany wykres, podsumowanie oraz nastepne akcje.",
         (
             "Data Quality sprawdza braki, duplikaty i profil kolumn.",
             "Metric Diagnostics tlumaczy, co moze napedzac zmiane metryki.",
             "Segment Explorer, Correlation Explorer i Outlier Analysis pomagaja znalezc miejsca warte sprawdzenia.",
-            "Wykres rekomendowany w Analytics najlepiej narysowac potem w Visual.",
+            "Wykres rekomendowany w Report najlepiej narysowac potem w Visual.",
         ),
     ),
     GuideStep(
         "9. Report Builder: HTML, PDF, MD i TeX",
         "Budujesz wlasny raport z sekcji, wynikow analiz, plikow, KPI, wykresow, rekomendacji i podgladu podobnego do prostego edytora dokumentu.",
         (
-            "W Analytics kliknij Report Builder.",
+            "W Report kliknij Report Builder.",
             "Dodaj aktualny wynik, plik, sekcje, KPI, wykres albo rekomendacje.",
             "Edytuj tresc po lewej i czytaj podglad po prawej.",
             "Uzyj Eksport HTML dla wersji interaktywnej.",
@@ -218,7 +218,7 @@ GUIDE_STEPS: tuple[GuideStep, ...] = (
             "Kliknij ALICE i zadaj pytanie naturalnym językiem.",
             "Włącz Tryb operatora dla sekwencji akcji.",
             "Ustaw profil odpowiedzi: krótko / normalnie / ekspercko.",
-            "Zapytaj o Main, Visual, Results, Analytics, Diagrams, Theory, PDF, HTML albo samonauke.",
+            "Zapytaj o Main, Visual, Results, Report, Diagrams, Theory, PDF, HTML albo samonauke.",
         ),
         "ALICE korzysta z wiedzy o aplikacji, kodzie i raportach samonauki, żeby dawać praktyczne wskazówki.",
         (

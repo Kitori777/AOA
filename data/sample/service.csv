@@ -1,0 +1,6 @@
+ticket_id,response_h,repair_h,customer_tier,reopen_count,satisfaction
+S001,1.2,3.5,gold,0,0.94
+S002,4.5,12.0,silver,1,0.63
+S003,0.8,2.1,platinum,0,0.98
+S004,6.0,18.4,bronze,2,0.41
+S005,2.4,5.8,gold,0,0.82

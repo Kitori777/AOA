@@ -4345,6 +4345,7 @@ def build_d3_dashboard_html_report(
       --bg:#07111c; --panel:#0e1b29; --border:#20364d; --text:#e6f0ff;
       --muted:#9fb4cc; --grid:rgba(148,163,184,.18); --blue:#38bdf8;
       --green:#34d399; --yellow:#fbbf24; --red:#fb7185; --violet:#a78bfa;
+      --chart-h:340px; --wide-chart-h:420px;
     }}
     * {{ box-sizing:border-box; }}
     body {{
@@ -4360,6 +4361,16 @@ def build_d3_dashboard_html_report(
     h1 {{ margin:0 0 8px; font-size:28px; letter-spacing:0; }}
     .subhead {{ color:var(--muted); font-size:14px; }}
     main {{ padding:22px 32px 30px; max-width:1680px; margin:0 auto; }}
+    .dashboard-controls {{
+      display:grid; grid-template-columns:repeat(6,minmax(130px,1fr)); gap:10px;
+      padding:14px; margin-bottom:18px; background:rgba(10,22,36,.92);
+      border:1px solid var(--border); border-radius:12px;
+    }}
+    .dashboard-controls button {{
+      border:1px solid #2563eb; border-radius:8px; color:#eef6ff;
+      background:#1f6fb2; min-height:38px; font-weight:700; cursor:pointer;
+    }}
+    .dashboard-controls button:hover {{ background:#2584d7; }}
     .cards {{ display:grid; grid-template-columns:repeat(4,minmax(170px,1fr)); gap:14px; margin-bottom:18px; }}
     .card {{
       min-height:96px; padding:16px 18px;
@@ -4380,8 +4391,8 @@ def build_d3_dashboard_html_report(
     .panel.wide {{ min-height:500px; }}
     .panel h2 {{ margin:0 0 4px; font-size:18px; }}
     .panel p {{ margin:0 0 14px; color:var(--muted); font-size:13px; }}
-    svg {{ width:100%; height:340px; display:block; overflow:visible; }}
-    .wide svg {{ height:420px; }}
+    svg {{ width:100%; height:var(--chart-h); display:block; overflow:visible; }}
+    .wide svg {{ height:var(--wide-chart-h); }}
     .axis text {{ fill:#b8c7d9; font-size:11px; }}
     .axis path,.axis line {{ stroke:#46617c; }}
     .grid-line line {{ stroke:var(--grid); }}
@@ -4405,6 +4416,14 @@ def build_d3_dashboard_html_report(
     <div class="subhead">X: {html.escape(str(x_name))} | Y: {html.escape(str(y_name))} | kolor/rozmiar: {html.escape(str(z_name))}</div>
   </header>
   <main>
+    <section class="dashboard-controls" aria-label="Kontrolki dashboardu">
+      <button id="ctl-full">Pelny ekran</button>
+      <button id="ctl-export-csv">Eksport CSV</button>
+      <button id="ctl-export-json">Eksport JSON</button>
+      <button id="ctl-zoom-in">Powieksz</button>
+      <button id="ctl-zoom-out">Zmniejsz</button>
+      <button id="ctl-reset">Reset widoku</button>
+    </section>
     <section class="cards">
       <div class="card"><span>Rekordy</span><strong id="rows"></strong></div>
       <div class="card"><span>Kolumny</span><strong id="cols"></strong></div>
@@ -4425,6 +4444,7 @@ def build_d3_dashboard_html_report(
     const xKey = {x_js};
     const yKey = {y_js};
     const zKey = {z_js};
+    let chartScale = 1;
     const numericColumns = columns.filter(col => data.some(row => Number.isFinite(+row[col])));
     const missingTotal = data.reduce((sum, row) => sum + columns.filter(col => row[col] == null || row[col] === "").length, 0);
     document.getElementById("rows").textContent = data.length;
@@ -4435,6 +4455,35 @@ def build_d3_dashboard_html_report(
     function fallback(id, text) {{
       document.getElementById(id).outerHTML = `<div class="fallback">${{text}}</div>`;
     }}
+    function downloadText(filename, mime, text) {{
+      const blob = new Blob([text], {{type: mime}});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }}
+    function toCsv(rows) {{
+      const esc = value => `"${{String(value ?? "").replaceAll('"', '""')}}"`;
+      return [columns.map(esc).join(","), ...rows.map(row => columns.map(col => esc(row[col])).join(","))].join("\\n");
+    }}
+    function applyScale(value) {{
+      chartScale = Math.max(0.75, Math.min(1.6, value));
+      document.documentElement.style.setProperty("--chart-h", `${{Math.round(340 * chartScale)}}px`);
+      document.documentElement.style.setProperty("--wide-chart-h", `${{Math.round(420 * chartScale)}}px`);
+    }}
+    document.getElementById("ctl-full")?.addEventListener("click", () => document.documentElement.requestFullscreen?.());
+    document.getElementById("ctl-export-csv")?.addEventListener("click", () => downloadText("aoa_dashboard_data.csv", "text/csv;charset=utf-8", toCsv(data)));
+    document.getElementById("ctl-export-json")?.addEventListener("click", () => downloadText("aoa_dashboard_config.json", "application/json", JSON.stringify({{xKey, yKey, zKey, rows:data.length, columns}}, null, 2)));
+    document.getElementById("ctl-zoom-in")?.addEventListener("click", () => applyScale(chartScale + 0.1));
+    document.getElementById("ctl-zoom-out")?.addEventListener("click", () => applyScale(chartScale - 0.1));
+    document.getElementById("ctl-reset")?.addEventListener("click", () => {{
+      applyScale(1);
+      window.scrollTo({{top:0, behavior:"smooth"}});
+    }});
 
     if (!window.d3) {{
       ["scatter", "histogram", "bars", "missingness"].forEach(id => fallback(id, "D3.js nie załadował się z CDN. Dane i metryki są w nagłówku dashboardu."));

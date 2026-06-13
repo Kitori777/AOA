@@ -444,26 +444,35 @@ class ResultsPage(ctk.CTkFrame):
         if not path:
             return
         try:
-            result = load_and_prepare_visual_file(path)
-            self.df_loaded = result["df"]
-            columns = result["columns"]
-            numeric_columns = self.df_loaded.select_dtypes(include="number").columns.tolist()
-            self.sort_menu.configure(values=["(brak)", *columns])
-            self.profile_menu.configure(values=columns)
-            self.metric_menu.configure(values=numeric_columns or columns)
-            self._init_column_selector(columns)
-            if columns:
-                self.sort_var.set("(brak)")
-                self.profile_var.set(columns[0])
-            if numeric_columns:
-                self.metric_var.set(numeric_columns[0])
-            self.status_var.set(f"Wczytano: {len(self.df_loaded)} wierszy, {len(columns)} kolumn")
-            self.refresh_view()
-            if self.view_mode_var.get() == "SQL":
-                self.run_sql_query()
+            self.load_path(path)
             messagebox.showinfo("OK", f"Wczytano plik: {path}")
         except Exception as e:
             messagebox.showerror("Błąd", str(e))
+
+    def load_path(self, path: str) -> None:
+        result = load_and_prepare_visual_file(path)
+        self.df_loaded = result["df"]
+        columns = result["columns"]
+        numeric_columns = self.df_loaded.select_dtypes(include="number").columns.tolist()
+        self.sort_menu.configure(values=["(brak)", *columns])
+        self.profile_menu.configure(values=columns)
+        self.metric_menu.configure(values=numeric_columns or columns)
+        self._init_column_selector(columns)
+        if columns:
+            self.sort_var.set("(brak)")
+            self.profile_var.set(columns[0])
+        if numeric_columns:
+            self.metric_var.set(numeric_columns[0])
+        self.status_var.set(f"Wczytano: {len(self.df_loaded)} wierszy, {len(columns)} kolumn")
+        self.refresh_view()
+        if self.view_mode_var.get() == "SQL":
+            self.run_sql_query()
+
+    def load_sample_data(self) -> None:
+        sample_path = DATA_DIR / "sample" / "sample_table.csv"
+        if not sample_path.exists():
+            raise FileNotFoundError(f"Brak pliku sample: {sample_path}")
+        self.load_path(str(sample_path))
 
     def refresh_view(self):
         if self.view_mode_var.get() == "SQL":
@@ -759,6 +768,42 @@ class ResultsPage(ctk.CTkFrame):
         self.sql_query_box.delete("1.0", "end")
         self.sql_query_box.insert("1.0", "SELECT * FROM results LIMIT 20;")
         self.sql_hint_var.set("")
+
+    def run_sql_text(self, sql: str) -> None:
+        if self.df_loaded is None:
+            self.load_sample_data()
+        self.view_mode_var.set("SQL")
+        self._set_view_mode()
+        if self.sql_query_box is None:
+            return
+        self.sql_query_box.delete("1.0", "end")
+        self.sql_query_box.insert("1.0", sql)
+        self.run_sql_query()
+
+    def run_sql_example(self, kind: str = "preview") -> None:
+        if self.df_loaded is None:
+            self.load_sample_data()
+        columns = list(self.df_loaded.columns)
+        numeric_columns = self.df_loaded.select_dtypes(include="number").columns.tolist()
+        if kind == "summary" and numeric_columns:
+            metric = numeric_columns[0]
+            self.run_sql_text(
+                f'SELECT COUNT(*) AS rows, AVG("{metric}") AS avg_value, '
+                f'MIN("{metric}") AS min_value, MAX("{metric}") AS max_value FROM results;'
+            )
+            return
+        if kind == "missing":
+            selects = [
+                f'SUM(CASE WHEN "{column}" IS NULL THEN 1 ELSE 0 END) AS "{column}_missing"'
+                for column in columns[:8]
+            ]
+            self.run_sql_text("SELECT " + ", ".join(selects) + " FROM results;")
+            return
+        if kind == "top" and numeric_columns:
+            metric = numeric_columns[0]
+            self.run_sql_text(f'SELECT * FROM results ORDER BY "{metric}" DESC LIMIT 20;')
+            return
+        self.run_sql_text("SELECT * FROM results LIMIT 20;")
 
     def run_sql_query(self) -> None:
         if self.df_loaded is None:
