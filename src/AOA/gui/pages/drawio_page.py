@@ -199,9 +199,9 @@ class DrawIOPage(ctk.CTkFrame):
             text="Wstaw gotowiec",
             command=self.add_quick_block,
         ).grid(row=3, column=1, sticky="ew", padx=10, pady=4)
-        ctk.CTkButton(element_group, text="Notatka", command=lambda: self.add_quick_shape("note")).grid(
-            row=4, column=0, sticky="ew", padx=10, pady=(4, 10)
-        )
+        ctk.CTkButton(
+            element_group, text="Notatka", command=lambda: self.add_quick_shape("note")
+        ).grid(row=4, column=0, sticky="ew", padx=10, pady=(4, 10))
         ctk.CTkButton(
             element_group,
             text="Kontener",
@@ -257,15 +257,15 @@ class DrawIOPage(ctk.CTkFrame):
         ctk.CTkButton(file_group, text="Usun zaznaczony", command=self.delete_selected).grid(
             row=2, column=0, columnspan=2, sticky="ew", padx=10, pady=4
         )
-        ctk.CTkButton(
-            file_group, text=".drawio", command=lambda: self.export("drawio")
-        ).grid(row=3, column=0, sticky="ew", padx=10, pady=4)
+        ctk.CTkButton(file_group, text=".drawio", command=lambda: self.export("drawio")).grid(
+            row=3, column=0, sticky="ew", padx=10, pady=4
+        )
         ctk.CTkButton(file_group, text="SVG", command=lambda: self.export("svg")).grid(
             row=3, column=1, sticky="ew", padx=10, pady=4
         )
-        ctk.CTkButton(
-            file_group, text="Mermaid", command=lambda: self.export("mermaid")
-        ).grid(row=4, column=0, sticky="ew", padx=10, pady=(4, 10))
+        ctk.CTkButton(file_group, text="Mermaid", command=lambda: self.export("mermaid")).grid(
+            row=4, column=0, sticky="ew", padx=10, pady=(4, 10)
+        )
         ctk.CTkButton(file_group, text="HTML", command=lambda: self.export("html")).grid(
             row=4, column=1, sticky="ew", padx=10, pady=(4, 10)
         )
@@ -431,8 +431,12 @@ class DrawIOPage(ctk.CTkFrame):
 
     def apply_style_to_controls(self) -> None:
         fill, stroke = STYLE_PRESETS.get(self.style_var.get(), STYLE_PRESETS["neutral"])
-        fill_label = next((label for label, color in FILL_PALETTE if color == fill), self.fill_var.get())
-        stroke_label = next((label for label, color in STROKE_PALETTE if color == stroke), self.stroke_var.get())
+        fill_label = next(
+            (label for label, color in FILL_PALETTE if color == fill), self.fill_var.get()
+        )
+        stroke_label = next(
+            (label for label, color in STROKE_PALETTE if color == stroke), self.stroke_var.get()
+        )
         self.fill_var.set(fill_label)
         self.stroke_var.set(stroke_label)
 
@@ -440,7 +444,9 @@ class DrawIOPage(ctk.CTkFrame):
         self.apply_style_to_controls()
         node = self._node_by_id(self.selected_node_id or "")
         if node is None:
-            self.status_var.set("Styl ustawiony dla nowych elementow. Zaznacz element, aby go przemalowac.")
+            self.status_var.set(
+                "Styl ustawiony dla nowych elementow. Zaznacz element, aby go przemalowac."
+            )
             return
         fill, stroke = self._selected_colors()
         width, height = self._selected_size()
@@ -452,13 +458,21 @@ class DrawIOPage(ctk.CTkFrame):
         self._draw_preview()
 
     def _selected_colors(self) -> tuple[str, str]:
-        fill = next((color for label, color in FILL_PALETTE if label == self.fill_var.get()), "#ffffff")
-        stroke = next((color for label, color in STROKE_PALETTE if label == self.stroke_var.get()), "#111827")
+        fill = next(
+            (color for label, color in FILL_PALETTE if label == self.fill_var.get()), "#ffffff"
+        )
+        stroke = next(
+            (color for label, color in STROKE_PALETTE if label == self.stroke_var.get()), "#111827"
+        )
         return fill, stroke
 
     def _selected_size(self) -> tuple[int, int]:
         return next(
-            ((width, height) for label, width, height in SIZE_PRESETS if label == self.size_var.get()),
+            (
+                (width, height)
+                for label, width, height in SIZE_PRESETS
+                if label == self.size_var.get()
+            ),
             (180, 72),
         )
 
@@ -550,7 +564,10 @@ class DrawIOPage(ctk.CTkFrame):
             ("Produkcja", "Dostawca -> magazyn -> linia produkcyjna -> QC -> pakowanie -> wysylka"),
             ("Dane/ML", "CSV -> walidacja danych -> cechy X -> model ML -> metryki -> raport"),
             ("System", "Uzytkownik -> panel GUI -> API -> baza danych -> dashboard -> alert"),
-            ("Logistyka", "Zamowienie -> kompletacja -> transport -> magazyn klienta -> potwierdzenie"),
+            (
+                "Logistyka",
+                "Zamowienie -> kompletacja -> transport -> magazyn klienta -> potwierdzenie",
+            ),
         ]
 
         def _set_example(value: str) -> None:
@@ -571,7 +588,9 @@ class DrawIOPage(ctk.CTkFrame):
         def _build() -> None:
             description = text.get("1.0", "end").strip()
             if not description:
-                messagebox.showwarning("Diagram z opisu", "Najpierw opisz proces albo wybierz przyklad.")
+                messagebox.showwarning(
+                    "Diagram z opisu", "Najpierw opisz proces albo wybierz przyklad."
+                )
                 return
             self.nodes, self.edges, template, note = smart_diagram_from_description(description)
             self.template_var.set(template)
@@ -636,15 +655,21 @@ class DrawIOPage(ctk.CTkFrame):
             )
             nodes.append(node)
             if idx > 0:
-                edges.append(DiagramEdge(f"s{idx}", node.id, self._smart_edge_label(parts[idx - 1], part)))
+                edges.append(
+                    DiagramEdge(f"s{idx}", node.id, self._smart_edge_label(parts[idx - 1], part))
+                )
         return nodes, edges, template, "wybrano ksztalty, kolory i polaczenia z tekstu"
 
     @staticmethod
     def _smart_shape_style(label_text: str, index: int, total: int) -> tuple[str, str, str]:
         text = label_text.lower()
-        if index == 0 and any(word in text for word in ["start", "wejsc", "dostaw", "klient", "uzytkownik"]):
+        if index == 0 and any(
+            word in text for word in ["start", "wejsc", "dostaw", "klient", "uzytkownik"]
+        ):
             return "terminator", "#dcfce7", "#16a34a"
-        if index == total - 1 and any(word in text for word in ["wynik", "raport", "wysyl", "koniec", "dashboard"]):
+        if index == total - 1 and any(
+            word in text for word in ["wynik", "raport", "wysyl", "koniec", "dashboard"]
+        ):
             return "terminator", "#dbeafe", "#2563eb"
         if any(word in text for word in ["czy", "ok", "decyz", "warunek", "quality"]):
             return "decision", "#fef9c3", "#ca8a04"
@@ -774,7 +799,10 @@ class DrawIOPage(ctk.CTkFrame):
         if node is None:
             return
         node.fill = color
-        fill_label = next((label for label, item_color in FILL_PALETTE if item_color == color), self.fill_var.get())
+        fill_label = next(
+            (label for label, item_color in FILL_PALETTE if item_color == color),
+            self.fill_var.get(),
+        )
         self.fill_var.set(fill_label)
         self.status_var.set(f"Zmieniono kolor: {node.label}")
         self._draw_preview()
@@ -784,7 +812,10 @@ class DrawIOPage(ctk.CTkFrame):
         if node is None:
             return
         node.stroke = color
-        stroke_label = next((label for label, item_color in STROKE_PALETTE if item_color == color), self.stroke_var.get())
+        stroke_label = next(
+            (label for label, item_color in STROKE_PALETTE if item_color == color),
+            self.stroke_var.get(),
+        )
         self.stroke_var.set(stroke_label)
         self.status_var.set(f"Zmieniono obramowanie: {node.label}")
         self._draw_preview()
@@ -805,7 +836,11 @@ class DrawIOPage(ctk.CTkFrame):
         node.width = width
         node.height = height
         size_label = next(
-            (label for label, item_width, item_height in SIZE_PRESETS if item_width == width and item_height == height),
+            (
+                label
+                for label, item_width, item_height in SIZE_PRESETS
+                if item_width == width and item_height == height
+            ),
             self.size_var.get(),
         )
         self.size_var.set(size_label)
@@ -1060,8 +1095,13 @@ class DrawIOPage(ctk.CTkFrame):
     def _sync_controls_from_node(self, node: DiagramNode) -> None:
         self.shape_var.set(node.shape)
         self.label_var.set(node.label.replace("\\n", " "))
-        fill_label = next((label for label, color in FILL_PALETTE if color == node.fill), self.fill_var.get())
-        stroke_label = next((label for label, color in STROKE_PALETTE if color == node.stroke), self.stroke_var.get())
+        fill_label = next(
+            (label for label, color in FILL_PALETTE if color == node.fill), self.fill_var.get()
+        )
+        stroke_label = next(
+            (label for label, color in STROKE_PALETTE if color == node.stroke),
+            self.stroke_var.get(),
+        )
         size_label = next(
             (
                 label
@@ -1190,7 +1230,15 @@ class DrawIOPage(ctk.CTkFrame):
                 bx = x + bay * w / 4
                 self.canvas.create_line(bx, y + h * 0.42, bx, y + h - 10, fill=outline, width=1)
         elif node.shape in {"truck"}:
-            self.canvas.create_rectangle(x + 6, y + h * 0.25, x + w * 0.68, y + h * 0.75, fill=fill, outline=outline, width=width)
+            self.canvas.create_rectangle(
+                x + 6,
+                y + h * 0.25,
+                x + w * 0.68,
+                y + h * 0.75,
+                fill=fill,
+                outline=outline,
+                width=width,
+            )
             self.canvas.create_polygon(
                 x + w * 0.68,
                 y + h * 0.38,
@@ -1205,15 +1253,34 @@ class DrawIOPage(ctk.CTkFrame):
                 width=width,
             )
             for wheel_x in (x + w * 0.25, x + w * 0.78):
-                self.canvas.create_oval(wheel_x - 9, y + h * 0.72, wheel_x + 9, y + h * 0.72 + 18, fill="#111827", outline="")
+                self.canvas.create_oval(
+                    wheel_x - 9,
+                    y + h * 0.72,
+                    wheel_x + 9,
+                    y + h * 0.72 + 18,
+                    fill="#111827",
+                    outline="",
+                )
         elif node.shape in {"machine", "station"}:
-            self.canvas.create_rectangle(x, y + 8, x + w, y + h, fill=fill, outline=outline, width=width)
-            self.canvas.create_rectangle(x + 12, y, x + w - 12, y + 18, fill="#eef2ff", outline=outline, width=1)
-            self.canvas.create_oval(x + w - 42, y + 28, x + w - 18, y + 52, fill="#f8fafc", outline=outline, width=2)
-            self.canvas.create_line(x + 18, y + h - 18, x + w - 18, y + h - 18, fill=outline, width=2)
+            self.canvas.create_rectangle(
+                x, y + 8, x + w, y + h, fill=fill, outline=outline, width=width
+            )
+            self.canvas.create_rectangle(
+                x + 12, y, x + w - 12, y + 18, fill="#eef2ff", outline=outline, width=1
+            )
+            self.canvas.create_oval(
+                x + w - 42, y + 28, x + w - 18, y + 52, fill="#f8fafc", outline=outline, width=2
+            )
+            self.canvas.create_line(
+                x + 18, y + h - 18, x + w - 18, y + h - 18, fill=outline, width=2
+            )
         elif node.shape in {"kanban", "kpi"}:
-            self.canvas.create_rectangle(x, y, x + w, y + h, fill=fill, outline=outline, width=width)
-            self.canvas.create_rectangle(x, y, x + w, y + 22, fill="#e0f2fe", outline=outline, width=1)
+            self.canvas.create_rectangle(
+                x, y, x + w, y + h, fill=fill, outline=outline, width=width
+            )
+            self.canvas.create_rectangle(
+                x, y, x + w, y + 22, fill="#e0f2fe", outline=outline, width=1
+            )
             self.canvas.create_line(x + 16, y + 42, x + w - 16, y + 42, fill=outline, width=2)
             self.canvas.create_line(x + 16, y + 58, x + w - 34, y + 58, fill=outline, width=2)
         elif node.shape in {"andon", "risk"}:
@@ -1228,7 +1295,9 @@ class DrawIOPage(ctk.CTkFrame):
                 outline=outline,
                 width=width,
             )
-            self.canvas.create_text(x + w / 2, y + h * 0.45, text="!", fill=outline, font=("Segoe UI", 18, "bold"))
+            self.canvas.create_text(
+                x + w / 2, y + h * 0.45, text="!", fill=outline, font=("Segoe UI", 18, "bold")
+            )
         elif node.shape in {"energy"}:
             self.canvas.create_polygon(
                 x + w * 0.55,

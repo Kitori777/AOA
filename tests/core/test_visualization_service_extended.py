@@ -142,6 +142,9 @@ def test_build_d3_html_report_contains_d3_and_inline_data():
     assert '"x": 1' in html
     assert "drawNativeFallback" in html
     assert 'id="ctl-library"' in html
+    assert 'id="chart-picker"' in html
+    assert "renderChartPicker" in html
+    assert "chartPickerMeta" in html
     assert "drawPlotlyChart" in html
     assert "drawAltairChart" in html
 
@@ -355,6 +358,55 @@ def test_altair_html_exposes_new_interactive_charts():
     assert '"Binned Scatter"' in html
     assert '"Interactive Brush"' in html
     assert 'select:{type:"interval"}' in html
+
+
+def test_esm_best_method_accepts_light_sto_visual_columns():
+    df = pd.DataFrame(
+        {
+            "sto_model": ["MT", "MT", "MO", "MO"],
+            "sto_job_id": ["Z1", "Z2", "Z1", "Z2"],
+            "machine_id": [1, 2, 1, 2],
+            "sto_order": [1, 2, 1, 2],
+            "sto_total_for_model": [14.0, 14.0, 9.0, 9.0],
+            "sto_cumulative": [5.0, 14.0, 2.0, 9.0],
+            "sto_start": [0.0, 4.0, 0.0, 2.0],
+            "sto_end": [4.0, 9.0, 2.0, 8.0],
+        }
+    )
+
+    fig = build_figure_from_request(df, "ESM Best Method")
+    html = build_d3_html_report(df, chart_type="ESM Best Method")
+
+    assert isinstance(fig, Figure)
+    assert "sto_total_for_model" in html
+    assert "Brak metryki" in html
+
+
+def test_production_line_dashboard_and_gantt_use_light_line_columns():
+    df = pd.DataFrame(
+        {
+            "line_id": ["L1"] * 4,
+            "sto_job_id": ["A", "B", "A", "B"],
+            "station_id": ["S1", "S1", "S2", "S2"],
+            "station_order": [1, 1, 2, 2],
+            "machine_id": ["S1:M1", "S1:M2", "S2:M1", "S2:M1"],
+            "t_start": [0.0, 0.0, 2.0, 4.0],
+            "t_end": [2.0, 3.0, 4.0, 6.0],
+            "termin_h": [10.0, 8.0, 10.0, 5.0],
+            "cost": [1.0, 1.0, 2.0, 2.0],
+            "waste": [0.1, 0.1, 0.0, 0.0],
+            "quality": [0.99, 0.99, 0.98, 0.98],
+        }
+    )
+
+    dashboard = build_figure_from_request(df, "Production Line Dashboard")
+    gantt = build_figure_from_request(df, "Gantt")
+    html = build_d3_html_report(df, chart_type="Production Line Dashboard")
+
+    assert isinstance(dashboard, Figure)
+    assert isinstance(gantt, Figure)
+    assert "drawProductionLineDashboard" in html
+    assert 'chartType === "Production Line Dashboard"' in html
 
 
 def test_solution_tree_html_defaults_to_readable_full_tree_mode():

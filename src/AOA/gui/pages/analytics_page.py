@@ -35,9 +35,17 @@ from AOA.core.report_composer_service import (
 from AOA.core.services import load_and_prepare_visual_file
 
 REPORT_BUILDER_GUIDE = [
-    ("START", r"\title{Tytul} | \maketitle | \tableofcontents", "tytul, karta tytulowa i spis tresci"),
+    (
+        "START",
+        r"\title{Tytul} | \maketitle | \tableofcontents",
+        "tytul, karta tytulowa i spis tresci",
+    ),
     ("STRUKTURA", r"\section{Nazwa} | \subsection{Nazwa}", "duze sekcje i mniejsze podrozdzialy"),
-    ("TEKST", r"\textbf{tekst} | \emph{tekst} | \code{fit()}", "pogrubienie, kursywa i kod w linii"),
+    (
+        "TEKST",
+        r"\textbf{tekst} | \emph{tekst} | \code{fit()}",
+        "pogrubienie, kursywa i kod w linii",
+    ),
     ("LINK", r"\url{https://...}", "klikalny link w HTML"),
     ("WZORY", r"$x=y+z$ | \equation{RMSE = sqrt(mean(e^2))}", "wzor w linii albo osobny blok"),
     ("ODWOLANIA", r"\label{eq:sto} i \ref{eq:sto}", "oznaczenie miejsca i odwolanie w tekscie"),
@@ -310,9 +318,9 @@ class AnalyticsPage(ctk.CTkFrame):
         ctk.CTkButton(tools, text="Pipeline", command=self.add_pipeline_block).grid(
             row=4, column=0, sticky="ew", padx=(0, 5), pady=(6, 0)
         )
-        ctk.CTkButton(tools, text="Plik z projektu", command=self.add_selected_asset_to_report).grid(
-            row=4, column=1, sticky="ew", padx=5, pady=(6, 0)
-        )
+        ctk.CTkButton(
+            tools, text="Plik z projektu", command=self.add_selected_asset_to_report
+        ).grid(row=4, column=1, sticky="ew", padx=5, pady=(6, 0))
         ctk.CTkButton(tools, text="PDF preview", command=self.preview_custom_report_pdf).grid(
             row=4, column=2, sticky="ew", padx=5, pady=(6, 0)
         )

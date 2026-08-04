@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 
@@ -17,9 +18,29 @@ def test_sample_data_directory_is_the_only_tracked_data_source():
     assert (sample_dir / "quality.csv").exists()
     assert (sample_dir / "schedule.csv").exists()
     assert (sample_dir / "service.csv").exists()
-    assert not list(Path("data").glob("dane_*.csv"))
-    assert not list(Path("data").glob("train_*.csv"))
-    assert not list(Path("data").glob("test_*.csv"))
+    result = subprocess.run(
+        [
+            "git",
+            "-c",
+            f"safe.directory={Path.cwd().as_posix()}",
+            "ls-files",
+            "data",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    tracked_top_level = [
+        Path(line.strip())
+        for line in result.stdout.splitlines()
+        if line.strip() and Path(line.strip()).parent == Path("data")
+    ]
+    generated = [
+        path
+        for path in tracked_top_level
+        if path.name.startswith(("dane_", "train_", "test_")) and path.suffix == ".csv"
+    ]
+    assert not generated
 
 
 def test_gitignore_keeps_sample_data_but_ignores_generated_data():

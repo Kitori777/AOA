@@ -34,6 +34,10 @@ def test_generate_production_data_deadline_is_always_greater_than_processing_tim
 def test_generate_production_data_supports_multiple_machines():
     df, _, _ = generate_production_data(n=60, n_machines=3, seed=42)
 
+    assert {"machine_id", "t_start", "t_end", "lateness_h_sim"}.issubset(df.columns)
+    assert set(df["machine_id"].unique()).issubset({1, 2, 3})
+    assert df["machine_id"].nunique() > 1
+    assert (df["t_end"] >= df["t_start"]).all()
     assert "lateness_h_sim" in df.columns
     assert (df["lateness_h_sim"] >= 0).all()
 

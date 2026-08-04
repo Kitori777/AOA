@@ -6,7 +6,7 @@ from typing import Literal
 from AOA.core.mh_models import get_mh_model_specs
 from AOA.core.ml_models import get_ml_model_specs
 
-ModelFamily = Literal["ml", "mh", "tabpfn"]
+ModelFamily = Literal["ml", "mh", "tabpfn", "line"]
 
 
 @dataclass(frozen=True)
@@ -184,6 +184,21 @@ MODERN_STEPS = (
     "Ryzyko przeuczenia",
     "Kiedy uzyc",
     "Zapis workflow",
+)
+
+LINE_STEPS = (
+    "Dane zlecen",
+    "Kolejnosc stanowisk",
+    "Wzory stanowiska",
+    "Dostepne zasoby",
+    "Gotowosc zlecenia",
+    "Wybor maszyny",
+    "Czas operacji",
+    "Start i koniec",
+    "Koszt, odpad i jakosc",
+    "Przejscie dalej",
+    "KPI calej linii",
+    "Lekki CSV do Visual",
 )
 
 
@@ -712,14 +727,101 @@ def _build_mh_models() -> list[TheoryModel]:
     return models
 
 
+def _build_line_models() -> list[TheoryModel]:
+    configs = (
+        (
+            "line_flow",
+            "Przeplyw przez linie",
+            "Linia",
+            "Symulacja flow-shop",
+            "Zaprojektowac szereg stanowisk z rownoleglymi maszynami i policzyc przeplyw zlecen.",
+            "start=max(gotowosc, dostepnosc); end=start+czas",
+            "kolejnosc stanowisk, kolejki i dostepnosc zasobow",
+            "Harmonogram calej linii",
+        ),
+        (
+            "line_time_formula",
+            "Wzory czasu i zasoby",
+            "Czas",
+            "Bezpieczne wzory stanowisk",
+            "Policzyc czas operacji z danych zlecenia i wyniku poprzedniego stanowiska.",
+            "p_s=f(czas_produkcji_h, prev_duration, resource_index, ...)",
+            "czas operacji i liczba rownoleglych maszyn",
+            "Czas kazdej operacji",
+        ),
+        (
+            "line_kpi_formula",
+            "Wzory kosztu, odpadu i jakosci",
+            "KPI",
+            "Propagacja KPI",
+            "Przypisac wzory KPI do stanowisk i uzyskac laczny wynik dla kazdego zlecenia.",
+            "K=sum(k_s); W=sum(w_s); Q_s=f(Q_{s-1}, dane)",
+            "koszt, odpad, jakosc, opoznienie i przepustowosc",
+            "KPI linii i zlecen",
+        ),
+    )
+    details = (
+        "Wczytujemy zlecenia; kazdy rekord ma identyfikator, czas bazowy, termin i opcjonalne cechy.",
+        "Uzytkownik ustawia stanowiska w kolejnosci, w ktorej produkt przechodzi przez linie.",
+        "Kazde stanowisko dostaje osobne wzory czasu, kosztu, odpadu i jakosci.",
+        "Stanowisko ma od jednej do wielu maszyn; kazda maszyna ma wlasny zegar dostepnosci.",
+        "Zlecenie moze wejsc na stanowisko dopiero po zakonczeniu poprzedniego etapu.",
+        "Symulator wybiera najwczesniej dostepna maszyne danego stanowiska.",
+        "Bezpieczny parser liczy czas z dozwolonych zmiennych i funkcji matematycznych.",
+        "Start to maksimum gotowosci zlecenia i dostepnosci maszyny; koniec to start plus czas.",
+        "Wyniki wzorow KPI sa dopisywane do stanu zlecenia i przekazywane do kolejnego stanowiska.",
+        "Po operacji zlecenie otrzymuje nowy prev_end i prev_duration, a zasob nowy czas dostepnosci.",
+        "Z ostatniego stanowiska liczymy makespan, throughput, opoznienia, koszt, odpad i srednia jakosc.",
+        "CSV zawiera tylko fakty operacyjne; konfiguracja i wzory sa zapisane raz w osobnym JSON.",
+    )
+    pseudocode = (
+        "for station in line.stations:",
+        "  resources = priority_queue(available_time)",
+        "  for job in jobs_sorted_by_ready_time:",
+        "    machine = pop_earliest_resource()",
+        "    start = max(job.ready, machine.available)",
+        "    duration = safe_formula(job, previous_state)",
+        "    end = start + duration",
+        "    update_kpi_and_resource(job, machine, end)",
+    )
+    return [
+        TheoryModel(
+            key=key,
+            family="line",
+            title=title,
+            short_title=short,
+            subtitle="Trzecia sekcja wzorow: projektowanie wlasnej linii i liczenie wyniku koncowego.",
+            model_type="Linia produkcyjna",
+            algorithm=algorithm,
+            goal=goal,
+            metric=metric,
+            focus=focus,
+            steps=LINE_STEPS,
+            step_details=details,
+            pseudocode=pseudocode,
+            next_steps=(
+                "Zaprojektuj stanowiska w Main i przypisz wzory.",
+                "Uruchom symulacje na wygenerowanych albo wczytanych danych.",
+                "Otworz lekki CSV w Visual i sprawdz Gantta oraz KPI.",
+            ),
+            tip="Wzory sa walidowane przed startem. Nie moga uruchamiac kodu ani korzystac z plikow lub sieci.",
+            probabilities=(("czas", 0.42), ("koszt", 0.28), ("jakosc", 0.30)),
+            result=result,
+        )
+        for key, title, short, algorithm, goal, metric, focus, result in configs
+    ]
+
+
 THEORY_MODELS: tuple[TheoryModel, ...] = tuple(
-    _build_ml_models() + _build_mh_models() + _build_tabpfn_models()
+    _build_ml_models() + _build_mh_models() + _build_tabpfn_models() + _build_line_models()
 )
 
 
 def get_theory_models(family: ModelFamily | None = None) -> tuple[TheoryModel, ...]:
     if family is None:
         return THEORY_MODELS
+    if family == "ml":
+        return tuple(model for model in THEORY_MODELS if model.family in {"ml", "tabpfn"})
     return tuple(model for model in THEORY_MODELS if model.family == family)
 
 

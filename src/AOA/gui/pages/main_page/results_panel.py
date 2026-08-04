@@ -18,7 +18,7 @@ class MainPageResultsPanelMixin:
         best = sto_result.get("best_result")
         saved_paths = sto_result.get("saved_paths", [])
         best_path = sto_result.get("best_path")
-        all_path = sto_result.get("all_path")
+        all_path = sto_result.get("visual_path") or sto_result.get("all_path")
 
         self._safe_log("===== WYNIKI STO =====")
         if best is not None:
@@ -40,14 +40,14 @@ class MainPageResultsPanelMixin:
                     f"- {item['method']} | STO={item['sto']:.3f} | drzewo: SolutionTree | {item['path']}"
                 )
         if all_path:
-            self._safe_log(f"- WSZYSTKIE MODELE | wybieraj model drzewa w Visual | {all_path}")
+            self._safe_log(f"- VISUAL STO | lekki plik do wykresow i drzewa | {all_path}")
         if best_path:
             self._safe_log(f"- BEST | {best_path}")
 
     def _sto_saved_files_text(self, sto_result: dict) -> str:
         saved_paths = sto_result.get("saved_paths", [])
         best_path = sto_result.get("best_path")
-        all_path = sto_result.get("all_path")
+        all_path = sto_result.get("visual_path") or sto_result.get("all_path")
         if not saved_paths and not best_path and not all_path:
             return ""
 
@@ -59,8 +59,8 @@ class MainPageResultsPanelMixin:
         if all_path:
             lines.extend(
                 [
-                    f"Zbiorczy CSV: {all_path}",
-                    "W Visual wczytaj ten plik, wybierz SolutionTree i wskaz model w polu modelu drzewa.",
+                    f"Lekki CSV do Visual: {all_path}",
+                    "W Visual wczytaj ten plik, wybierz SolutionTree, Gantt albo ESM Best Method.",
                     "",
                 ]
             )

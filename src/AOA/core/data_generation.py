@@ -37,6 +37,9 @@ def generate_production_data(
     Raises:
         ValueError: If selected shapes or materials contain unsupported values.
     """
+    if n_machines <= 0:
+        raise ValueError("n_machines musi byc dodatnie")
+
     np.random.seed(seed)
 
     available_ksztalty = list(KSZTALT_DIMENSIONS.keys())
@@ -82,6 +85,9 @@ def generate_production_data(
 
     machines = [0.0] * n_machines
     lateness_h = []
+    machine_ids = []
+    t_start = []
+    t_end = []
 
     for _, row in df.iterrows():
         next_machine_idx = int(np.argmin(machines))
@@ -91,8 +97,14 @@ def generate_production_data(
 
         deadline = row["termin_h"]
         late = max(0, end - deadline)
+        machine_ids.append(next_machine_idx + 1)
+        t_start.append(start)
+        t_end.append(end)
         lateness_h.append(late)
 
+    df["machine_id"] = machine_ids
+    df["t_start"] = np.round(t_start, 3)
+    df["t_end"] = np.round(t_end, 3)
     df["lateness_h_sim"] = np.round(lateness_h, 3)
 
     train_df, test_df = train_test_split(df, test_size=test_size, random_state=seed)

@@ -111,7 +111,9 @@ def test_custom_sto_heuristic_is_saved_listed_and_run(monkeypatch):
 
         result = run_selected_sto_models(jobs, [config.name])[0]
 
-        assert config.name in custom_mh_models.get_custom_heuristic_config(config.name).name
+        saved_config = custom_mh_models.get_custom_heuristic_config(config.name)
+        assert saved_config is not None
+        assert config.name in saved_config.name
         assert result["method"] == config.name
         assert result["order"][0] == "B"
     finally:

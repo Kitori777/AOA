@@ -8,14 +8,14 @@
   {
     "id": "main_workflow",
     "aliases": ["main", "trening", "trenuj", "wybor modeli", "modele w main", "co robi main"],
-    "answer": "Main jest centrum obliczen. Tu uzytkownik wczytuje albo generuje dane, wybiera modele ML i heurystyki STO, uruchamia trening/analize oraz zapisuje wyniki. ML przewiduje jakosc, opoznienie albo schedule. STO uklada kolejnosc zlecen i liczy sume dodatnich opoznien.",
+    "answer": "Main jest centrum obliczen. Tu uzytkownik wczytuje albo generuje dane, wybiera modele ML i heurystyki STO, uruchamia trening/analize oraz zapisuje wyniki. ML przewiduje jakosc, opoznienie albo schedule. STO uklada kolejnosc zlecen i liczy sume dodatnich opoznien. Przy wielu maszynach dane dostaja machine_id, t_start i t_end, a STO zapisuje lekki plik sto_visual do Visual i Results.",
     "steps": ["Wczytaj CSV/TXT/TSV albo wygeneruj dane.", "Zaznacz modele Quality, Delay, Schedule albo metody STO.", "Kliknij trening/analize.", "Po zakonczeniu przejdz do Visual lub Results."]
   },
   {
     "id": "visual_workflow",
     "aliases": ["visual", "wykres", "rysuj wykres", "html", "otworz html", "biblioteka wykresu"],
-    "answer": "Visual sluzy do eksploracji danych. Wybierasz X, Y, Z, typ wykresu i biblioteke. Matplotlib daje podglad w aplikacji, D3/Plotly/Altair sa najmocniejsze w HTML, Seaborn jest dobry do statystyki, a NetworkX do grafow i drzew.",
-    "steps": ["Wczytaj dane.", "Wybierz X/Y/Z.", "Wybierz typ wykresu zgodny z biblioteka.", "Kliknij Rysuj raport albo Otworz HTML.", "Czytaj osie, kolor, rozmiar i raport po prawej."]
+    "answer": "Visual sluzy do eksploracji danych. Wybierasz X, Y, Z, typ wykresu i biblioteke. Typ wykresu mozna wybrac z listy albo kafelkowego selektora dopasowanego do biblioteki. Matplotlib daje podglad w aplikacji, D3/Plotly/Altair sa najmocniejsze w HTML, Seaborn jest dobry do statystyki, a NetworkX do grafow i drzew.",
+    "steps": ["Wczytaj dane.", "Wybierz X/Y/Z.", "Wybierz typ wykresu z listy albo kafelkow zgodnych z biblioteka.", "Kliknij Rysuj raport albo Otworz HTML.", "Czytaj osie, kolor, rozmiar i raport po prawej."]
   },
   {
     "id": "chart_libraries",
@@ -26,7 +26,7 @@
   {
     "id": "solution_tree",
     "aliases": ["solutiontree", "solution tree", "drzewo rozwiazan", "drzewo", "galaz", "zielony", "zolty", "schowaj galaz"],
-    "answer": "SolutionTree pokazuje warianty rozwiazania i sciezke najlepsza wedlug danych albo wybranego algorytmu. Zielony oznacza najlepsza sciezke. Zolty oznacza wariant sprawdzony, pokonany albo taki, do ktorego algorytm wrocil po porownaniu. W HTML mozna kliknac wezel, schowac galaz i potem pokazac cale drzewo.",
+    "answer": "SolutionTree pokazuje warianty rozwiazania i sciezke najlepsza wedlug danych albo wybranego algorytmu. Dla lekkich wynikow STO potrafi odbudowac drzewo z kolumn sto_order, sto_start, sto_end i sto_cumulative, bez ciezkiej kolumny solution_tree_json. Zielony oznacza najlepsza sciezke. Zolty oznacza wariant sprawdzony, pokonany albo taki, do ktorego algorytm wrocil po porownaniu. W HTML mozna kliknac wezel, schowac galaz i potem pokazac cale drzewo.",
     "steps": ["W Visual wybierz SolutionTree.", "Otworz HTML, bo tam drzewo jest interaktywne.", "Kliknij wezel drzewa.", "Uzyj Schowaj wybrana galaz albo Pokaz cale drzewo.", "Porownuj zielone i zolte elementy z raportem."]
   },
   {
@@ -274,5 +274,11 @@
     "aliases": ["kontrakt danych", "data contract", "wymagane kolumny", "walidacja danych przed treningiem", "jakie kolumny potrzebne"],
     "answer": "Data Contract opisuje minimalne wymagania danych przed treningiem: czas_h jako dodatni czas pracy, termin_h jako dodatni deadline, koszt jako liczba nieujemna, material jako kategoria lub liczba, jakosc/opoznienie jako cele regresji i schedule jako cel klasyfikacji. Globalnie X i y musza miec zgodna liczbe rekordow, cechy nie powinny miec NaN/inf, a klasyfikacja musi miec co najmniej dwie klasy.",
     "steps": ["Sprawdz, czy kolumny istnieja albo maja odpowiedniki w danych.", "Sprawdz typy: liczby dla regresji, etykiety dla schedule.", "Usun albo uzupelnij NaN/inf przed treningiem.", "Dla Schedule sprawdz, czy sa minimum 2 klasy.", "Po walidacji uruchom model i porownaj wynik w Results/Report."]
+  },
+  {
+    "id": "alice_voice_auto_gtts",
+    "aliases": ["glos alice", "czytaj odpowiedz", "naturalny glos", "google tts", "gtts", "zatrzymaj glos", "voicebox"],
+    "answer": "Glos ALICE startuje automatycznie po odpowiedzi. Tryb Auto uzywa polskiego Google TTS, a przy braku internetu wraca do lokalnego glosu Windows. Dostepne sa tez reczne tryby Google, Windows i Voicebox. Nowa wypowiedz zatrzymuje poprzednia, a plik audio jest tymczasowy.",
+    "steps": ["Zostaw Auto, jesli chcesz naturalny polski glos i bezpieczny fallback offline.", "Wybierz Windows, jesli tekst nie powinien opuszczac komputera.", "Kliknij Test glosu, aby porownac ustawienia.", "Uzyj Zatrzymaj, aby przerwac czytanie.", "Sprawdz status pod suwakami, aby zobaczyc faktycznie uzyty silnik."]
   }
 ]

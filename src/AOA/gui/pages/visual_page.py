@@ -10,6 +10,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 from AOA.config import DATA_DIR
 from AOA.core.services import load_and_prepare_visual_file
 from AOA.core.visualization_service import (
+    CHART_PICKER_META,
     CHART_TYPES,
     VISUAL_LIBRARIES,
     build_d3_dashboard_html_report,
@@ -81,6 +82,14 @@ class VisualPage(ctk.CTkFrame):
             width=145,
         )
         self.library_menu.grid(row=0, column=5, padx=6, pady=12)
+        ctk.CTkButton(
+            control,
+            text="Wybierz wykres",
+            command=self._open_chart_picker,
+            width=135,
+            fg_color="#334155",
+            hover_color="#475569",
+        ).grid(row=0, column=8, padx=6, pady=12, sticky="w")
         self.tree_model_menu = None
         ctk.CTkButton(control, text="Rysuj raport", command=self.draw_plot, width=135).grid(
             row=0, column=6, padx=6, pady=12
@@ -181,6 +190,74 @@ class VisualPage(ctk.CTkFrame):
         if callable(opener):
             opener()
 
+    def _open_chart_picker(self):
+        popup = ctk.CTkToplevel(self)
+        popup.title("Wybierz wykres")
+        popup.geometry("760x560")
+        popup.transient(self.winfo_toplevel())
+        popup.grid_columnconfigure(0, weight=1)
+        popup.grid_rowconfigure(1, weight=1)
+
+        current_library = self.chart_library.get()
+        supported = set(get_supported_chart_types(current_library))
+        ctk.CTkLabel(
+            popup,
+            text=f"Wykresy dla biblioteki: {current_library}",
+            font=("Arial", 20, "bold"),
+        ).grid(row=0, column=0, sticky="w", padx=18, pady=(16, 8))
+
+        scroll = ctk.CTkScrollableFrame(popup)
+        scroll.grid(row=1, column=0, sticky="nsew", padx=18, pady=(0, 18))
+        for col in range(4):
+            scroll.grid_columnconfigure(col, weight=1)
+
+        row = 0
+        col = 0
+        last_group = None
+        for chart in CHART_TYPES:
+            meta = CHART_PICKER_META.get(chart, ("Inne", "□", "wykres"))
+            group, icon, hint = meta
+            if group != last_group:
+                if col:
+                    row += 1
+                    col = 0
+                ctk.CTkLabel(
+                    scroll,
+                    text=group.upper(),
+                    font=("Arial", 11, "bold"),
+                    text_color="#93c5fd",
+                ).grid(row=row, column=0, columnspan=4, sticky="w", padx=8, pady=(12, 4))
+                row += 1
+                last_group = group
+
+            enabled = chart in supported
+            selected = chart == self.plot_type.get()
+            text = f"{icon}  {chart}\n{hint}"
+            button = ctk.CTkButton(
+                scroll,
+                text=text,
+                height=62,
+                anchor="w",
+                state="normal" if enabled else "disabled",
+                fg_color="#1f8fff" if selected else "#173553",
+                hover_color="#2563eb",
+                command=lambda value=chart, win=popup: self._select_chart_from_picker(value, win),
+            )
+            button.grid(row=row, column=col, sticky="ew", padx=6, pady=6)
+            col += 1
+            if col >= 4:
+                col = 0
+                row += 1
+
+    def _select_chart_from_picker(self, chart: str, popup):
+        self.plot_type.set(chart)
+        try:
+            popup.destroy()
+        except Exception:
+            pass
+        if self.df_vis is not None:
+            self.draw_plot()
+
     def load_file(self):
         path = filedialog.askopenfilename(
             title="Wybierz plik z danymi",
@@ -211,6 +288,10 @@ class VisualPage(ctk.CTkFrame):
         self.y_var.set(result["y_default"])
         self.z_var.set(result.get("z_default", result["y_default"]))
         self._refresh_tree_models()
+        if {"line_id", "station_id", "t_start", "t_end", "machine_id"}.issubset(
+            self.df_vis.columns
+        ):
+            self.plot_type.set("Production Line Dashboard")
 
     def load_sample_data(self) -> None:
         sample_path = DATA_DIR / "sample" / "sample_table.csv"
@@ -221,7 +302,10 @@ class VisualPage(ctk.CTkFrame):
     def auto_chart_from_sample(self) -> None:
         if self.df_vis is None:
             self.load_sample_data()
-        numeric_columns = self.df_vis.select_dtypes(include="number").columns.tolist()
+        df_vis = self.df_vis
+        if df_vis is None:
+            return
+        numeric_columns = df_vis.select_dtypes(include="number").columns.tolist()
         if len(numeric_columns) >= 2:
             self.x_var.set(numeric_columns[0])
             self.y_var.set(numeric_columns[1])
@@ -250,6 +334,9 @@ class VisualPage(ctk.CTkFrame):
         if df is None or "sto_model" not in df.columns:
             return "Auto"
         metric_candidates = [
+            "sto_total_for_model",
+            "sto_cumulative",
+            "sto_tardiness_positive",
             "Kop",
             "kop",
             "sto_kop",

@@ -4,6 +4,7 @@ import os
 import webbrowser
 from pathlib import Path
 from tkinter import messagebox
+from typing import Any
 
 import customtkinter as ctk
 
@@ -575,7 +576,7 @@ class App(ctk.CTk):
         if section:
             self.focus_page_section(page, section)
 
-    def _prepare_report_builder(self, *, with_example: bool = True) -> object | None:
+    def _prepare_report_builder(self, *, with_example: bool = True) -> Any | None:
         self.show("AnalyticsPage")
         page = self.pages.get("AnalyticsPage")
         if page is None:
@@ -725,9 +726,7 @@ class App(ctk.CTk):
         try:
             if task_name == "files:open":
                 self.open_file_manager_window()
-                return (
-                    "Otworzylam menedzer plikow AOA. Mozesz podejrzec HTML, CSV, raporty, modele i usunac plik dopiero po potwierdzeniu."
-                )
+                return "Otworzylam menedzer plikow AOA. Mozesz podejrzec HTML, CSV, raporty, modele i usunac plik dopiero po potwierdzeniu."
             if task_name == "app:release_check":
                 self.open_release_check_window()
                 return (
@@ -749,22 +748,16 @@ class App(ctk.CTk):
                 )
             if task_name == "app:tutorials":
                 self.show("ReadmePage")
-                return (
-                    "Pokazuje interaktywna instrukcje AOA. Znajdziesz tu kroki pracy, tutoriale modulow, sample i linki do Theory."
-                )
+                return "Pokazuje interaktywna instrukcje AOA. Znajdziesz tu kroki pracy, tutoriale modulow, sample i linki do Theory."
             if task_name == "app:samples":
                 self.show("MainPage")
                 page = self.pages.get("MainPage")
                 if page is not None and hasattr(page, "gen"):
                     page.gen()
-                return (
-                    "Przygotowalam sample w Main. Mozesz teraz poprosic o sample Visual, Results, raport albo diagram."
-                )
+                return "Przygotowalam sample w Main. Mozesz teraz poprosic o sample Visual, Results, raport albo diagram."
             if task_name == "app:model_compare":
                 self.show("ResultsPage")
-                return (
-                    "Przenosze do Results. Porownuj modele po metrykach: regresja RMSE/MAE/R2, klasyfikacja accuracy/F1, STO opoznienia/bufor/kolejka."
-                )
+                return "Przenosze do Results. Porownuj modele po metrykach: regresja RMSE/MAE/R2, klasyfikacja accuracy/F1, STO opoznienia/bufor/kolejka."
             if task_name == "app:segments":
                 return segment_summary()
             if task_name == "app:report_templates":
@@ -788,9 +781,7 @@ class App(ctk.CTk):
                 page = self.pages.get("VisualPage")
                 if page is not None and hasattr(page, "open_d3_report"):
                     page.open_d3_report()
-                return (
-                    "Otworzylam Visual i interaktywny HTML do kontroli. Sprawdz fullscreen, eksport, tooltipy, osie, legendy, reset widoku i czy wykres nie wychodzi poza ekran."
-                )
+                return "Otworzylam Visual i interaktywny HTML do kontroli. Sprawdz fullscreen, eksport, tooltipy, osie, legendy, reset widoku i czy wykres nie wychodzi poza ekran."
             if task_name == "main:open":
                 self.show("MainPage")
                 return "Jasne, jestem juz w Main. Tu zaczyna sie praca z danymi, ML, TabPFN i STO."
@@ -852,6 +843,15 @@ class App(ctk.CTk):
                 if page is not None and hasattr(page, "run_sto_analysis"):
                     page.run_sto_analysis()
                 return "Uruchomilam szybka analize STO dla aktualnych zadan."
+            if task_name == "main:production_line":
+                self.show("MainPage")
+                page = self.pages.get("MainPage")
+                if page is not None and hasattr(page, "open_production_line_designer"):
+                    page.open_production_line_designer()
+                return (
+                    "Otworzylam projektant linii produkcyjnej. Dodaj lub ustaw stanowiska, "
+                    "przypisz zasoby i wzory, a potem uruchom symulacje."
+                )
             if task_name == "visual:open":
                 self.show("VisualPage")
                 return "Jasne, juz przenioslam Cie do Visual."
@@ -914,7 +914,9 @@ class App(ctk.CTk):
             if task_name == "visual:focus_controls":
                 self.show("VisualPage")
                 self.focus_page_section("VisualPage", "controls")
-                return "Pokazuje ustawienia wykresow: biblioteka, typ wykresu, osie i opcje rysowania."
+                return (
+                    "Pokazuje ustawienia wykresow: biblioteka, typ wykresu, osie i opcje rysowania."
+                )
             if task_name == "results:refresh":
                 self.show("ResultsPage")
                 page = self.pages.get("ResultsPage")
@@ -981,7 +983,9 @@ class App(ctk.CTk):
                 page = self.pages.get("ResultsPage")
                 if page is not None and hasattr(page, "run_sql_example"):
                     page.run_sql_example("top")
-                return "Pokazuje SQL z rekordami o najwiekszej wartosci pierwszej kolumny liczbowej."
+                return (
+                    "Pokazuje SQL z rekordami o najwiekszej wartosci pierwszej kolumny liczbowej."
+                )
             if task_name == "analytics:open":
                 self.show("AnalyticsPage")
                 return "Jasne, jestem juz w Report Studio."
@@ -1087,9 +1091,8 @@ class App(ctk.CTk):
                 if page is not None:
                     if hasattr(page, "refresh_report_asset_menu"):
                         page.refresh_report_asset_menu(show_status=False)
-                    if (
-                        getattr(page, "report_asset_paths", None)
-                        and hasattr(page, "add_selected_asset_to_report")
+                    if getattr(page, "report_asset_paths", None) and hasattr(
+                        page, "add_selected_asset_to_report"
                     ):
                         page.add_selected_asset_to_report()
                         return "Dodalam najnowszy plik z biblioteki projektu do raportu."
@@ -1112,7 +1115,9 @@ class App(ctk.CTk):
                             getattr(page, method_name)()
                     if hasattr(page, "open_report_builder_window"):
                         page.open_report_builder_window()
-                return "Stworzylam raport ML: predykcja, metryki, wykres, plan uzycia i rekomendacje."
+                return (
+                    "Stworzylam raport ML: predykcja, metryki, wykres, plan uzycia i rekomendacje."
+                )
             if task_name == "analytics:create_sto_report":
                 page = self._prepare_report_builder(with_example=True)
                 if page is not None:
@@ -1281,7 +1286,9 @@ class App(ctk.CTk):
                     page._set_family("tabpfn")
                     if hasattr(page, "_select_model"):
                         page._select_model("modern_mlp_delay")
-                return "Pokazuje MLP w Theory: warstwy neuronowe, uczenie wag i predykcje opoznienia."
+                return (
+                    "Pokazuje MLP w Theory: warstwy neuronowe, uczenie wag i predykcje opoznienia."
+                )
             if task_name == "theory:stacking":
                 self.show("TheoryPage")
                 page = self.pages.get("TheoryPage")
@@ -1329,7 +1336,7 @@ class App(ctk.CTk):
                 ]
                 return "Ukladam sciezke nauki diagramow:\n- " + "\n- ".join(messages)
             if task_name == "app:guide_next":
-                page = self.active_page
+                page_name = self.active_page
                 suggestions = {
                     "MainPage": "Jestes w Main. Najpierw wygeneruj/wczytaj dane, potem wybierz modele i uruchom trening albo STO.",
                     "VisualPage": "Jestes w Visual. Wczytaj sample, wybierz typ wykresu i narysuj dashboard albo SolutionTree.",
@@ -1338,7 +1345,10 @@ class App(ctk.CTk):
                     "DrawIOPage": "Jestes w Diagrams. Opisz proces slowami albo wybierz szablon, potem uzyj Auto layout.",
                     "TheoryPage": "Jestes w Theory. Wybierz rodzine modeli i przechodz krokami przez jedna animacje.",
                 }
-                return suggestions.get(page, "Zacznij od Main: przygotuj dane, a potem przejdz do Visual, Results albo Report.")
+                return suggestions.get(
+                    page_name,
+                    "Zacznij od Main: przygotuj dane, a potem przejdz do Visual, Results albo Report.",
+                )
             if task_name == "app:help":
                 self.show_help()
                 return "Otworzylam pomoc aplikacji."
