@@ -10,13 +10,13 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from tkinter import messagebox
-from urllib import request
 
 import customtkinter as ctk
 
 from AOA.config import ASSISTANT_ASSETS_DIR, DATA_DIR
 from AOA.core.assistant_service import AssistantService
 from AOA.core.self_learning import alice_self_learning_loop
+from AOA.core.speech_service import AliceSpeechService, SpeechRequest
 
 
 @dataclass
@@ -218,6 +218,15 @@ OPERATOR_TASK_MAP: list[tuple[tuple[str, ...], str]] = [
     ),
     (("uruchom sto", "analiza sto", "przetestuj sto"), "main:run_sto"),
     (
+        (
+            "otworz projektant linii",
+            "zaprojektuj linie produkcyjna",
+            "uloz linie produkcyjna",
+            "uruchom linie produkcyjna",
+        ),
+        "main:production_line",
+    ),
+    (
         ("odswiez visual", "aktualizuj wykres", "narysuj wykres", "zrob mi wykres", "zrob wykres"),
         "visual:draw",
     ),
@@ -272,7 +281,10 @@ OPERATOR_TASK_MAP: list[tuple[tuple[str, ...], str]] = [
         "results:load_sample",
     ),
     (("pokaz braki danych", "raport brakow", "missing report"), "results:missing_report"),
-    (("eksportuj widoczne wyniki", "zapisz widoczne wyniki", "eksport results"), "results:export_visible"),
+    (
+        ("eksportuj widoczne wyniki", "zapisz widoczne wyniki", "eksport results"),
+        "results:export_visible",
+    ),
     (("eksportuj wynik sql", "zapisz wynik sql", "csv sql"), "results:export_sql"),
     (("pokaz filtry results", "filtry results", "panel filtrow"), "results:focus_filters"),
     (("uruchom sql", "wykonaj sql", "przetestuj sql"), "results:sql_run"),
@@ -295,16 +307,37 @@ OPERATOR_TASK_MAP: list[tuple[tuple[str, ...], str]] = [
     (("reset sql",), "results:sql_reset"),
     (("reset filtry", "wyczysc filtry"), "results:reset_filters"),
     (
-        ("otworz report", "przejdz do report", "otworz analytics", "przejdz do analytics", "data analytics"),
+        (
+            "otworz report",
+            "przejdz do report",
+            "otworz analytics",
+            "przejdz do analytics",
+            "data analytics",
+        ),
         "analytics:open",
     ),
     (
-        ("uruchom report", "uruchom analytics", "analiza analytics", "workflow analytics", "workflow report"),
+        (
+            "uruchom report",
+            "uruchom analytics",
+            "analiza analytics",
+            "workflow analytics",
+            "workflow report",
+        ),
         "analytics:run",
     ),
-    (("uruchom wszystkie raporty", "wykonaj wszystko report", "pelna analiza report"), "analytics:run_all"),
-    (("wygeneruj html analytics", "raport html analytics", "eksport analytics html"), "analytics:export_full_html"),
-    (("pokaz builder raportu", "focus builder raportu", "sekcja builder raportu"), "analytics:focus_builder"),
+    (
+        ("uruchom wszystkie raporty", "wykonaj wszystko report", "pelna analiza report"),
+        "analytics:run_all",
+    ),
+    (
+        ("wygeneruj html analytics", "raport html analytics", "eksport analytics html"),
+        "analytics:export_full_html",
+    ),
+    (
+        ("pokaz builder raportu", "focus builder raportu", "sekcja builder raportu"),
+        "analytics:focus_builder",
+    ),
     (
         ("report builder", "otworz builder", "otworz edytor raportu", "pelny edytor raportu"),
         "analytics:report_builder",
@@ -323,7 +356,10 @@ OPERATOR_TASK_MAP: list[tuple[tuple[str, ...], str]] = [
     (("dodaj kpi do raportu", "kpi do raportu"), "analytics:add_kpi"),
     (("dodaj rekomendacje do raportu", "rekomendacje do raportu"), "analytics:add_recommendations"),
     (("dodaj wykres do raportu", "wykres do raportu"), "analytics:add_chart"),
-    (("dodaj plik do raportu", "wstaw plik do raportu", "dodaj asset do raportu"), "analytics:add_asset"),
+    (
+        ("dodaj plik do raportu", "wstaw plik do raportu", "dodaj asset do raportu"),
+        "analytics:add_asset",
+    ),
     (("odswiez pliki raportu", "odswiez biblioteke raportu"), "analytics:refresh_assets"),
     (("stworz raport ml", "raport ml", "przygotuj raport ml"), "analytics:create_ml_report"),
     (("stworz raport sto", "raport sto", "przygotuj raport sto"), "analytics:create_sto_report"),
@@ -394,17 +430,32 @@ OPERATOR_TASK_MAP: list[tuple[tuple[str, ...], str]] = [
     (("diagram sekwencji", "sequence diagram", "sekwencja systemu"), "drawio:create_sequence"),
     (("schemat organizacji", "org chart", "struktura zespolu"), "drawio:create_org"),
     (("mapa mysli", "mind map", "burza pomyslow"), "drawio:create_mindmap"),
-    (("drzewo decyzji diagram", "diagram decyzji", "decision tree diagram"), "drawio:create_decision"),
+    (
+        ("drzewo decyzji diagram", "diagram decyzji", "decision tree diagram"),
+        "drawio:create_decision",
+    ),
     (("tablica kanban", "diagram kanban", "kanban board"), "drawio:create_kanban"),
     (("diagram magazynu", "warehouse flow", "przeplyw magazynu"), "drawio:create_warehouse"),
-    (("kontrola jakosci diagram", "diagram qc", "quality control diagram"), "drawio:create_quality"),
-    (("ml production pipeline", "pipeline ml produkcyjny", "diagram mlops"), "drawio:create_ml_pipeline"),
-    (("diagram utrzymania ruchu", "maintenance flow", "utrzymanie ruchu"), "drawio:create_maintenance"),
+    (
+        ("kontrola jakosci diagram", "diagram qc", "quality control diagram"),
+        "drawio:create_quality",
+    ),
+    (
+        ("ml production pipeline", "pipeline ml produkcyjny", "diagram mlops"),
+        "drawio:create_ml_pipeline",
+    ),
+    (
+        ("diagram utrzymania ruchu", "maintenance flow", "utrzymanie ruchu"),
+        "drawio:create_maintenance",
+    ),
     (("value stream map", "vsm", "mapa strumienia wartosci"), "drawio:create_vsm"),
     (("supply chain", "lancuch dostaw", "diagram dostaw"), "drawio:create_supply"),
     (("plant layout", "layout hali", "uklad zakladu"), "drawio:create_plant"),
     (("andon incident", "diagram awarii", "incydent andon"), "drawio:create_andon"),
-    (("inventory replenishment", "uzupelnianie zapasow", "diagram zapasow"), "drawio:create_inventory"),
+    (
+        ("inventory replenishment", "uzupelnianie zapasow", "diagram zapasow"),
+        "drawio:create_inventory",
+    ),
     (("energy media flow", "media energia", "diagram energii"), "drawio:create_energy"),
     (("guide diagram", "pomoc diagram", "jak robic diagram"), "drawio:guide"),
     (("auto layout", "uloz diagram", "wyrownaj diagram"), "drawio:auto_layout"),
@@ -417,18 +468,36 @@ OPERATOR_TASK_MAP: list[tuple[tuple[str, ...], str]] = [
     (("pokaz mlp", "theory mlp", "animacja mlp"), "theory:mlp"),
     (("pokaz stacking", "theory stacking", "animacja stacking"), "theory:stacking"),
     (("pokaz schedule", "theory schedule", "animacja schedule"), "theory:schedule"),
-    (("lekcja ml", "lekcje ml", "daj lekcje ml", "naucz mnie ml", "sciezka ml"), "learning:ml_path"),
     (
-        ("lekcja raportow", "lekcje raportow", "daj lekcje raportow", "naucz mnie raportow", "sciezka raportow"),
+        ("lekcja ml", "lekcje ml", "daj lekcje ml", "naucz mnie ml", "sciezka ml"),
+        "learning:ml_path",
+    ),
+    (
+        (
+            "lekcja raportow",
+            "lekcje raportow",
+            "daj lekcje raportow",
+            "naucz mnie raportow",
+            "sciezka raportow",
+        ),
         "learning:report_path",
     ),
     (
-        ("lekcja diagramow", "lekcje diagramow", "daj lekcje diagramow", "naucz mnie diagramow", "sciezka diagramow"),
+        (
+            "lekcja diagramow",
+            "lekcje diagramow",
+            "daj lekcje diagramow",
+            "naucz mnie diagramow",
+            "sciezka diagramow",
+        ),
         "learning:diagram_path",
     ),
     (("co powinienem kliknac", "prowadz mnie", "pilotuj mnie"), "app:guide_next"),
     (("otworz pomoc", "pokaz pomoc", "help aplikacji"), "app:help"),
-    (("wlacz autopokaz", "start autopokaz", "demo aplikacji", "zademonstruj aplikacje"), "theory:autotour"),
+    (
+        ("wlacz autopokaz", "start autopokaz", "demo aplikacji", "zademonstruj aplikacje"),
+        "theory:autotour",
+    ),
     (
         ("stworz demo aplikacji", "przetestuj cala aplikacje", "pokaz caly przeplyw"),
         "app:create_demo",
@@ -525,17 +594,19 @@ class AOAAssistantPanel(ctk.CTkToplevel):
         self.run_app_task = run_app_task
         self.assistant = AssistantService()
         self._talk_after_ids: list[str] = []
+        self.speech_service = AliceSpeechService()
         self.voice_enabled = ctk.BooleanVar(value=True)
         self.response_profile = ctk.StringVar(value="normal")
         self.voice_names = self._load_system_voice_names()
         self.voice_choice = ctk.StringVar(value=self._default_voice_choice(self.voice_names))
-        self.voice_engine = ctk.StringVar(value=os.getenv("AOA_ALICE_VOICE_ENGINE", "Windows"))
+        self.voice_engine = ctk.StringVar(value=os.getenv("AOA_ALICE_VOICE_ENGINE", "Auto"))
         self.voicebox_url = ctk.StringVar(
             value=os.getenv("AOA_VOICEBOX_SPEAK_URL", "http://127.0.0.1:17493/speak")
         )
         self.voicebox_voice = ctk.StringVar(value=os.getenv("AOA_VOICEBOX_VOICE", "female"))
         self.voice_rate = ctk.DoubleVar(value=-1)
         self.voice_volume = ctk.DoubleVar(value=92)
+        self.voice_status_var = ctk.StringVar(value="Auto: naturalny Google, offline Windows")
         self.operator_mode = ctk.BooleanVar(value=True)
         self.auto_confirm_heavy = ctk.BooleanVar(value=False)
         self._is_busy = False
@@ -551,7 +622,7 @@ class AOAAssistantPanel(ctk.CTkToplevel):
         self.configure(fg_color="#071423")
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=1)
-        self.protocol("WM_DELETE_WINDOW", self.withdraw)
+        self.protocol("WM_DELETE_WINDOW", self._hide)
 
         top = ctk.CTkFrame(self, fg_color="transparent")
         top.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 6))
@@ -589,7 +660,12 @@ class AOAAssistantPanel(ctk.CTkToplevel):
         self.send_btn = ctk.CTkButton(bottom, text="Wyslij", width=90, command=self._on_send)
         self.send_btn.grid(row=0, column=1, sticky="e")
         ctk.CTkCheckBox(
-            bottom, text="Glos ALICE", variable=self.voice_enabled, onvalue=True, offvalue=False
+            bottom,
+            text="Glos ALICE",
+            variable=self.voice_enabled,
+            onvalue=True,
+            offvalue=False,
+            command=self._toggle_voice,
         ).grid(row=1, column=0, sticky="w", pady=(8, 0))
         ctk.CTkOptionMenu(
             bottom,
@@ -604,17 +680,24 @@ class AOAAssistantPanel(ctk.CTkToplevel):
             voice_row,
             values=self.voice_names or ["Auto kobiecy"],
             variable=self.voice_choice,
-            width=300,
+            width=250,
         ).grid(row=0, column=0, sticky="ew", padx=(0, 8))
         ctk.CTkButton(voice_row, text="Test glosu", width=110, command=self._test_voice).grid(
             row=0, column=1, sticky="e"
         )
+        ctk.CTkButton(
+            voice_row,
+            text="Zatrzymaj",
+            width=95,
+            command=self._stop_voice,
+            fg_color="#475569",
+        ).grid(row=0, column=2, sticky="e", padx=(8, 0))
         voicebox_row = ctk.CTkFrame(bottom, fg_color="transparent")
         voicebox_row.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(8, 0))
         voicebox_row.grid_columnconfigure(1, weight=1)
         ctk.CTkOptionMenu(
             voicebox_row,
-            values=["Windows", "Voicebox"],
+            values=["Auto", "Google", "Windows", "Voicebox"],
             variable=self.voice_engine,
             width=120,
         ).grid(row=0, column=0, sticky="w", padx=(0, 8))
@@ -645,6 +728,12 @@ class AOAAssistantPanel(ctk.CTkToplevel):
         ctk.CTkSlider(
             tuning_row, from_=40, to=100, number_of_steps=12, variable=self.voice_volume
         ).grid(row=0, column=3, sticky="ew", padx=(8, 0))
+        ctk.CTkLabel(
+            tuning_row,
+            textvariable=self.voice_status_var,
+            text_color="#7dd3fc",
+            anchor="w",
+        ).grid(row=1, column=0, columnspan=4, sticky="ew", pady=(6, 0))
         ctk.CTkCheckBox(
             bottom,
             text="Tryb operatora",
@@ -702,7 +791,6 @@ class AOAAssistantPanel(ctk.CTkToplevel):
             if executed is not None:
                 self._append_assistant(executed)
                 self._speak_async(executed)
-                self._set_talking(False)
                 self._set_busy(False)
                 return
 
@@ -728,7 +816,6 @@ class AOAAssistantPanel(ctk.CTkToplevel):
         self._speak_async(response)
         for action in actions:
             self._run_action(action)
-        self._set_talking(False)
         self._set_busy(False)
 
     def _run_action(self, action: AssistantAction) -> None:
@@ -867,95 +954,65 @@ class AOAAssistantPanel(ctk.CTkToplevel):
             "Czesc, jestem Alice. Najpierw powiem najwazniejszy wniosek, potem spokojnie wyjasnie, co widzisz i co kliknac dalej."
         )
 
+    def _toggle_voice(self) -> None:
+        if not self.voice_enabled.get():
+            self._stop_voice()
+
+    def _stop_voice(self) -> None:
+        self.speech_service.stop()
+        self.voice_status_var.set("Glos zatrzymany")
+        self._set_talking(False)
+
+    def _hide(self) -> None:
+        self._stop_voice()
+        self.withdraw()
+
+    def destroy(self) -> None:
+        self.speech_service.stop()
+        super().destroy()
+
     def _speak_async(self, text: str) -> None:
         if not self.voice_enabled.get():
+            self._set_talking(False)
             return
         speech = self._prepare_spoken_text(text)
         if not speech:
+            self._set_talking(False)
             return
-
-        def _run() -> None:
-            if self.voice_engine.get().lower() == "voicebox" and self._speak_with_voicebox(speech):
-                return
-            safe = speech.replace("'", "''")
-            selected_voice = self.voice_choice.get().replace("'", "''")
-            rate = int(round(float(self.voice_rate.get())))
-            volume = int(round(float(self.voice_volume.get())))
-            script = (
-                "Add-Type -AssemblyName System.Speech; "
-                "$s = New-Object System.Speech.Synthesis.SpeechSynthesizer; "
-                "$voices = $s.GetInstalledVoices() | Where-Object { $_.Enabled } | ForEach-Object { $_.VoiceInfo }; "
-                "$femalePl = $voices | Where-Object { $_.Culture.Name -like 'pl*' -and $_.Gender -eq 'Female' } | Select-Object -First 1; "
-                "$femaleAny = $voices | Where-Object { $_.Gender -eq 'Female' } | Select-Object -First 1; "
-                f"$chosenName = '{selected_voice}'; "
-                "$chosen = $voices | Where-Object { $_.Name -eq $chosenName } | Select-Object -First 1; "
-                "$selected = if ($chosen) { $chosen } elseif ($femalePl) { $femalePl } elseif ($femaleAny) { $femaleAny } else { $null }; "
-                "if ($selected) { $s.SelectVoice($selected.Name) }; "
-                f"$s.Rate = {rate}; $s.Volume = {volume}; "
-                f"$s.Speak('{safe}');"
-            )
-            try:
-                subprocess.run(
-                    ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
-                    check=False,
-                    capture_output=True,
-                    text=True,
-                    timeout=45,
-                )
-            except Exception:
-                return
-
-        threading.Thread(target=_run, daemon=True).start()
-
-    def _speak_with_voicebox(self, speech: str) -> bool:
-        url = self.voicebox_url.get().strip()
-        if not url:
-            return False
-        payload = {
-            "text": speech,
-            "voice": self.voicebox_voice.get().strip() or "female",
-            "voice_id": self.voicebox_voice.get().strip() or "female",
-            "format": "wav",
-        }
-        data = json.dumps(payload).encode("utf-8")
-        req = request.Request(
-            url,
-            data=data,
-            headers={"Content-Type": "application/json", "User-Agent": "AOA-ALICE/1.0"},
-            method="POST",
+        speech_request = SpeechRequest(
+            text=speech,
+            engine=self.voice_engine.get(),
+            voice_name=self.voice_choice.get(),
+            rate=int(round(float(self.voice_rate.get()))),
+            volume=int(round(float(self.voice_volume.get()))),
+            voicebox_url=self.voicebox_url.get(),
+            voicebox_voice=self.voicebox_voice.get(),
         )
-        try:
-            with request.urlopen(req, timeout=20) as resp:
-                content_type = resp.headers.get("Content-Type", "")
-                body = resp.read()
-        except Exception:
-            return False
-        if "audio" not in content_type.lower() or not body:
-            return True
-        try:
-            out_dir = DATA_DIR / "alice_voicebox"
-            out_dir.mkdir(parents=True, exist_ok=True)
-            suffix = ".mp3" if "mpeg" in content_type.lower() else ".wav"
-            path = out_dir / f"alice_voicebox_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}{suffix}"
-            path.write_bytes(body)
-            safe_path = str(path).replace("'", "''")
-            subprocess.run(
-                [
-                    "powershell",
-                    "-NoProfile",
-                    "-ExecutionPolicy",
-                    "Bypass",
-                    "-Command",
-                    f"(New-Object Media.SoundPlayer '{safe_path}').PlaySync();",
-                ],
-                check=False,
-                capture_output=True,
-                text=True,
-                timeout=60,
-            )
-        except Exception:
-            return False
-        return True
+
+        def _ui(callback: Callable[[], None]) -> None:
+            try:
+                self.after(0, callback)
+            except Exception:
+                pass
+
+        def _started() -> None:
+            self.voice_status_var.set("Przygotowuje glos...")
+            self._set_talking(True)
+
+        def _finished(engine: str) -> None:
+            self.voice_status_var.set(f"Odczytano: {engine}")
+            self._set_talking(False)
+
+        def _error(message: str) -> None:
+            self.voice_status_var.set(message)
+            self._set_talking(False)
+
+        self.speech_service.speak_async(
+            speech_request,
+            on_started=lambda: _ui(_started),
+            on_finished=lambda engine: _ui(lambda: _finished(engine)),
+            on_error=lambda message: _ui(lambda: _error(message)),
+        )
 
     @staticmethod
     def _load_system_voice_names() -> list[str]:

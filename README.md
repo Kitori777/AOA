@@ -36,6 +36,8 @@ Glowna zasada architektury pozostaje prosta:
 - Dodawac wlasne modele ML z bibliotek `sklearn` oraz, jesli zaleznosc jest
   zainstalowana, `xgboost`.
 - Dodawac wlasne heurystyki STO z prostego wzoru score, np. `d - 1.5 * p`.
+- Recznie projektowac szeregowa linie produkcyjna: dodawac, edytowac, usuwac
+  i przesuwac stanowiska, przypisywac maszyny oraz bezpieczne wzory wynikow.
 - Porownywac wiele modeli ML w jednym przeplywie pracy.
 - Uruchamiac heurystyki STO i wybierac najlepsza kolejnosc zlecen.
 - Liczyc i interpretowac metryki regresji oraz klasyfikacji.
@@ -124,6 +126,9 @@ Najwazniejsze parametry generowania danych:
 
 Warto zapamietac:
 
+- Przy wielu maszynach dane zawieraja `machine_id`, `t_start`, `t_end`
+  oraz `lateness_h_sim`, wiec Visual moze od razu rysowac Gantt i filtrowac
+  wykresy po maszynie.
 - `Quality` i `Delay` to regresja, czyli model przewiduje liczbe.
 - `Schedule` to klasyfikacja, czyli model wybiera klase lub strategie.
 - Dla modeli liniowych, SVM, KNN i MLP zwykle warto wybrac skalowanie `standard`
@@ -205,10 +210,68 @@ d - 1.5 * p
 
 Im mniejszy score, tym wczesniej zlecenie trafia do kolejki.
 
+Wyniki STO zapisywane do Visual korzystaja z lekkiego pliku `sto_visual`.
+Zawiera on tylko kolumny potrzebne do wykresow i tabel, np. `sto_model`,
+`sto_job_id`, `machine_id`, `sto_order`, `sto_start`, `sto_end`,
+`sto_cumulative` i `sto_total_for_model`. `SolutionTree` odbudowuje drzewo z
+tych kolumn, bez ciezkiej kolumny `solution_tree_json` w pliku wynikowym.
+
+### Wlasna linia produkcyjna
+
+W Main przycisk `Projektuj i uruchom wlasna linie produkcyjna` otwiera graficzne
+plotno podobne do Diagrams. Stanowiska sa blokami, ktore mozna dodawac,
+przeciagac po siatce, laczyc strzalkami, rozlaczac i usuwac. Klikniecie bloku
+otwiera jego liczbe rownoleglych maszyn oraz wzory czasu, kosztu, odpadu i
+jakosci. Wzory korzystaja z bezpiecznego parsera matematycznego i nie uruchamiaja
+kodu Pythona.
+
+Strzalki wyznaczaja kolejnosc symulacji. Samo przesuniecie bloku nie zmienia
+wyniku. Poprawny projekt ma jedno wejscie, jedno wyjscie i jedna spojna sciezke,
+bez cykli oraz rozgalezien. Status pod plotnem wyjasnia problem, a symulacja jest
+zablokowana do czasu poprawnego polaczenia wszystkich stanowisk. Dostepne sa
+auto-uklad, zoom, przewijanie oraz menu kontekstowe bloku.
+
+Definicja linii jest zapisywana raz jako JSON w `models/production_lines/`.
+Format `schema_version: 2` przechowuje wzory, zasoby, wspolrzedne blokow i
+polaczenia. Stare projekty bez ukladu graficznego nadal dzialaja i po wczytaniu
+sa automatycznie rozmieszczane od lewej do prawej. Niedokonczony diagram mozna
+zapisac i dokonczyc pozniej, ale nie mozna go uruchomic.
+Kazde uruchomienie tworzy dwa rozne, lekkie pliki wynikowe:
+
+- `production_line_visual_*.csv` - jeden wiersz na operacje; zawiera tylko 12
+  kolumn potrzebnych do wykresow: identyfikatory linii, zlecenia, stanowiska i
+  maszyny, kolejnosc, `t_start`, `t_end`, termin, koszt, odpad i jakosc,
+- `production_line_summary_*.csv` - jeden wiersz na zlecenie; zachowuje cechy
+  danych wejsciowych i dodaje czas zakonczenia, opoznienie, koszt, odpad oraz
+  jakosc calej linii. Ten plik nadaje sie do Results, Report i przygotowania ML.
+
+Wzory ani konfiguracja nie sa powtarzane w CSV. Visual rozpoznaje plik zdarzen
+automatycznie i otwiera `Production Line Dashboard`; mozna tez wybrac Gantt,
+aby zobaczyc start, koniec i obciazenie zasobow. Results moze filtrowac i
+sortowac podsumowanie, a Report ma gotowy blok KPI linii.
+
+Dostepne zmienne wzorow obejmuja m.in. `czas_produkcji_h`, `cena`, `odpad`,
+`prev_duration`, `prev_end`, `duration`, `start`, `end`, `cost_total`,
+`waste_total`, `quality`, `station_index` i `resource_index`. Dostepne funkcje to
+`min`, `max`, `abs`, `round`, `sqrt`, `ceil` i `floor`.
+
+Zmiana liczby maszyn, kolejnosci stanowisk lub wzoru czasu zmienia harmonogram,
+czas calkowity i przepustowosc. Wzory kosztu, odpadu i jakosci zmieniaja KPI i
+podsumowanie zlecen. Projektant ostrzega powyzej 250 000 operacji, a twardy limit
+wyniku wynosi 2 000 000 operacji. Bledny wzor albo blad zapisu przerywa przebieg
+bez pozostawiania czesciowego zestawu CSV. Kazdy przebieg ma unikalna nazwe.
+
+ALICE moze otworzyc projektant po poleceniu `zaprojektuj linie produkcyjna`.
+Obecny model opisuje graficznie ulozona linie szeregowa z rownoleglymi maszynami
+na stanowisku. Rozgalezienia, bufory, awarie, zmiany robocze i przezbrojenia nie
+sa jeszcze modelowane.
+
 ### Visual Lab
 
 `Visual Lab` jest laboratorium wykresow i interaktywnego HTML.
-Uzytkownik wybiera kolumny X/Y/Z, typ wykresu i biblioteke.
+Uzytkownik wybiera kolumny X/Y/Z, typ wykresu i biblioteke. W aplikacji i w
+HTML dostepny jest kafelkowy wybor wykresow, filtrowany wedlug wybranej
+biblioteki.
 
 Dostepne biblioteki:
 
@@ -458,6 +521,21 @@ ALICE potrafi:
 - czytac odpowiedzi glosowo,
 - korzystac z lokalnej bazy wiedzy `docs/alice_brain.json`,
 - opcjonalnie korzystac z endpointu LLM przez zmienne srodowiskowe.
+
+Glos ALICE domyslnie dziala w trybie `Auto`. Po wyswietleniu odpowiedzi aplikacja
+od razu przygotowuje polska mowe przez `gTTS`; gdy internet albo usluga Google
+nie sa dostepne, automatycznie wraca do lokalnego glosu Windows. Do wyboru sa:
+
+- `Auto` - Google po polsku, a przy bledzie Windows,
+- `Google` - naturalniejszy glos online z fallbackiem Windows,
+- `Windows` - glos systemowy bez wysylania tekstu do internetu,
+- `Voicebox` - opcjonalny lokalny endpoint WAV/MP3.
+
+Nowa wypowiedz zatrzymuje poprzednia, przycisk `Zatrzymaj` konczy czytanie, a
+status pod ustawieniami pokazuje faktycznie uzyty silnik. Pliki MP3/WAV sa
+tymczasowe i usuwane po odtworzeniu; powtarzane krotkie wypowiedzi Google sa
+przechowywane tylko w pamieci procesu. Tryby `Auto` i `Google` wysylaja do uslugi
+Google oczyszczony skrot odpowiedzi przeznaczony do przeczytania.
 
 ## Modele ML
 

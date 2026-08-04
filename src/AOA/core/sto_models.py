@@ -56,7 +56,7 @@ def dataframe_to_jobs(
     job_id_col: str | None = None,
     processing_col: str = "czas_produkcji_h",
     deadline_col: str = "termin_h",
-    round_to_int: bool = True,
+    round_to_int: bool = False,
 ) -> list[Job]:
     if df is None or df.empty:
         raise ValueError("Brak danych do analizy STO.")

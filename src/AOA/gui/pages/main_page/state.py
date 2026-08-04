@@ -24,8 +24,25 @@ from AOA.core.services import (
 )
 from AOA.utils.error_utils import write_exception_log
 
+from .production_line_dialog import open_production_line_designer as show_production_line_designer
+
 
 class MainPageStateMixin:
+    def open_production_line_designer(self):
+        show_production_line_designer(self, self.df_full, on_result=self._on_production_line_result)
+
+    def _on_production_line_result(self, result: dict) -> None:
+        for line in result.get("messages", []):
+            self.log(line)
+        kpis = result.get("kpis", {})
+        self.log(
+            "Linia produkcyjna: "
+            f"czas={kpis.get('makespan_h', 0):.3f} h | "
+            f"opoznione={kpis.get('late_jobs', 0)} | "
+            f"koszt={kpis.get('total_cost', 0):.3f} | "
+            f"jakosc={kpis.get('mean_quality', 0):.3f}"
+        )
+
     def _ui_config(self):
         return {
             "selected_models": [name for name, var in self.model_vars.items() if var.get()],

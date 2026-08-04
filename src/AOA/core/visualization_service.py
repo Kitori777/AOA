@@ -30,6 +30,7 @@ VISUAL_LIBRARIES = ["Matplotlib", "Seaborn", "Plotly", "Altair", "NetworkX"]
 
 CHART_TYPES = [
     "ESM Best Method",
+    "Production Line Dashboard",
     "Production Dashboard",
     "Dashboard",
     "Diagnostics",
@@ -195,6 +196,44 @@ LIBRARY_CHART_SUPPORT = {
     "Plotly": PLOTLY_CHART_TYPES,
     "Altair": ALTAIR_CHART_TYPES,
     "NetworkX": NETWORKX_CHART_TYPES,
+}
+
+CHART_PICKER_META = {
+    "Production Line Dashboard": ("Linia", "PL", "stanowiska i KPI"),
+    "Production Dashboard": ("Dashboard", "▦", "panel KPI"),
+    "Dashboard": ("Dashboard", "▦", "panel EDA"),
+    "ESM Best Method": ("STO", "★", "najlepsza metoda"),
+    "SolutionTree": ("STO", "⑂", "drzewo rozwiazan"),
+    "Gantt": ("STO", "▤", "harmonogram"),
+    "Priority Timeline": ("STO", "↗", "kolejnosc"),
+    "Step View": ("STO", "⌁", "kroki"),
+    "Scatter": ("Podstawowe", "•", "relacja X/Y"),
+    "Line": ("Podstawowe", "⌁", "trend"),
+    "Histogram": ("Podstawowe", "▥", "rozkład"),
+    "Bar Chart": ("Podstawowe", "▮", "porownanie"),
+    "Pie Chart": ("Podstawowe", "◔", "udzialy"),
+    "Boxplot": ("Statystyka", "▣", "rozrzut"),
+    "KDE Plot": ("Statystyka", "≈", "gestosc"),
+    "ECDF Plot": ("Statystyka", "∫", "dystrybuanta"),
+    "Violin Plot": ("Statystyka", "◈", "ksztalt rozkladu"),
+    "Regression Plot": ("Statystyka", "⟋", "linia trendu"),
+    "CorrelationMatrix": ("Macierze", "▦", "korelacje"),
+    "SimilarityMatrix": ("Macierze", "▧", "podobienstwo"),
+    "Heatmap Density": ("Macierze", "░", "gestosc 2D"),
+    "Missingness Map": ("Jakosc", "□", "braki"),
+    "Outlier Map": ("Jakosc", "!", "odstajace"),
+    "Column Ranking": ("Jakosc", "≡", "ranking kolumn"),
+    "3D Scatter": ("Zaawansowane", "◇", "3D punkty"),
+    "3D Surface": ("Zaawansowane", "▱", "powierzchnia"),
+    "Bubble Chart": ("Zaawansowane", "●", "rozmiar jako Z"),
+    "Pair Explorer": ("Zaawansowane", "⌘", "pary zmiennych"),
+    "ML Decision Tree": ("ML", "⑂", "drzewo ML"),
+    "Network Graph": ("Sieci", "◎", "graf"),
+    "Circular Network": ("Sieci", "◎", "uklad kolowy"),
+    "Spring Network": ("Sieci", "◎", "uklad spring"),
+    "Shell Network": ("Sieci", "◎", "uklad shell"),
+    "Kamada-Kawai Network": ("Sieci", "◎", "uklad Kamada"),
+    "Tree Network": ("Sieci", "⑂", "siec drzewa"),
 }
 
 
@@ -531,6 +570,120 @@ def _production_dashboard(df: pd.DataFrame) -> Figure:
     _style_axes(axes[1][1], title="Szybka mapa korelacji")
     fig.colorbar(image, ax=axes[1][1], fraction=0.046, pad=0.04)
     fig.suptitle("Production Dashboard", fontsize=15, fontweight="bold")
+    fig.tight_layout()
+    return fig
+
+
+def _production_line_dashboard(df: pd.DataFrame) -> Figure:
+    required = {"station_id", "machine_id", "t_start", "t_end"}
+    missing = sorted(required.difference(df.columns))
+    if missing:
+        raise ValueError(f"Production Line Dashboard wymaga kolumn: {', '.join(missing)}")
+    data = df.copy()
+    numeric_candidates = (
+        "t_start",
+        "t_end",
+        "czas_produkcji_h",
+        "lateness_h",
+        "cost",
+        "waste",
+        "quality",
+        "station_order",
+    )
+    for column in numeric_candidates:
+        if column in data.columns:
+            data[column] = pd.to_numeric(data[column], errors="coerce")
+    if "czas_produkcji_h" not in data.columns:
+        data["czas_produkcji_h"] = data["t_end"] - data["t_start"]
+    if "lateness_h" not in data.columns and "termin_h" in data.columns:
+        data["lateness_h"] = (
+            data["t_end"] - pd.to_numeric(data["termin_h"], errors="coerce")
+        ).clip(lower=0)
+    data = data.dropna(subset=["t_start", "t_end", "czas_produkcji_h"])
+    if data.empty:
+        raise ValueError("Brak poprawnych operacji linii produkcyjnej.")
+
+    fig = Figure(figsize=(13.2, 7.4), dpi=100, facecolor="#f8fafc")
+    FigureCanvasAgg(fig)
+    axes = fig.subplots(2, 2)
+    makespan = float(data["t_end"].max())
+    if "station_order" in data.columns:
+        station_order = data.groupby("station_id")["station_order"].min().sort_values()
+        station_ids = station_order.index.astype(str).tolist()
+    else:
+        station_ids = list(dict.fromkeys(data["station_id"].astype(str)))
+
+    shown = data.sort_values(["t_start", "station_id"]).head(300)
+    lanes = list(dict.fromkeys(shown["machine_id"].astype(str)))
+    lane_pos = {lane: index for index, lane in enumerate(lanes)}
+    colors = plt_colormap(max(1, len(station_ids)))
+    station_color = {station: colors[index] for index, station in enumerate(station_ids)}
+    for _, row in shown.iterrows():
+        axes[0][0].barh(
+            lane_pos[str(row["machine_id"])],
+            row["t_end"] - row["t_start"],
+            left=row["t_start"],
+            color=station_color.get(str(row["station_id"]), "#2563eb"),
+            alpha=0.88,
+        )
+    axes[0][0].set_yticks(range(len(lanes)), lanes, fontsize=8)
+    axes[0][0].set_xlabel("Czas [h]")
+    _style_axes(axes[0][0], title="Gantt zasobow (do 300 operacji)")
+
+    station_duration = data.groupby("station_id")["czas_produkcji_h"].mean().reindex(station_ids)
+    axes[0][1].bar(station_duration.index.astype(str), station_duration.values, color="#8b5cf6")
+    axes[0][1].tick_params(axis="x", rotation=25)
+    axes[0][1].set_ylabel("Sredni czas [h]")
+    _style_axes(axes[0][1], title="Sredni czas operacji na stanowisku")
+
+    utilization = data.groupby("machine_id")["czas_produkcji_h"].sum() / max(makespan, 1e-9) * 100
+    utilization = utilization.sort_values().tail(18)
+    axes[1][0].barh(utilization.index.astype(str), utilization.values, color="#16a34a")
+    axes[1][0].axvline(100, color="#dc2626", linewidth=1.5)
+    axes[1][0].set_xlabel("Wykorzystanie [%]")
+    _style_axes(axes[1][0], title="Wykorzystanie zasobow")
+
+    if "station_order" in data.columns:
+        final_rows = data[data["station_order"] == data["station_order"].max()]
+    else:
+        final_rows = data[data["station_id"].astype(str) == station_ids[-1]]
+    lateness = final_rows.get("lateness_h", pd.Series(0.0, index=final_rows.index)).fillna(0)
+    late_jobs = int((lateness > 0).sum())
+    jobs = (
+        final_rows["sto_job_id"].nunique()
+        if "sto_job_id" in final_rows.columns
+        else len(final_rows)
+    )
+    total_cost = float(data.get("cost", pd.Series(0.0, index=data.index)).fillna(0).sum())
+    total_waste = float(data.get("waste", pd.Series(0.0, index=data.index)).fillna(0).sum())
+    mean_quality = float(
+        final_rows.get("quality", pd.Series(1.0, index=final_rows.index)).fillna(1).mean()
+    )
+    axes[1][1].axis("off")
+    axes[1][1].text(
+        0.04,
+        0.94,
+        "KPI LINII",
+        transform=axes[1][1].transAxes,
+        fontsize=15,
+        fontweight="bold",
+        va="top",
+    )
+    axes[1][1].text(
+        0.04,
+        0.78,
+        (
+            f"Zlecenia: {jobs}\nStanowiska: {len(station_ids)}\nZasoby: {data['machine_id'].nunique()}\n"
+            f"Makespan: {makespan:.3f} h\nThroughput: {jobs / makespan if makespan else 0:.3f} / h\n"
+            f"Opoznione: {late_jobs}\nKoszt laczny: {total_cost:.3f}\nOdpad laczny: {total_waste:.3f}\n"
+            f"Srednia jakosc: {mean_quality:.4f}"
+        ),
+        transform=axes[1][1].transAxes,
+        fontsize=12,
+        va="top",
+        linespacing=1.45,
+    )
+    fig.suptitle("Production Line Dashboard", fontsize=16, fontweight="bold")
     fig.tight_layout()
     return fig
 
@@ -1042,11 +1195,22 @@ def _esm_best_method_dashboard(df: pd.DataFrame) -> Figure:
         raise ValueError(
             "ESM Best Method wymaga kolumny metody, np. sto_model/model/method/algorytm."
         )
-    metric_candidates = ["Kop", "kop", "sto_kop", "lateness_h_sim", "pred_delay", "odpad", "cena"]
+    metric_candidates = [
+        "sto_total_for_model",
+        "sto_cumulative",
+        "sto_tardiness_positive",
+        "Kop",
+        "kop",
+        "sto_kop",
+        "lateness_h_sim",
+        "pred_delay",
+        "odpad",
+        "cena",
+    ]
     metric = next((col for col in metric_candidates if col in df.columns), None)
     if metric is None:
         raise ValueError(
-            "ESM Best Method wymaga kolumny metryki, np. Kop/sto_kop/lateness_h_sim/pred_delay/odpad/cena."
+            "ESM Best Method wymaga kolumny metryki, np. sto_total_for_model/sto_cumulative/Kop/lateness_h_sim."
         )
 
     scored = df.copy()
@@ -1774,6 +1938,8 @@ def _build_figure_legacy(df, chart_type, x_col=None, y_col=None, z_col=None):
         raise ValueError("Brak danych do wizualizacji")
     if chart_type == "Production Dashboard":
         return _production_dashboard(df)
+    if chart_type == "Production Line Dashboard":
+        return _production_line_dashboard(df)
     if chart_type == "ESM Best Method":
         return _esm_best_method_dashboard(df)
     if chart_type == "Missingness Map":
@@ -2295,6 +2461,7 @@ def build_d3_html_report(
     y_js = json.dumps(y_name, ensure_ascii=False)
     z_js = json.dumps(z_name, ensure_ascii=False)
     chart_options_js = json.dumps(CHART_TYPES, ensure_ascii=False)
+    chart_picker_meta_js = json.dumps(CHART_PICKER_META, ensure_ascii=False)
     library_options_js = json.dumps(["D3", *VISUAL_LIBRARIES], ensure_ascii=False)
     library_support_js = json.dumps(
         {"D3": D3_CHART_TYPES, **LIBRARY_CHART_SUPPORT}, ensure_ascii=False
@@ -2330,6 +2497,15 @@ def build_d3_html_report(
     .chart-controls select {{ min-width:120px; }}
     .chart-controls button {{ cursor:pointer; font-weight:700; background:linear-gradient(180deg,#1f8fff,#1976d2); border-color:#2f74c5; }}
     .chart-controls input[type="number"], .chart-controls input[type="checkbox"] {{ accent-color:#1f8fff; }}
+    .chart-picker {{ max-width:1680px; margin:10px auto 0; padding:12px 14px; display:grid; grid-template-columns:repeat(auto-fill,minmax(116px,1fr)); gap:8px; }}
+    .chart-tile {{ display:flex; align-items:center; gap:8px; min-height:58px; padding:9px 10px; border:1px solid #284766; border-radius:8px; background:#10243a; color:#dbeafe; cursor:pointer; text-align:left; transition:transform .12s ease, border-color .12s ease, background .12s ease; }}
+    .chart-tile:hover {{ transform:translateY(-1px); border-color:#38bdf8; background:#173553; }}
+    .chart-tile.active {{ border-color:#60a5fa; background:#1e3a5f; box-shadow:0 0 0 2px rgba(96,165,250,.18) inset; }}
+    .chart-tile.disabled {{ opacity:.38; cursor:not-allowed; transform:none; }}
+    .chart-icon {{ width:28px; height:28px; display:grid; place-items:center; border:1px solid #3f6f9d; border-radius:6px; background:#071526; color:#93c5fd; font-weight:900; }}
+    .chart-name {{ display:block; font-size:12px; font-weight:800; line-height:1.05; }}
+    .chart-hint {{ display:block; margin-top:3px; color:#9fb4cc; font-size:10px; line-height:1.1; }}
+    .chart-group-label {{ grid-column:1/-1; color:#bfdbfe; font-size:11px; font-weight:900; text-transform:uppercase; letter-spacing:.08em; margin-top:4px; }}
     #chart-panel {{ overflow:auto; }}
     svg {{ width:100%; height:700px; display:block; background:#071526; border-radius:12px; }}
     #html-chart {{ width:100%; min-height:700px; display:none; background:#ffffff; color:#111827; border-radius:12px; padding:12px; }}
@@ -2394,6 +2570,7 @@ def build_d3_html_report(
     <button id="ctl-export-json" type="button">Eksport config JSON</button>
     <button id="ctl-reset" type="button">Reset ustawień</button>
   </section>
+  <section class="panel chart-picker" id="chart-picker" aria-label="Wybór wykresu"></section>
   <main>
     <section class="panel" id="chart-panel"><svg id="chart"></svg><div id="html-chart"></div></section>
     <aside class="panel">
@@ -2431,6 +2608,7 @@ def build_d3_html_report(
     const deletedTreeNodes = new Set();
     const treeAlgorithms = ["Dane z pliku", "EDD - najblizszy termin", "SPT - najkrotszy czas", "LPT - najdluzszy czas", "Min Kop - najmniejsza kara"];
     const chartOptions = {chart_options_js};
+    const chartPickerMeta = {chart_picker_meta_js};
     const libraryOptions = {library_options_js};
     const libraryChartSupport = {library_support_js};
     const columns = Object.keys(baseData[0] || {{}});
@@ -3483,6 +3661,45 @@ def build_d3_html_report(
         }});
     }}
 
+    function drawProductionLineDashboard() {{
+      const rows = data.map(d => ({{
+        station:String(d.station_id ?? "station"),
+        machine:String(d.machine_id ?? "M1"),
+        start:+d.t_start,
+        end:+d.t_end,
+        duration:Number.isFinite(+d.czas_produkcji_h) ? +d.czas_produkcji_h : (+d.t_end - +d.t_start),
+        late:Number.isFinite(+d.lateness_h) ? +d.lateness_h : Math.max(0, +d.t_end - (+d.termin_h || 0)),
+        job:String(d.sto_job_id ?? "job")
+      }})).filter(d => Number.isFinite(d.start) && Number.isFinite(d.end));
+      if (!rows.length) return drawProductionDashboard();
+      const makespan = d3.max(rows, d => d.end) || 1;
+      const stations = Array.from(new Set(rows.map(d => d.station)));
+      const jobs = new Set(rows.map(d => d.job)).size;
+      const cards = [
+        ["zlecenia", jobs], ["stanowiska", stations.length],
+        ["zasoby", new Set(rows.map(d => d.machine)).size], ["makespan [h]", makespan.toFixed(2)]
+      ];
+      cards.forEach((card, i) => {{
+        const w = (width - margin.left - margin.right - 30) / 4;
+        const x0 = margin.left + i * (w + 10);
+        svg.append("rect").attr("x",x0).attr("y",20).attr("width",w).attr("height",72).attr("rx",10).attr("fill","#10243a").attr("stroke","#3b82f6");
+        svg.append("text").attr("x",x0+14).attr("y",45).attr("fill","#93c5fd").attr("font-size",11).text(card[0]);
+        svg.append("text").attr("x",x0+14).attr("y",73).attr("fill","#f8fafc").attr("font-size",22).attr("font-weight",800).text(card[1]);
+      }});
+      const stationRows = d3.rollups(rows, values => ({{mean:d3.mean(values,d=>d.duration)||0, busy:d3.sum(values,d=>d.duration)}}), d => d.station)
+        .map(([station, values]) => ({{station, ...values}}));
+      const left = 190, top = 135, bottom = height - 90;
+      const xScale = d3.scaleLinear().domain([0,d3.max(stationRows,d=>d.mean)||1]).nice().range([left,width-margin.right]);
+      const yScale = d3.scaleBand().domain(stationRows.map(d=>d.station)).range([top,bottom]).padding(.25);
+      svg.append("g").attr("class","axis").attr("transform",`translate(0,${{bottom}})`).call(d3.axisBottom(xScale));
+      svg.append("g").attr("class","axis").attr("transform",`translate(${{left}},0)`).call(d3.axisLeft(yScale));
+      svg.selectAll("rect.line-station").data(stationRows).join("rect").attr("class","line-station")
+        .attr("x",left).attr("y",d=>yScale(d.station)).attr("width",d=>xScale(d.mean)-left).attr("height",yScale.bandwidth())
+        .attr("fill","#8b5cf6").attr("opacity",.88)
+        .on("mouseenter",(event,d)=>showTip(event,`${{d.station}}<br>sredni czas: <b>${{d.mean.toFixed(3)}} h</b><br>busy: <b>${{d.busy.toFixed(3)}} h</b>`)).on("mouseleave",hideTip);
+      svg.append("text").attr("x",left).attr("y",120).attr("fill","#e2e8f0").attr("font-size",18).attr("font-weight",800).text("Sredni czas operacji wedlug stanowiska");
+    }}
+
     function drawProductionDashboard() {{
       const numericKeys = Object.keys(data[0] || {{}})
         .filter(key => data.some(d => Number.isFinite(+d[key])));
@@ -3613,11 +3830,11 @@ def build_d3_html_report(
           .text("ESM Best Method wymaga kolumny metody, np. sto_model/model/method.");
         return;
       }}
-      const metricCandidates = ["Kop","kop","sto_kop","lateness_h_sim","pred_delay","odpad","cena"];
+      const metricCandidates = ["sto_total_for_model","sto_cumulative","sto_tardiness_positive","Kop","kop","sto_kop","lateness_h_sim","pred_delay","odpad","cena"];
       const metric = metricCandidates.find(c => columns.includes(c));
       if (!metric) {{
         svg.append("text").attr("x", margin.left).attr("y", margin.top + 40).attr("font-size", 18)
-          .text("Brak metryki (np. Kop/sto_kop/lateness_h_sim/pred_delay/odpad/cena).");
+          .text("Brak metryki (np. sto_total_for_model/sto_cumulative/Kop/lateness_h_sim).");
         return;
       }}
       const rows = data
@@ -3938,7 +4155,8 @@ def build_d3_html_report(
         return drawSolutionTree();
       }}
       showSvgMode();
-      if (chartType === "Production Dashboard" || chartType === "Dashboard") drawProductionDashboard();
+      if (chartType === "Production Line Dashboard") drawProductionLineDashboard();
+      else if (chartType === "Production Dashboard" || chartType === "Dashboard") drawProductionDashboard();
       else if (chartType === "ESM Best Method") drawESMBestMethod();
       else if (chartType === "Diagnostics") drawDiagnostics();
       else if (chartType === "Model Diagnostics") drawModelDiagnostics();
@@ -3986,6 +4204,44 @@ def build_d3_html_report(
       }});
     }}
 
+    function renderChartPicker() {{
+      const picker = document.getElementById("chart-picker");
+      if (!picker) return;
+      const supported = libraryChartSupport[chartLibrary] || chartOptions;
+      const supportedSet = new Set(supported);
+      const grouped = new Map();
+      chartOptions.forEach(name => {{
+        const meta = chartPickerMeta[name] || ["Inne", "□", "wykres"];
+        const group = meta[0] || "Inne";
+        if (!grouped.has(group)) grouped.set(group, []);
+        grouped.get(group).push({{name, icon: meta[1] || "□", hint: meta[2] || "wykres"}});
+      }});
+      picker.innerHTML = "";
+      grouped.forEach((items, group) => {{
+        const label = document.createElement("div");
+        label.className = "chart-group-label";
+        label.textContent = group;
+        picker.appendChild(label);
+        items.forEach(item => {{
+          const button = document.createElement("button");
+          button.type = "button";
+          const supportedHere = supportedSet.has(item.name);
+          button.className = `chart-tile${{item.name === chartType ? " active" : ""}}${{supportedHere ? "" : " disabled"}}`;
+          button.disabled = !supportedHere;
+          button.title = supportedHere ? item.name : `${{chartLibrary}} nie obsluguje: ${{item.name}}`;
+          button.innerHTML = `<span class="chart-icon">${{item.icon}}</span><span><span class="chart-name">${{item.name}}</span><span class="chart-hint">${{item.hint}}</span></span>`;
+          button.addEventListener("click", () => {{
+            if (!supportedHere) return;
+            chartType = item.name;
+            fillSelect("ctl-chart", supported, chartType);
+            renderChartPicker();
+            renderCurrentChart();
+          }});
+          picker.appendChild(button);
+        }});
+      }});
+    }}
+
     function showLibraryUnsupported(supported) {{
       showSvgMode();
       svg.attr("viewBox", [0, 0, 980, 620]).style("height", "620px");
@@ -4003,6 +4259,7 @@ def build_d3_html_report(
       const initialSupported = libraryChartSupport[chartLibrary] || chartOptions;
       if (!initialSupported.includes(chartType) && !(chartType === "SolutionTree" || chartType === "Network Graph")) chartType = initialSupported[0] || "Scatter";
       fillSelect("ctl-chart", initialSupported, chartType);
+      renderChartPicker();
       fillSelect("ctl-x", columns, xKey);
       fillSelect("ctl-y", columns, yKey);
       fillSelect("ctl-z", columns, zKey);
@@ -4095,6 +4352,7 @@ def build_d3_html_report(
         const supported = libraryChartSupport[chartLibrary] || chartOptions;
         if (!supported.includes(chartType)) chartType = supported[0] || "Scatter";
         fillSelect("ctl-chart", supported, chartType);
+        renderChartPicker();
         fillSelect("ctl-x", columns, xKey);
         fillSelect("ctl-y", columns, yKey);
         fillSelect("ctl-z", columns, zKey);
@@ -4125,6 +4383,7 @@ def build_d3_html_report(
         showTrend = !!document.getElementById("ctl-trend")?.checked;
         smoothLine = !!document.getElementById("ctl-smooth")?.checked;
         applyFilters();
+        renderChartPicker();
         renderCurrentChart();
       }});
       document.getElementById("ctl-library")?.addEventListener("change", () => {{
@@ -4132,6 +4391,12 @@ def build_d3_html_report(
         const supported = libraryChartSupport[chartLibrary] || chartOptions;
         if (!supported.includes(chartType)) chartType = supported[0] || "Scatter";
         fillSelect("ctl-chart", supported, chartType);
+        renderChartPicker();
+        renderCurrentChart();
+      }});
+      document.getElementById("ctl-chart")?.addEventListener("change", () => {{
+        chartType = document.getElementById("ctl-chart")?.value || chartType;
+        renderChartPicker();
         renderCurrentChart();
       }});
       document.getElementById("ctl-full")?.addEventListener("click", () => {{
@@ -4176,6 +4441,7 @@ def build_d3_html_report(
         data = [...baseData];
         fillSelect("ctl-library", libraryOptions, chartLibrary);
         fillSelect("ctl-chart", libraryChartSupport[chartLibrary] || chartOptions, chartType);
+        renderChartPicker();
         fillSelect("ctl-x", columns, xKey);
         fillSelect("ctl-y", columns, yKey);
         fillSelect("ctl-z", columns, zKey);

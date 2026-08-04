@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import ast
 import json
 import re
 from dataclasses import asdict, dataclass
@@ -8,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from AOA.config import MODELS_DIR
+from AOA.core.formula_engine import compile_formula
 
 from .specs import MHModelSpec
 
@@ -93,15 +93,20 @@ def get_custom_heuristic_config(name: str) -> CustomHeuristicConfig | None:
 
 
 def sequence_custom_heuristic(jobs: list[Any], config: CustomHeuristicConfig) -> list[Any]:
-    return sorted(
-        jobs,
-        key=lambda job_index: (
-            _evaluate_formula(config.formula, job_index[1], job_index[0], len(jobs)),
-            job_index[1].deadline,
-            job_index[1].processing_time,
-            job_index[1].job_id,
-        ),
-    ) if jobs and isinstance(jobs[0], tuple) else _sequence_custom_plain(jobs, config)
+    compiled = compile_formula(config.formula, _FORMULA_VARIABLES)
+    return (
+        sorted(
+            jobs,
+            key=lambda job_index: (
+                _evaluate_formula(compiled, job_index[1], job_index[0], len(jobs)),
+                job_index[1].deadline,
+                job_index[1].processing_time,
+                job_index[1].job_id,
+            ),
+        )
+        if jobs and isinstance(jobs[0], tuple)
+        else _sequence_custom_plain(jobs, config)
+    )
 
 
 def _sequence_custom_plain(jobs: list[Any], config: CustomHeuristicConfig) -> list[Any]:
@@ -110,7 +115,23 @@ def _sequence_custom_plain(jobs: list[Any], config: CustomHeuristicConfig) -> li
     return [job for _index, job in ordered]
 
 
-def _evaluate_formula(formula: str, job: Any, index: int, n: int) -> float:
+_FORMULA_VARIABLES = {
+    "p",
+    "processing",
+    "czas",
+    "d",
+    "deadline",
+    "termin",
+    "i",
+    "index",
+    "n",
+    "slack",
+    "cr",
+    "urgency",
+}
+
+
+def _evaluate_formula(compiled, job: Any, index: int, n: int) -> float:
     p = float(job.processing_time)
     d = float(job.deadline)
     variables = {
@@ -127,37 +148,13 @@ def _evaluate_formula(formula: str, job: Any, index: int, n: int) -> float:
         "cr": d / max(p, 1e-9),
         "urgency": p / max(d, 1e-9),
     }
-    tree = ast.parse(formula, mode="eval")
-    return float(_eval_node(tree.body, variables))
+    return compiled.evaluate(variables)
 
 
 def _validate_formula(formula: str) -> None:
     try:
-        _eval_node(ast.parse(formula, mode="eval").body, {"p": 1, "d": 2, "i": 1, "index": 1, "n": 1, "slack": 1, "cr": 2, "urgency": 0.5, "processing": 1, "deadline": 2, "czas": 1, "termin": 2})
+        compile_formula(formula, _FORMULA_VARIABLES)
     except Exception as exc:
         raise ValueError(
             "Wzór heurystyki może używać liczb, +, -, *, /, ** oraz zmiennych: p/czas, d/termin, slack, cr, urgency, i, n."
         ) from exc
-
-
-def _eval_node(node: ast.AST, variables: dict[str, float]) -> float:
-    if isinstance(node, ast.Constant) and isinstance(node.value, int | float):
-        return float(node.value)
-    if isinstance(node, ast.Name) and node.id in variables:
-        return float(variables[node.id])
-    if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.USub):
-        return -_eval_node(node.operand, variables)
-    if isinstance(node, ast.BinOp):
-        left = _eval_node(node.left, variables)
-        right = _eval_node(node.right, variables)
-        if isinstance(node.op, ast.Add):
-            return left + right
-        if isinstance(node.op, ast.Sub):
-            return left - right
-        if isinstance(node.op, ast.Mult):
-            return left * right
-        if isinstance(node.op, ast.Div):
-            return left / max(right, 1e-9)
-        if isinstance(node.op, ast.Pow):
-            return left**right
-    raise ValueError("Niedozwolony element wzoru heurystyki.")

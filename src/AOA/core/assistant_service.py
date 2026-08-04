@@ -385,7 +385,16 @@ class AssistantService:
             ]
         elif any(
             k in question
-            for k in ["theory", "teoria", "animac", "random forest", "boost", "extra", "softmax", "tabpfn"]
+            for k in [
+                "theory",
+                "teoria",
+                "animac",
+                "random forest",
+                "boost",
+                "extra",
+                "softmax",
+                "tabpfn",
+            ]
         ) or ("sto" in question and ("machine learning" in question or " ml" in question)):
             next_steps = [
                 "Przejdz do Theory i wybierz grupe ML, Heurystyki albo TabPFN.",
@@ -462,7 +471,9 @@ class AssistantService:
     def _add_plain_explanation(answer: str, question: str, profile: str = "normal") -> str:
         if profile == "krotko":
             return answer
-        if AssistantService._is_function_list_question(question) or AssistantService._category_help(question):
+        if AssistantService._is_function_list_question(question) or AssistantService._category_help(
+            question
+        ):
             return answer
         lowered = answer.lower()
         if "jak to czytac:" in lowered or "jak to czytać:" in lowered:
@@ -519,7 +530,9 @@ class AssistantService:
     def _human_lead(answer: str, question: str) -> str:
         if any(k in question for k in ["jak sie masz", "jak się masz", "co u ciebie"]):
             return ""
-        if AssistantService._is_function_list_question(question) or AssistantService._category_help(question):
+        if AssistantService._is_function_list_question(question) or AssistantService._category_help(
+            question
+        ):
             return ""
         if "raport" in question or "podsumowanie" in question:
             return "Jasne. Najpierw dam Ci sedno, a szczegoly zostawiam ponizej."
@@ -589,7 +602,10 @@ class AssistantService:
                 "- Theory tlumaczy algorytmy jedna animacja krok po kroku, z logika i wzorami.\n\n"
                 "Moja rola jako ALICE: tlumaczyc te ekrany po ludzku, prowadzic krok po kroku, podpowiadac co kliknac i wyjasniac, co znacza metryki, modele, pliki oraz raporty."
             )
-        if any(k in compact for k in ["kolejne segmenty", "segmenty rozwoju", "roadmap", "co dalej rozwijac"]):
+        if any(
+            k in compact
+            for k in ["kolejne segmenty", "segmenty rozwoju", "roadmap", "co dalej rozwijac"]
+        ):
             return (
                 f"{segment_summary()}\n\n"
                 "Te segmenty sa w aplikacji opisane i podlaczone do ALICE jako playbooki: recenzent, operator, "
@@ -601,7 +617,10 @@ class AssistantService:
                 "Najprosciej: napisz 'stworz raport ML', 'stworz raport STO' albo 'release report', "
                 "a ALICE poprowadzi Cie przez potrzebne sekcje."
             )
-        if any(k in compact for k in ["kontrakt danych", "data contract", "wymagane kolumny", "walidacja danych"]):
+        if any(
+            k in compact
+            for k in ["kontrakt danych", "data contract", "wymagane kolumny", "walidacja danych"]
+        ):
             return (
                 f"{data_contract_summary()}\n\n"
                 "Jesli dane nie przechodza treningu, najpierw sprawdz typy kolumn, braki, NaN/inf i czy cel y istnieje."
@@ -829,7 +848,7 @@ class AssistantService:
             return (
                 "Workflow czytam jako 'łork-floł', czyli przeplyw pracy.\n"
                 "W aplikacji workflow oznacza gotowy zestaw krokow, np. kontrola danych, analiza metryki, wykres, raport i rekomendacje."
-        )
+            )
         return None
 
     @staticmethod
@@ -881,9 +900,9 @@ class AssistantService:
             return None
         if "operatora" in compact or "tryb operator" in compact:
             return None
-        if _has_word(compact, ("plik", "pliki", "plikami", "usun", "usuwanie", "porzadek")) and not any(
-            k in compact for k in ["visual", "report", "results", "main", "diagram"]
-        ):
+        if _has_word(
+            compact, ("plik", "pliki", "plikami", "usun", "usuwanie", "porzadek")
+        ) and not any(k in compact for k in ["visual", "report", "results", "main", "diagram"]):
             return (
                 "Pliki i porzadek - co moge zrobic:\n"
                 "1. Otworzyc menedzer plikow AOA.\n"
@@ -977,7 +996,9 @@ class AssistantService:
                 "Polecenia: 'wczytaj dane do Visual', 'wczytaj sample do Visual', 'dobierz wykres', "
                 "'scatter z opisu', 'histogram z opisu', 'dashboard z opisu', 'otworz raport D3'."
             )
-        if any(k in compact for k in ["results", "wynik", "wyniki", "sql", "csv", "tabela", "filtr"]):
+        if any(
+            k in compact for k in ["results", "wynik", "wyniki", "sql", "csv", "tabela", "filtr"]
+        ):
             return (
                 "Results i SQL - co moge zrobic:\n"
                 "1. Przeniesc do Results i pokazac tabele wynikow.\n"
@@ -1010,7 +1031,10 @@ class AssistantService:
                 "'naucz modele', 'trenuj Quality', 'trenuj TabPFN Quality', "
                 "'dodaj wlasny model ML', 'dodaj heurystyke', 'uruchom STO'."
             )
-        if any(k in compact for k in ["theory", "teoria", "lekcja", "nauka", "algorytm", "wzor", "wzory"]):
+        if any(
+            k in compact
+            for k in ["theory", "teoria", "lekcja", "nauka", "algorytm", "wzor", "wzory"]
+        ):
             return (
                 "Theory i lekcje - co moge zrobic:\n"
                 "1. Pokazac animacje classic ML: Random Forest, ExtraTrees, GradientBoosting, HistGradient, Logistic/Schedule.\n"
@@ -1035,7 +1059,9 @@ class AssistantService:
                 "Polecenia: 'przejdz do Report', 'co powinienem kliknac?', 'przetestuj raport', "
                 "'przetestuj diagram', 'przetestuj Main'."
             )
-        if any(k in compact for k in ["alice", "samonauka", "self learning", "baza wiedzy", "status"]):
+        if any(
+            k in compact for k in ["alice", "samonauka", "self learning", "baza wiedzy", "status"]
+        ):
             return (
                 "ALICE i samonauka - co moge zrobic:\n"
                 "1. Przedstawic siebie i wyjasnic, co wiem o aplikacji.\n"
@@ -1214,7 +1240,10 @@ class AssistantService:
                 "- Klikasz Uruchom analize, Otworz HTML, Wykonaj wszystko, Notebook .ipynb, CSV akcji albo eksport PDF.\n"
                 "- Wyniki z Report mozna potem odtworzyc wykresem w Visual i opisac diagramem w Diagrams."
             )
-        if any(k in question for k in ["diagram z opisu", "smart diagram", "madry diagram", "zrob diagram"]):
+        if any(
+            k in question
+            for k in ["diagram z opisu", "smart diagram", "madry diagram", "zrob diagram"]
+        ):
             return (
                 "W Diagrams mozesz zaczac od opisu slownego.\n"
                 "- Kliknij Z opisu.\n"
@@ -1248,7 +1277,10 @@ class AssistantService:
                 "- W Theory ta grupa pokazuje tez inne nowoczesne segmenty: XGBoost, MLP i Stacking.\n"
                 "- W raporcie opisuj go jako: y_hat = f_PFN(X_train, y_train, x_new)."
             )
-        if any(k in question for k in ["pdf", "overleaf", "includegraphics", "includehtml", "report builder"]):
+        if any(
+            k in question
+            for k in ["pdf", "overleaf", "includegraphics", "includehtml", "report builder"]
+        ):
             return (
                 "Report Builder sklada raport podobnie do Overleaf, tylko prosciej.\n"
                 "- Po lewej wpisujesz zrodlo: sekcje, wzory, listy i odwolania do plikow.\n"

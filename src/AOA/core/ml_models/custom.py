@@ -134,7 +134,7 @@ def parse_params_json(raw: str) -> dict[str, Any]:
         return {}
     parsed = json.loads(text)
     if not isinstance(parsed, dict):
-        raise ValueError("Parametry muszą być obiektem JSON, np. {\"n_estimators\": 300}.")
+        raise ValueError('Parametry muszą być obiektem JSON, np. {"n_estimators": 300}.')
     return parsed
 
 
@@ -180,5 +180,7 @@ def _select_scaler(config: CustomMLModelConfig):
     if scaler == "robust":
         return RobustScaler()
     name = config.estimator.lower()
-    needs_scale = ("linear_model" in name or "svm" in name or "neighbors" in name or "neural_network" in name)
+    needs_scale = (
+        "linear_model" in name or "svm" in name or "neighbors" in name or "neural_network" in name
+    )
     return RobustScaler() if needs_scale else None

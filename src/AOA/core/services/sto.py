@@ -16,6 +16,54 @@ from AOA.core.sto_models import (
 
 from .files import build_result_filename
 
+STO_VISUAL_COLUMNS = [
+    "sto_model",
+    "sto_job_id",
+    "czas_produkcji_h",
+    "termin_h",
+    "machine_id",
+    "sto_order",
+    "sto_start",
+    "sto_end",
+    "sto_lateness",
+    "sto_tardiness_positive",
+    "sto_cumulative",
+    "sto_total_for_model",
+]
+
+
+def _jobs_dataframe(jobs, source_df: pd.DataFrame | None = None) -> pd.DataFrame:
+    jobs_df = pd.DataFrame(
+        {
+            "sto_job_id": [job.job_id for job in jobs],
+            "czas_produkcji_h": [job.processing_time for job in jobs],
+            "termin_h": [job.deadline for job in jobs],
+        }
+    )
+    if source_df is None or source_df.empty:
+        return jobs_df
+
+    source = source_df.reset_index(drop=True)
+    if len(source) != len(jobs_df):
+        return jobs_df
+
+    machine_column = next(
+        (
+            column
+            for column in ["machine_id", "recommended_machine", "maszyna", "machine"]
+            if column in source.columns
+        ),
+        None,
+    )
+    if machine_column is not None:
+        jobs_df["machine_id"] = source[machine_column].values
+    return jobs_df
+
+
+def _visual_sto_dataframe(result_df: pd.DataFrame) -> pd.DataFrame:
+    columns = [column for column in STO_VISUAL_COLUMNS if column in result_df.columns]
+    return result_df[columns].copy() if columns else result_df.copy()
+
 
 def analyze_sto_models(job_ids_text, processing_text, deadlines_text, selected_methods):
     jobs = parse_jobs(job_ids_text, processing_text, deadlines_text)
@@ -27,21 +75,16 @@ def analyze_sto_models(job_ids_text, processing_text, deadlines_text, selected_m
     best_path = None
     all_path = None
     if results:
-        jobs_df = pd.DataFrame(
-            {
-                "sto_job_id": [job.job_id for job in jobs],
-                "czas_produkcji_h": [job.processing_time for job in jobs],
-                "termin_h": [job.deadline for job in jobs],
-            }
-        )
+        jobs_df = _jobs_dataframe(jobs)
         best_result = min(results, key=lambda x: x["sto"])
         best_jobs_df = apply_sto_result_to_dataframe(jobs_df, best_result)
         result_frames = []
         for result in results:
             result_df = apply_sto_result_to_dataframe(jobs_df, result)
-            result_frames.append(result_df)
+            visual_df = _visual_sto_dataframe(result_df)
+            result_frames.append(visual_df)
             out_path = build_result_filename(f"sto_{result['method']}", "manual", suffix=".csv")
-            save_csv(result_df, out_path)
+            save_csv(visual_df, out_path)
             saved_paths.append(
                 {
                     "method": result["method"],
@@ -51,8 +94,8 @@ def analyze_sto_models(job_ids_text, processing_text, deadlines_text, selected_m
                 }
             )
         best_path = build_result_filename("sto_best", "manual", suffix=".csv")
-        save_csv(best_jobs_df, best_path)
-        all_path = build_result_filename("sto_all", "manual", suffix=".csv")
+        save_csv(_visual_sto_dataframe(best_jobs_df), best_path)
+        all_path = build_result_filename("sto_visual", "manual", suffix=".csv")
         save_csv(pd.concat(result_frames, ignore_index=True, sort=False), all_path)
 
     return {
@@ -63,6 +106,7 @@ def analyze_sto_models(job_ids_text, processing_text, deadlines_text, selected_m
         "best_result": best_result,
         "best_path": best_path,
         "all_path": all_path,
+        "visual_path": all_path,
         "messages": ["✔ Analiza STO zakończona"],
     }
 
@@ -93,23 +137,18 @@ def solve_sto_with_saved_model(model_path, data_path):
     best_path = None
     all_path = None
     if results:
-        jobs_df = pd.DataFrame(
-            {
-                "sto_job_id": [job.job_id for job in jobs],
-                "czas_produkcji_h": [job.processing_time for job in jobs],
-                "termin_h": [job.deadline for job in jobs],
-            }
-        )
+        jobs_df = _jobs_dataframe(jobs, df)
         best_result = min(results, key=lambda x: x["sto"])
         best_jobs_df = apply_sto_result_to_dataframe(jobs_df, best_result)
         result_frames = []
         for result in results:
             result_df = apply_sto_result_to_dataframe(jobs_df, result)
-            result_frames.append(result_df)
+            visual_df = _visual_sto_dataframe(result_df)
+            result_frames.append(visual_df)
             out_path = build_result_filename(
                 f"sto_{result['method']}", Path(data_path).stem, suffix=".csv"
             )
-            save_csv(result_df, out_path)
+            save_csv(visual_df, out_path)
             saved_paths.append(
                 {
                     "method": result["method"],
@@ -119,8 +158,8 @@ def solve_sto_with_saved_model(model_path, data_path):
                 }
             )
         best_path = build_result_filename("sto_best", Path(data_path).stem, suffix=".csv")
-        save_csv(best_jobs_df, best_path)
-        all_path = build_result_filename("sto_all", Path(data_path).stem, suffix=".csv")
+        save_csv(_visual_sto_dataframe(best_jobs_df), best_path)
+        all_path = build_result_filename("sto_visual", Path(data_path).stem, suffix=".csv")
         save_csv(pd.concat(result_frames, ignore_index=True, sort=False), all_path)
 
     return {
@@ -131,5 +170,6 @@ def solve_sto_with_saved_model(model_path, data_path):
         "best_result": best_result,
         "best_path": best_path,
         "all_path": all_path,
+        "visual_path": all_path,
         "messages": ["✔ Rozwiązanie STO zakończone"],
     }

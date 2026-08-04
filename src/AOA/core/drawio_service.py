@@ -281,11 +281,21 @@ def template_nodes_edges(template: str) -> tuple[list[DiagramNode], list[Diagram
     if template == "Production Line":
         nodes = [
             DiagramNode("raw", "Surowiec\nwejscie", "warehouse", 60, 200, 170, 90, "#f8fafc"),
-            DiagramNode("m1", "Maszyna 1\nciecie", "machine", 290, 190, 170, 110, "#dbeafe", "#2563eb"),
-            DiagramNode("buffer", "Bufor WIP\nkolejka", "buffer", 520, 205, 150, 80, "#fef9c3", "#ca8a04"),
-            DiagramNode("m2", "Maszyna 2\nmontaz", "machine", 730, 190, 170, 110, "#dbeafe", "#2563eb"),
-            DiagramNode("qc", "Kontrola\njakosci", "inspection", 960, 190, 170, 110, "#dcfce7", "#16a34a"),
-            DiagramNode("out", "Wyrob gotowy", "warehouse", 1190, 200, 170, 90, "#f0fdf4", "#16a34a"),
+            DiagramNode(
+                "m1", "Maszyna 1\nciecie", "machine", 290, 190, 170, 110, "#dbeafe", "#2563eb"
+            ),
+            DiagramNode(
+                "buffer", "Bufor WIP\nkolejka", "buffer", 520, 205, 150, 80, "#fef9c3", "#ca8a04"
+            ),
+            DiagramNode(
+                "m2", "Maszyna 2\nmontaz", "machine", 730, 190, 170, 110, "#dbeafe", "#2563eb"
+            ),
+            DiagramNode(
+                "qc", "Kontrola\njakosci", "inspection", 960, 190, 170, 110, "#dcfce7", "#16a34a"
+            ),
+            DiagramNode(
+                "out", "Wyrob gotowy", "warehouse", 1190, 200, 170, 90, "#f0fdf4", "#16a34a"
+            ),
         ]
         return nodes, [
             DiagramEdge("raw", "m1", "partia"),
@@ -315,9 +325,15 @@ def template_nodes_edges(template: str) -> tuple[list[DiagramNode], list[Diagram
             DiagramNode("sample", "Probka\nz produkcji", "document", 70, 170, 170, 90, "#f8fafc"),
             DiagramNode("measure", "Pomiar\nczujniki", "sensor", 310, 160, 170, 110, "#dbeafe"),
             DiagramNode("rules", "Czy OK?", "decision", 560, 150, 150, 130, "#fef9c3", "#ca8a04"),
-            DiagramNode("rework", "Poprawka /\nrework", "risk", 790, 70, 180, 90, "#fee2e2", "#dc2626"),
-            DiagramNode("release", "Zwolnij\npartie", "inspection", 790, 280, 180, 90, "#dcfce7", "#16a34a"),
-            DiagramNode("report", "Raport QC", "document", 1040, 185, 170, 90, "#ede9fe", "#7c3aed"),
+            DiagramNode(
+                "rework", "Poprawka /\nrework", "risk", 790, 70, 180, 90, "#fee2e2", "#dc2626"
+            ),
+            DiagramNode(
+                "release", "Zwolnij\npartie", "inspection", 790, 280, 180, 90, "#dcfce7", "#16a34a"
+            ),
+            DiagramNode(
+                "report", "Raport QC", "document", 1040, 185, 170, 90, "#ede9fe", "#7c3aed"
+            ),
         ]
         return nodes, [
             DiagramEdge("sample", "measure"),
@@ -330,10 +346,26 @@ def template_nodes_edges(template: str) -> tuple[list[DiagramNode], list[Diagram
     if template == "ML Production Pipeline":
         nodes = [
             DiagramNode("data", "Dane CSV\nprodukcja", "database", 70, 190, 170, 100, "#f8fafc"),
-            DiagramNode("features", "Cechy X\nczyszczenie", "process", 300, 190, 170, 90, "#dbeafe"),
-            DiagramNode("train", "Trening ML\nfit(X,y)", "model", 530, 170, 190, 130, "#ede9fe", "#7c3aed"),
-            DiagramNode("metrics", "Metryki\nRMSE/MAE/R2", "kpi", 790, 190, 180, 90, "#fef9c3", "#ca8a04"),
-            DiagramNode("predict", "Predykcja\nnowe dane", "model", 1040, 170, 190, 130, "#dcfce7", "#16a34a"),
+            DiagramNode(
+                "features", "Cechy X\nczyszczenie", "process", 300, 190, 170, 90, "#dbeafe"
+            ),
+            DiagramNode(
+                "train", "Trening ML\nfit(X,y)", "model", 530, 170, 190, 130, "#ede9fe", "#7c3aed"
+            ),
+            DiagramNode(
+                "metrics", "Metryki\nRMSE/MAE/R2", "kpi", 790, 190, 180, 90, "#fef9c3", "#ca8a04"
+            ),
+            DiagramNode(
+                "predict",
+                "Predykcja\nnowe dane",
+                "model",
+                1040,
+                170,
+                190,
+                130,
+                "#dcfce7",
+                "#16a34a",
+            ),
         ]
         return nodes, [
             DiagramEdge("data", "features"),
@@ -344,10 +376,14 @@ def template_nodes_edges(template: str) -> tuple[list[DiagramNode], list[Diagram
     if template == "Logistics Route":
         nodes = [
             DiagramNode("depot", "Depot", "warehouse", 80, 220, 160, 90, "#dbeafe"),
-            DiagramNode("route", "Optymalizacja\ntrasy", "model", 330, 195, 190, 130, "#ede9fe", "#7c3aed"),
+            DiagramNode(
+                "route", "Optymalizacja\ntrasy", "model", 330, 195, 190, 130, "#ede9fe", "#7c3aed"
+            ),
             DiagramNode("truck1", "Pojazd A", "truck", 610, 90, 170, 90, "#dcfce7"),
             DiagramNode("truck2", "Pojazd B", "truck", 610, 310, 170, 90, "#fef9c3"),
-            DiagramNode("customer", "Klient /\npunkt dostawy", "operator", 890, 205, 180, 110, "#f8fafc"),
+            DiagramNode(
+                "customer", "Klient /\npunkt dostawy", "operator", 890, 205, 180, 110, "#f8fafc"
+            ),
         ]
         return nodes, [
             DiagramEdge("depot", "route"),
@@ -358,11 +394,17 @@ def template_nodes_edges(template: str) -> tuple[list[DiagramNode], list[Diagram
         ]
     if template == "Maintenance Flow":
         nodes = [
-            DiagramNode("sensor", "Alarm\nczujnika", "sensor", 80, 180, 160, 90, "#fee2e2", "#dc2626"),
-            DiagramNode("triage", "Ocena\nryzyka", "risk", 310, 165, 170, 120, "#fef9c3", "#ca8a04"),
+            DiagramNode(
+                "sensor", "Alarm\nczujnika", "sensor", 80, 180, 160, 90, "#fee2e2", "#dc2626"
+            ),
+            DiagramNode(
+                "triage", "Ocena\nryzyka", "risk", 310, 165, 170, 120, "#fef9c3", "#ca8a04"
+            ),
             DiagramNode("work", "Zlecenie\nutrzymania", "document", 560, 180, 180, 90, "#f8fafc"),
             DiagramNode("team", "Technik /\noperator", "operator", 820, 170, 170, 110, "#dbeafe"),
-            DiagramNode("done", "Maszyna\nsprawna", "machine", 1080, 170, 180, 110, "#dcfce7", "#16a34a"),
+            DiagramNode(
+                "done", "Maszyna\nsprawna", "machine", 1080, 170, 180, 110, "#dcfce7", "#16a34a"
+            ),
         ]
         return nodes, [
             DiagramEdge("sensor", "triage"),
@@ -373,12 +415,36 @@ def template_nodes_edges(template: str) -> tuple[list[DiagramNode], list[Diagram
     if template == "Value Stream Map":
         nodes = [
             DiagramNode("supplier", "Dostawca", "supplier", 60, 190, 160, 90, "#f8fafc"),
-            DiagramNode("stock_in", "Zapas wej.\n2 dni", "buffer", 270, 200, 150, 76, "#fef9c3", "#ca8a04"),
-            DiagramNode("cut", "Proces 1\nciecie\nCT 4 min", "station", 480, 180, 180, 110, "#dbeafe", "#2563eb"),
+            DiagramNode(
+                "stock_in", "Zapas wej.\n2 dni", "buffer", 270, 200, 150, 76, "#fef9c3", "#ca8a04"
+            ),
+            DiagramNode(
+                "cut",
+                "Proces 1\nciecie\nCT 4 min",
+                "station",
+                480,
+                180,
+                180,
+                110,
+                "#dbeafe",
+                "#2563eb",
+            ),
             DiagramNode("wip", "WIP\n18 szt.", "kanban", 720, 200, 150, 76, "#ffedd5", "#ea580c"),
-            DiagramNode("assembly", "Proces 2\nmontaz\nCT 7 min", "station", 930, 180, 180, 110, "#dbeafe", "#2563eb"),
+            DiagramNode(
+                "assembly",
+                "Proces 2\nmontaz\nCT 7 min",
+                "station",
+                930,
+                180,
+                180,
+                110,
+                "#dbeafe",
+                "#2563eb",
+            ),
             DiagramNode("customer", "Klient", "customer", 1180, 190, 160, 90, "#dcfce7", "#16a34a"),
-            DiagramNode("info", "Plan / MRP\nzamowienia", "document", 510, 40, 300, 80, "#ede9fe", "#7c3aed"),
+            DiagramNode(
+                "info", "Plan / MRP\nzamowienia", "document", 510, 40, 300, 80, "#ede9fe", "#7c3aed"
+            ),
         ]
         return nodes, [
             DiagramEdge("supplier", "stock_in", "dostawy"),
@@ -393,10 +459,18 @@ def template_nodes_edges(template: str) -> tuple[list[DiagramNode], list[Diagram
         nodes = [
             DiagramNode("supplier", "Supplier\nmaterial", "supplier", 60, 180, 170, 100, "#f8fafc"),
             DiagramNode("inbound", "Inbound\ntransport", "truck", 300, 180, 170, 90, "#dbeafe"),
-            DiagramNode("plant", "Plant\nprodukcja", "machine", 540, 165, 190, 120, "#dbeafe", "#2563eb"),
-            DiagramNode("warehouse", "DC / magazyn", "warehouse", 800, 175, 190, 100, "#fef9c3", "#ca8a04"),
-            DiagramNode("retail", "Klient / sklep", "customer", 1060, 180, 180, 100, "#dcfce7", "#16a34a"),
-            DiagramNode("risk", "Ryzyko\nlead time", "risk", 545, 340, 180, 90, "#fee2e2", "#dc2626"),
+            DiagramNode(
+                "plant", "Plant\nprodukcja", "machine", 540, 165, 190, 120, "#dbeafe", "#2563eb"
+            ),
+            DiagramNode(
+                "warehouse", "DC / magazyn", "warehouse", 800, 175, 190, 100, "#fef9c3", "#ca8a04"
+            ),
+            DiagramNode(
+                "retail", "Klient / sklep", "customer", 1060, 180, 180, 100, "#dcfce7", "#16a34a"
+            ),
+            DiagramNode(
+                "risk", "Ryzyko\nlead time", "risk", 545, 340, 180, 90, "#fee2e2", "#dc2626"
+            ),
         ]
         return nodes, [
             DiagramEdge("supplier", "inbound"),
@@ -407,11 +481,29 @@ def template_nodes_edges(template: str) -> tuple[list[DiagramNode], list[Diagram
         ]
     if template == "Plant Layout":
         nodes = [
-            DiagramNode("zone_a", "Strefa A\nciecie", "container", 70, 90, 260, 170, "#dbeafe", "#2563eb"),
-            DiagramNode("zone_b", "Strefa B\nmontaz", "container", 410, 90, 260, 170, "#dcfce7", "#16a34a"),
-            DiagramNode("zone_c", "Strefa C\npakowanie", "container", 750, 90, 260, 170, "#fef9c3", "#ca8a04"),
-            DiagramNode("dock", "Dok / wysylka", "truck", 1090, 120, 180, 110, "#ffedd5", "#ea580c"),
-            DiagramNode("forklift", "Transport\nwewn.", "truck", 410, 340, 190, 90, "#ede9fe", "#7c3aed"),
+            DiagramNode(
+                "zone_a", "Strefa A\nciecie", "container", 70, 90, 260, 170, "#dbeafe", "#2563eb"
+            ),
+            DiagramNode(
+                "zone_b", "Strefa B\nmontaz", "container", 410, 90, 260, 170, "#dcfce7", "#16a34a"
+            ),
+            DiagramNode(
+                "zone_c",
+                "Strefa C\npakowanie",
+                "container",
+                750,
+                90,
+                260,
+                170,
+                "#fef9c3",
+                "#ca8a04",
+            ),
+            DiagramNode(
+                "dock", "Dok / wysylka", "truck", 1090, 120, 180, 110, "#ffedd5", "#ea580c"
+            ),
+            DiagramNode(
+                "forklift", "Transport\nwewn.", "truck", 410, 340, 190, 90, "#ede9fe", "#7c3aed"
+            ),
             DiagramNode("qc", "QC", "inspection", 750, 340, 160, 90, "#dcfce7", "#16a34a"),
         ]
         return nodes, [
@@ -424,10 +516,16 @@ def template_nodes_edges(template: str) -> tuple[list[DiagramNode], list[Diagram
     if template == "Andon Incident":
         nodes = [
             DiagramNode("andon", "ANDON\nalarm", "andon", 80, 170, 160, 100, "#fee2e2", "#dc2626"),
-            DiagramNode("stop", "Zatrzymaj\nlinie?", "decision", 310, 150, 150, 130, "#fef9c3", "#ca8a04"),
-            DiagramNode("leader", "Lider\nreakcja", "operator", 560, 155, 170, 120, "#dbeafe", "#2563eb"),
+            DiagramNode(
+                "stop", "Zatrzymaj\nlinie?", "decision", 310, 150, 150, 130, "#fef9c3", "#ca8a04"
+            ),
+            DiagramNode(
+                "leader", "Lider\nreakcja", "operator", 560, 155, 170, 120, "#dbeafe", "#2563eb"
+            ),
             DiagramNode("cause", "Przyczyna\n5 why", "document", 810, 170, 180, 90, "#f8fafc"),
-            DiagramNode("fix", "Akcja\nkorygujaca", "process", 1060, 170, 190, 90, "#dcfce7", "#16a34a"),
+            DiagramNode(
+                "fix", "Akcja\nkorygujaca", "process", 1060, 170, 190, 90, "#dcfce7", "#16a34a"
+            ),
         ]
         return nodes, [
             DiagramEdge("andon", "stop"),
@@ -437,11 +535,21 @@ def template_nodes_edges(template: str) -> tuple[list[DiagramNode], list[Diagram
         ]
     if template == "Energy Media Flow":
         nodes = [
-            DiagramNode("energy", "Energia\nwejscie", "energy", 70, 190, 170, 90, "#fef9c3", "#ca8a04"),
-            DiagramNode("air", "Sprezone\npowietrze", "plc", 310, 90, 170, 90, "#dbeafe", "#2563eb"),
-            DiagramNode("water", "Woda /\nchlodzenie", "plc", 310, 290, 170, 90, "#dbeafe", "#2563eb"),
-            DiagramNode("machine", "Maszyna\nzuzycie", "machine", 590, 190, 190, 110, "#ede9fe", "#7c3aed"),
-            DiagramNode("meter", "Liczniki\nkWh / m3", "sensor", 860, 190, 170, 90, "#dcfce7", "#16a34a"),
+            DiagramNode(
+                "energy", "Energia\nwejscie", "energy", 70, 190, 170, 90, "#fef9c3", "#ca8a04"
+            ),
+            DiagramNode(
+                "air", "Sprezone\npowietrze", "plc", 310, 90, 170, 90, "#dbeafe", "#2563eb"
+            ),
+            DiagramNode(
+                "water", "Woda /\nchlodzenie", "plc", 310, 290, 170, 90, "#dbeafe", "#2563eb"
+            ),
+            DiagramNode(
+                "machine", "Maszyna\nzuzycie", "machine", 590, 190, 190, 110, "#ede9fe", "#7c3aed"
+            ),
+            DiagramNode(
+                "meter", "Liczniki\nkWh / m3", "sensor", 860, 190, 170, 90, "#dcfce7", "#16a34a"
+            ),
             DiagramNode("kpi", "KPI\nkoszt/szt.", "kpi", 1110, 190, 170, 90, "#fef9c3", "#ca8a04"),
         ]
         return nodes, [
@@ -453,9 +561,15 @@ def template_nodes_edges(template: str) -> tuple[list[DiagramNode], list[Diagram
         ]
     if template == "Inventory Replenishment":
         nodes = [
-            DiagramNode("demand", "Popyt\nsprzedaz", "customer", 60, 170, 170, 90, "#dcfce7", "#16a34a"),
-            DiagramNode("forecast", "Prognoza\nML", "model", 300, 155, 180, 120, "#ede9fe", "#7c3aed"),
-            DiagramNode("rop", "Punkt\nzamowienia", "kanban", 560, 170, 170, 90, "#fef9c3", "#ca8a04"),
+            DiagramNode(
+                "demand", "Popyt\nsprzedaz", "customer", 60, 170, 170, 90, "#dcfce7", "#16a34a"
+            ),
+            DiagramNode(
+                "forecast", "Prognoza\nML", "model", 300, 155, 180, 120, "#ede9fe", "#7c3aed"
+            ),
+            DiagramNode(
+                "rop", "Punkt\nzamowienia", "kanban", 560, 170, 170, 90, "#fef9c3", "#ca8a04"
+            ),
             DiagramNode("po", "Zamowienie\nPO", "document", 800, 170, 170, 90, "#f8fafc"),
             DiagramNode("supplier", "Dostawca", "supplier", 1040, 170, 170, 90, "#dbeafe"),
             DiagramNode("stock", "Stan\nmagazynu", "warehouse", 560, 330, 180, 100, "#f8fafc"),

@@ -424,7 +424,9 @@ def run_analytics_workflow(
         return AnalyticsResult("ML Analytics", "\n".join(lines), "Model Diagnostics")
 
     if workflow == "STO Analytics":
-        duration_col = "czas_produkcji_h" if "czas_produkcji_h" in df.columns else _safe_metric(df, metric)
+        duration_col = (
+            "czas_produkcji_h" if "czas_produkcji_h" in df.columns else _safe_metric(df, metric)
+        )
         deadline_col = "termin_h" if "termin_h" in df.columns else None
         stats = _metric_stats(df, duration_col)
         lines = [

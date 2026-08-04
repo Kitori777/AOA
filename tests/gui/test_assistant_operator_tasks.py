@@ -36,7 +36,11 @@ def test_collect_operator_tasks_creates_diagram_and_quick_blocks() -> None:
 def test_collect_operator_tasks_prefers_specific_ml_report() -> None:
     tasks = collect_operator_tasks("stworz raport ml, dodaj wykres do raportu i eksportuj notebook")
 
-    assert tasks == ["analytics:create_ml_report", "analytics:add_chart", "analytics:export_notebook"]
+    assert tasks == [
+        "analytics:create_ml_report",
+        "analytics:add_chart",
+        "analytics:export_notebook",
+    ]
 
 
 def test_collect_operator_tasks_prefers_specific_sto_report() -> None:
@@ -89,6 +93,12 @@ def test_collect_operator_tasks_supports_main_data_model_and_training_actions() 
         "main:backend_tabpfn",
         "main:train",
     ]
+
+
+def test_collect_operator_tasks_opens_production_line_designer() -> None:
+    tasks = collect_operator_tasks("zaprojektuj linie produkcyjna")
+
+    assert tasks == ["main:production_line"]
 
 
 def test_collect_operator_tasks_supports_file_manager_and_release_checks() -> None:
@@ -183,7 +193,9 @@ def test_collect_operator_tasks_supports_report_workflows_and_sql_exports() -> N
 
 
 def test_collect_operator_tasks_supports_learning_paths_and_help() -> None:
-    tasks = collect_operator_tasks("lekcja ml, lekcja raportow, lekcja diagramow, co powinienem kliknac, otworz pomoc")
+    tasks = collect_operator_tasks(
+        "lekcja ml, lekcja raportow, lekcja diagramow, co powinienem kliknac, otworz pomoc"
+    )
 
     assert tasks == [
         "learning:ml_path",

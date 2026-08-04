@@ -9,6 +9,7 @@ from AOA.core.report_composer_service import (
     file_block,
     kpi_block,
     latexish_to_html,
+    production_line_block,
     recommendation_block,
     render_report_pdf_preview_text,
     render_report_preview_text,
@@ -123,6 +124,34 @@ def test_file_block_turns_csv_into_report_table(tmp_path) -> None:
     assert r"\section{Tabela z pliku: wyniki.csv}" in block
     assert "| model | score |" in block
     assert "| Quality | 0.8 |" in block
+
+
+def test_production_line_block_contains_kpis_and_compact_summary(tmp_path) -> None:
+    summary = tmp_path / "production_line_summary.csv"
+    summary.write_text(
+        "sto_job_id,line_completion_h,line_lateness_h\nA,4.5,0\n",
+        encoding="utf-8",
+    )
+
+    block = production_line_block(
+        {
+            "jobs": 1,
+            "stations": 2,
+            "makespan_h": 4.5,
+            "throughput_per_h": 0.222222,
+            "late_jobs": 0,
+            "total_cost": 12.0,
+            "total_waste": 0.3,
+            "mean_quality": 98.0,
+        },
+        summary_path=summary,
+        visual_path="production_line_visual.csv",
+    )
+
+    assert r"\section{Symulacja linii produkcyjnej}" in block
+    assert "Czas calkowity [h]: 4.5" in block
+    assert "| sto_job_id | line_completion_h | line_lateness_h |" in block
+    assert r"\code{production_line_visual.csv}" in block
 
 
 def test_analysis_block_contains_recommended_chart() -> None:

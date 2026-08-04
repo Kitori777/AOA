@@ -3,7 +3,7 @@ from __future__ import annotations
 import customtkinter as ctk
 
 from .animation import ModelAnimationCard
-from .data import TheoryModel, find_theory_model, get_theory_models
+from .data import ModelFamily, TheoryModel, find_theory_model, get_theory_models
 from .widgets import BLUE, BORDER, label, make_card
 
 
@@ -63,14 +63,14 @@ class TheoryPage(ctk.CTkFrame):
             command=lambda: self._set_family("mh"),
         )
         self.family_buttons["mh"].grid(row=0, column=1)
-        self.family_buttons["tabpfn"] = ctk.CTkButton(
+        self.family_buttons["line"] = ctk.CTkButton(
             family_box,
-            text="Nowoczesne ML",
+            text="Linia produkcyjna",
             width=230,
             height=34,
-            command=lambda: self._set_family("tabpfn"),
+            command=lambda: self._set_family("line"),
         )
-        self.family_buttons["tabpfn"].grid(row=0, column=2, padx=(6, 0))
+        self.family_buttons["line"].grid(row=0, column=2, padx=(6, 0))
 
         label(top, "Jeden renderer animacji", size=12, weight="bold", color="#93c5fd").grid(
             row=0, column=2, sticky="e", padx=18, pady=10
@@ -109,7 +109,7 @@ class TheoryPage(ctk.CTkFrame):
             out.grid(row=1, column=0, sticky="w", padx=8, pady=(0, 6))
             self.hero_value_labels[title] = out
 
-    def _set_family(self, family: str) -> None:
+    def _set_family(self, family: ModelFamily) -> None:
         self.family = family
         self.models = list(get_theory_models(family))
         self.selected_key = self.models[0].key
@@ -171,7 +171,7 @@ class TheoryPage(ctk.CTkFrame):
             )
 
     def _update_hero_stats(self, model: TheoryModel) -> None:
-        mode = {"ml": "ML", "mh": "STO", "tabpfn": "TabPFN"}.get(model.family, "ML")
+        mode = {"ml": "ML", "mh": "STO", "tabpfn": "ML", "line": "LINIA"}.get(model.family, "ML")
         self.hero_value_labels["Tryb"].configure(text=mode)
         self.hero_value_labels["Model"].configure(text=model.short_title[:16])
         self.hero_value_labels["Kroki"].configure(text=str(len(model.steps)))

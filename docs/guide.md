@@ -33,6 +33,9 @@ Zasady walidacji:
 - `test_size` musi byc wieksze od `0` i mniejsze od `1`,
 - minimum czasu/bufora musi byc mniejsze od maksimum,
 - czasy i bufory moga byc ulamkowe, np. `1.5`.
+- przy wielu maszynach plik danych zawiera `machine_id`, `t_start`, `t_end`
+  i `lateness_h_sim`, zeby Visual mogl filtrowac wykresy po maszynie oraz
+  rysowac Gantt bez dodatkowego pliku posredniego.
 
 ## 3. Modele ML
 
@@ -125,7 +128,48 @@ Im mniejsze STO, tym lepsza kolejka.
 Dostepne metody obejmuja m.in. `MT/EDD`, `MO/SPT`, `MZO/LPT`, `MOPT`,
 `GENETIC`, `SLACK`, `CR`, `NEH`, `LOCAL_SEARCH` i `RANDOM_RESTART`.
 
-## 6. Wlasna heurystyka STO
+Po analizie STO aplikacja zapisuje lekki plik `sto_visual`. To plik do Visual,
+Results i raportow: zawiera model, zlecenie, maszyne, kolejnosc, start, koniec
+i narastajace STO, ale nie przenosi ciezkiego `solution_tree_json`.
+
+## 6. Projektant linii produkcyjnej
+
+Po wygenerowaniu albo wczytaniu danych kliknij w Main
+`Projektuj i uruchom wlasna linie produkcyjna`.
+
+1. Dodaj stanowisko przyciskiem `+ Stanowisko` i przeciagnij blok w wybrane miejsce.
+2. Zaznacz blok, kliknij `Polacz` albo jego prawy uchwyt, a nastepnie kliknij
+   stanowisko docelowe. To strzalki ustalaja kolejnosc obliczen.
+3. Dla kazdego stanowiska ustaw liczbe rownoleglych maszyn.
+4. Przypisz wymagany wzor czasu i opcjonalne wzory kosztu, odpadu i jakosci.
+5. Uzyj auto-ukladu, zoomu albo menu kontekstowego, jezeli diagram jest duzy.
+6. Sprawdz status pod plotnem. Symulacja wymaga jednej spojnej sciezki bez
+   cykli i rozgalezien.
+7. Zapisz projekt albo uruchom symulacje. Niedokonczony diagram mozna zapisac,
+   ale przycisk uruchomienia pozostanie zablokowany.
+8. Wczytaj `production_line_visual_*.csv` w Visual. Dedykowany dashboard zostanie
+   wybrany automatycznie.
+9. Wczytaj `production_line_summary_*.csv` w Results albo Report, gdy potrzebujesz
+   jednego wiersza na zlecenie. Plik zachowuje cechy wejsciowe i dodaje wynik
+   calej linii, dlatego moze tez wejsc do przygotowania danych ML.
+
+Symulator wybiera najwczesniej dostepna maszyne stanowiska. Operacja zaczyna sie
+w chwili `max(gotowosc zlecenia, dostepnosc maszyny)`. Konfiguracja i wzory sa
+zapisane osobno w JSON, dlatego wynikowy CSV zawiera tylko fakty potrzebne do
+wykresow i obliczenia KPI. Zmiana zasobow, kolejnosci albo wzorow ma bezposredni
+wplyw na czas, przepustowosc, opoznienia, koszt, odpad i jakosc. Kazdy przebieg
+ma unikalne pliki, a nieudany zapis nie pozostawia czesciowego zestawu wynikow.
+
+Projektant obsluguje obecnie linie szeregowe i rownolegle maszyny na stanowisku.
+Nie modeluje jeszcze rozgalezien, buforow, awarii, zmian ani przezbrojen.
+Projekt JSON w wersji 2 zapisuje tez wspolrzedne blokow i strzalki. Starsze pliki
+sa zgodne wstecznie i po wczytaniu otrzymuja automatyczny uklad poziomy.
+Pola aktualnie zaznaczonego stanowiska sa zatwierdzane takze przy zapisie projektu
+i uruchomieniu symulacji, wiec ostatnia zmiana wzoru nie zostanie pominieta.
+Plik deklarujacy nowsza, nieobslugiwana wersje schematu jest odrzucany z czytelnym
+komunikatem zamiast cichego zgadywania jego znaczenia.
+
+## 7. Wlasna heurystyka STO
 
 Kliknij `+ Wlasna heurystyka STO`, jesli chcesz opisac wlasna regule sortowania.
 Heurystyka liczy score dla kazdego zlecenia i sortuje rosnaco.
@@ -151,17 +195,20 @@ d - 1.5 * p
 0.7 * d + 0.3 * p
 ```
 
-## 7. Visual
+## 8. Visual
 
 `Visual` sluzy do wykresow i HTML. Dostepne biblioteki to Matplotlib, Seaborn,
 Plotly, Altair i NetworkX. Mozesz tworzyc dashboardy, diagnostyki, heatmapy,
 wykresy 3D, Gantt, SolutionTree, sieci, korelacje i mapy brakow.
 
+Typ wykresu mozna wybrac z listy albo z kafelkowego selektora. Lista kafelkow
+dopasowuje sie do biblioteki, wiec pokazuje tylko sensowne warianty.
+
 `SolutionTree` w HTML pozwala klikac wezly, chowac galezie, resetowac widok i
 porownywac warianty. Zielony oznacza najlepsza sciezke, zolty wariant sprawdzony
 lub porownany.
 
-## 8. Diagrams
+## 9. Diagrams
 
 `Diagrams` pozwala budowac flowchart, UML, ERD, BPMN, data pipeline, supply
 chain, VSM, plant layout, andon, energy flow i inne schematy.
@@ -182,7 +229,7 @@ Przycisk `Z opisu` buduje diagram ze zdania, np.:
 Dostawca -> magazyn -> QC -> produkcja -> model ML -> raport
 ```
 
-## 9. Report i Report Builder
+## 10. Report i Report Builder
 
 `Report` uruchamia workflowy: data quality, dashboard, raport, KPI, metric
 diagnostics, market sizing, notebook, correlation explorer, outlier analysis i
@@ -197,7 +244,7 @@ Pelny `Report Builder` otwiera osobne okno:
   obrazy, HTML i kod,
 - eksportujesz HTML, Markdown, TeX albo PDF.
 
-## 10. ALICE
+## 11. ALICE
 
 ALICE jest przewodnikiem po aplikacji. Mozesz pytac:
 
@@ -211,3 +258,10 @@ ALICE jest przewodnikiem po aplikacji. Mozesz pytac:
 
 ALICE korzysta z lokalnej bazy `docs/alice_brain.json` oraz z dokumentacji
 projektu.
+
+Glos jest wlaczony domyslnie i startuje automatycznie po odpowiedzi. Tryb `Auto`
+uzywa polskiego `gTTS`, a przy braku internetu przechodzi na lokalny glos Windows.
+Mozesz tez recznie wybrac `Google`, `Windows` albo `Voicebox`, ustawic glosnosc,
+przetestowac glos i zatrzymac aktualna wypowiedz. Google dostaje tylko oczyszczony
+tekst przeznaczony do przeczytania. Tymczasowy dzwiek jest usuwany po odtworzeniu,
+a kolejne odpowiedzi nie nakladaja sie na siebie.

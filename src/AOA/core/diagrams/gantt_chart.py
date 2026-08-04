@@ -3,8 +3,6 @@ import pandas as pd
 
 def prepare_gantt_chart_data(df: pd.DataFrame):
     duration_col = "czas_produkcji_h" if "czas_produkcji_h" in df.columns else None
-    if duration_col is None:
-        raise ValueError("Gantt wymaga kolumny 'czas_produkcji_h'")
 
     machine_col = None
     for candidate in ("machine_id", "recommended_machine", "maszyna", "machine"):
@@ -18,10 +16,16 @@ def prepare_gantt_chart_data(df: pd.DataFrame):
             job_col = candidate
             break
 
-    start_col = "sto_start" if "sto_start" in df.columns else None
-    end_col = "sto_end" if "sto_end" in df.columns else None
+    start_col = (
+        "t_start"
+        if "t_start" in df.columns
+        else ("sto_start" if "sto_start" in df.columns else None)
+    )
+    end_col = "t_end" if "t_end" in df.columns else ("sto_end" if "sto_end" in df.columns else None)
+    if duration_col is None and not (start_col and end_col):
+        raise ValueError("Gantt wymaga czasu trwania albo kolumn start/end")
 
-    required = [duration_col]
+    required = [column for column in [duration_col] if column]
     if machine_col:
         required.append(machine_col)
     if job_col:
@@ -32,11 +36,15 @@ def prepare_gantt_chart_data(df: pd.DataFrame):
         required.append(end_col)
 
     df_g = df[required].copy()
-    df_g[duration_col] = pd.to_numeric(df_g[duration_col], errors="coerce")
+    if duration_col:
+        df_g[duration_col] = pd.to_numeric(df_g[duration_col], errors="coerce")
     if start_col:
         df_g[start_col] = pd.to_numeric(df_g[start_col], errors="coerce")
     if end_col:
         df_g[end_col] = pd.to_numeric(df_g[end_col], errors="coerce")
+    if duration_col is None:
+        duration_col = "_source_duration"
+        df_g[duration_col] = df_g[end_col] - df_g[start_col]
     df_g = df_g.dropna(subset=[duration_col])
     if df_g.empty:
         raise ValueError("Brak danych do wykresu Gantta")

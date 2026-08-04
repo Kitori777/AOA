@@ -1,5 +1,56 @@
 ﻿# CHANGELOG
 
+## [0.9.0] - 2026-08-04
+
+### Added
+
+* Dodano testowalny, niezalezny od GUI model edycji linii produkcyjnej: dodawanie, edycje, przesuwanie, usuwanie oraz wczytywanie projektu.
+* Dodano `production_line_summary_*.csv` z jednym wierszem na zlecenie, cechami wejsciowymi oraz wynikami czasu, opoznienia, kosztu, odpadu i jakosci dla Results, Report oraz ML.
+* Dodano blok raportowy KPI linii produkcyjnej i komende operatora ALICE `zaprojektuj linie produkcyjna`.
+* Dodano testy wplywu zasobow, kolejnosci stanowisk i wszystkich rodzajow wzorow, a takze testy walidacji, limitu zdarzen, unikalnych nazw i awarii zapisu.
+* Dodano graficzne plotno linii produkcyjnej z przeciaganiem blokow, uchwytami polaczen, strzalkami, siatka, zoomem, przewijaniem, auto-ukladem i menu kontekstowym.
+* Dodano wersjonowany format projektu `schema_version: 2`, ktory zapisuje wspolrzedne stanowisk i polaczenia razem z zasobami oraz wzorami.
+* Dodano walidacje grafu: jedna spojna sciezka, jedno wejscie i wyjscie, bez cykli, rozgalezien oraz polaczen do nieistniejacych stanowisk.
+* Dodano serwis glosu ALICE z trybami `Auto`, `Google`, `Windows` i `Voicebox`, polskim `gTTS`, fallbackiem offline, zatrzymywaniem mowy i pamieciowym cachem.
+* Dodano przycisk zatrzymania glosu oraz status pokazujacy, ktory silnik faktycznie przeczytal odpowiedz.
+
+### Changed
+
+* Projektant linii korzysta teraz ze wspolnego modelu stanu, dzieki czemu operacje reczne sa deterministyczne i mozliwe do testowania bez uruchamiania okna.
+* Symulacja zapisuje osobno 12-kolumnowy plik zdarzen do Visual oraz kompaktowe podsumowanie zlecen do pozostalych modulow.
+* Nazwy plikow wynikowych zawieraja mikrosekundy i losowy identyfikator przebiegu, wiec szybkie kolejne symulacje nie nadpisuja wynikow.
+* Kolejnosc symulacji wynika teraz ze strzalek diagramu, a nie ze wspolrzednych blokow. Zmiana samego ukladu wizualnego nie zmienia wyniku.
+* Przycisk symulacji jest aktywny tylko dla poprawnego grafu; niedokonczony projekt nadal mozna zapisac i wczytac pozniej.
+* ALICE czyta odpowiedz automatycznie po jej wyswietleniu; nowa wypowiedz zastepuje poprzednia, zamiast nakladac dzwiek.
+
+### Fixed
+
+* Zabezpieczono zapis zestawu artefaktow linii: blad tworzenia podsumowania usuwa pliki tymczasowe i nie publikuje czesciowego wyniku.
+* Uzupelniono kontrakt podsumowania o stabilny `job_order`, co pozwala bezpiecznie laczyc wynik z pierwotnymi cechami zlecen.
+* Zachowano zgodnosc ze starymi projektami JSON: brakujace wspolrzedne i polaczenia sa odtwarzane jako automatyczny uklad szeregowy.
+* Uporzadkowano typy w formularzach ML, Results, Visual, Theory i oknie glownym, aby globalny audyt `mypy` obejmowal caly kod aplikacji i testow.
+* Naprawiono odtwarzanie odpowiedzi Voicebox w formacie MP3 oraz falszywy sukces odpowiedzi bez danych audio.
+* Zabezpieczono odczyt ustawien Tkintera przed uzyciem watku mowy i przeniesiono pliki audio do automatycznie usuwanego katalogu tymczasowego.
+* Ostatnia edycja formularza stanowiska jest zatwierdzana przed zapisem projektu i symulacja, a nieudane dodanie stanowiska nie pozostawia czesciowej zmiany.
+* Projekty linii z nowsza, nieobslugiwana wersja schematu JSON sa odrzucane z czytelnym komunikatem.
+
+### Documentation
+
+* Zaktualizowano README, guide i wiedze ALICE o graficzne projektowanie, dwa formaty CSV, naturalny glos Google, fallback offline oraz zasady prywatnosci TTS.
+
+### Tests
+
+* Dodano testy projektanta, symulatora, Results, Report, ML i komend operatora ALICE.
+* Dodano testy kolejnosci wyznaczanej przez graf, migracji starego JSON, zapisu ukladu, cykli, rozgalezien, zmiany ID stanowiska i niezmiennosci wynikow po przesunieciu blokow.
+* Dodano testy polskiego gTTS, cache, usuwania tymczasowego MP3, fallbacku Windows, walidacji Voicebox, transakcyjnosci stanowisk i wersji schematu projektu.
+* `python -m pytest -q --basetemp=.pytest-tmp-alice-gtts-handoff-20260804` -> `511 passed, 1 warning`.
+* `ruff check .` -> `All checks passed`.
+* `ruff format --check .` -> `151 files already formatted`.
+* `mypy src tests` -> `Success: no issues found in 149 source files`.
+* `uv pip check` -> `All installed packages are compatible`.
+* Rzeczywista synteza `gTTS 2.5.4` na Pythonie 3.14 -> poprawny polski MP3 (`20 352` bajty).
+* Audyt 10 000 zlecen i 3 stanowisk -> 30 000 operacji, lekki Visual CSV `1.788 MB`, podsumowanie zlecen `0.997 MB`.
+
 ## [0.8.0] - 2026-06-13
 
 ### Added
@@ -19,6 +70,8 @@
 * Dodano nowe przykladowe datasety w `data/sample`: `logistics.csv`, `warehouse.csv`, `quality.csv`, `schedule.csv`, `service.csv`.
 * Dodano szybkie akcje w ReadmePage: Release-check, Pliki AOA, Sample Main, Report Builder i Zapytaj ALICE.
 * Dodano pelniejsze kontrolki do interaktywnych HTML/D3: wybor wykresu, biblioteki, osi X/Y/Z, filtr, wysokosc, bins, outlier sigma, trendline, gestosc, fullscreen, eksport PNG/CSV/JSON, preset, reset i sterowanie drzewem.
+* Dodano kafelkowy wybor wykresow w `Visual Lab` i HTML/D3, filtrowany wedlug wybranej biblioteki.
+* Dodano kolumny `machine_id`, `t_start` i `t_end` do generowanych danych wielomaszynowych, zeby wykresy mogly filtrowac i rysowac harmonogram bez dodatkowego pliku.
 * Dodano testy dla nowych komend ALICE, operatora, menedzera plikow, segmentow rozwoju, kontraktu danych, szablonow raportow i interaktywnych kontrolek HTML.
 
 ### Changed
@@ -30,6 +83,7 @@
 * Rozwinieto ALICE z prostego czatu w operatora aplikacji: moze przechodzic po ekranach, przygotowywac sample, uruchamiac workflow, tworzyc szkice raportow i diagramow oraz tlumaczyc wyniki.
 * Zaktualizowano README, `docs/guide.md` i `docs/alice_brain.json` o nowe moduly, komendy, sample, release-check, QA HTML, custom ML/STO i segmenty 0.8.0.
 * Uporzadkowano teksty uzytkowe w Main, Results, Visual, Report, Diagrams i Theory tak, aby mniej zakladaly wiedze techniczna.
+* Zmieniono zapis zbiorczych wynikow STO na lekki plik `sto_visual`, bez ciezkiej kolumny `solution_tree_json`; `SolutionTree` odbudowuje drzewo z kolumn STO.
 
 ### Fixed
 
@@ -39,19 +93,22 @@
 * Naprawiono czytelnosc panelu pomocy dla kreatora wlasnych modeli ML i listy estymatorow sklearn/xgboost.
 * Naprawiono brak czytelnego podgladu plikow przed usunieciem lokalnych artefaktow.
 * Naprawiono problem z globalnym katalogiem tymczasowym testow na Windows przez uzycie lokalnego katalogu tymczasowego przy pelnym QA.
+* Naprawiono `ESM Best Method`, aby rozumial lekkie kolumny STO: `sto_total_for_model`, `sto_cumulative` i `sto_tardiness_positive`.
+* Naprawiono test porzadku repozytorium, aby sprawdzal tylko pliki sledzone w `data/`, a nie lokalne eksporty uzytkownika.
 
 ### Documentation
 
 * Zaktualizowano README o pelny opis AOA, Main, Visual, Results, Report, Diagrams, Theory, ALICE, menedzera plikow, QA HTML, release-check i segmentow 0.8.0.
 * Dopisano parametry generowania danych wraz z typami i zasadami walidacji, np. liczby calkowite, ulamkowe, zakresy i seed.
 * Dopisano instrukcje dla wlasnych modeli ML, wlasnych heurystyk STO, TabPFN, XGBoost i kontraktu danych.
+* Dopisano opis lekkiego pliku `sto_visual`, kafelkowego wyboru wykresow i kolumn wielomaszynowych w README, guide i wiedzy ALICE.
 * Rozwinieto `docs/alice_brain.json` o nowe hasla, workflowy, sample, release-check, QA HTML, operatora, recenzenta i playbooki.
 
 ### Tests
 
 * `python -m ruff check ...` -> `All checks passed`
 * `python -m pytest tests/core/test_release_segments.py tests/core/test_assistant_service.py tests/gui/test_assistant_operator_tasks.py tests/core/test_repository_layout_cleanup.py` -> `65 passed`
-* `python -m pytest` -> `465 passed, 1 warning`
+* `python -m pytest` -> `466 passed, 1 warning`
 
 ## [0.7.0] - 2026-06-05
 

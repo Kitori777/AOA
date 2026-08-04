@@ -783,8 +783,11 @@ class ResultsPage(ctk.CTkFrame):
     def run_sql_example(self, kind: str = "preview") -> None:
         if self.df_loaded is None:
             self.load_sample_data()
-        columns = list(self.df_loaded.columns)
-        numeric_columns = self.df_loaded.select_dtypes(include="number").columns.tolist()
+        df_loaded = self.df_loaded
+        if df_loaded is None:
+            return
+        columns = list(df_loaded.columns)
+        numeric_columns = df_loaded.select_dtypes(include="number").columns.tolist()
         if kind == "summary" and numeric_columns:
             metric = numeric_columns[0]
             self.run_sql_text(
