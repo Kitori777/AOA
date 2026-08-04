@@ -279,7 +279,9 @@ def test_alice_explains_custom_sklearn_algorithms_and_parameters() -> None:
 def test_alice_explains_operator_mode_actions() -> None:
     service = AssistantService()
 
-    answer, _hits, _from_airi = service.answer("Co mozesz stworzyc i przetestowac w trybie operatora?")
+    answer, _hits, _from_airi = service.answer(
+        "Co mozesz stworzyc i przetestowac w trybie operatora?"
+    )
 
     assert "trybie operatora" in answer
     assert "przetestuj raport" in answer

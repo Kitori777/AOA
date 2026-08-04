@@ -1,10 +1,12 @@
 # mypy: disable-error-code=attr-defined
 from tkinter import messagebox
+from typing import cast
 
 import customtkinter as ctk
 
 from AOA.core.mh_models import get_mh_model_specs, save_custom_heuristic_config
 from AOA.core.ml_models import (
+    ModelTask,
     available_sklearn_estimators,
     get_ml_model_specs,
     parse_params_json,
@@ -80,18 +82,18 @@ class MainPageConfigFormMixin:
         ).pack(side="left", padx=8, pady=2)
         self.ml_models_list_frame = ctk.CTkFrame(ml_frame, fg_color="transparent")
         self.ml_models_list_frame.pack(fill="x", padx=0, pady=0)
-        for spec in self.ml_model_specs:
+        for ml_spec in self.ml_model_specs:
             row = ctk.CTkFrame(self.ml_models_list_frame, fg_color="transparent")
             row.pack(fill="x", padx=8, pady=3)
             ctk.CTkCheckBox(
                 row,
-                text=spec.label,
-                variable=self.model_vars[spec.name],
+                text=ml_spec.label,
+                variable=self.model_vars[ml_spec.name],
                 command=self.render_summary,
             ).pack(anchor="w", padx=2, pady=(2, 0))
             ctk.CTkLabel(
                 row,
-                text=f"patrzy na: {spec.focus}",
+                text=f"patrzy na: {ml_spec.focus}",
                 font=("Arial", 10),
                 text_color="#a7b0ba",
                 justify="left",
@@ -140,19 +142,19 @@ class MainPageConfigFormMixin:
         ).pack(side="left", padx=8, pady=2)
         self.mh_models_list_frame = ctk.CTkFrame(sto_frame, fg_color="transparent")
         self.mh_models_list_frame.pack(fill="x", padx=0, pady=0)
-        for spec in self.mh_model_specs:
+        for mh_spec in self.mh_model_specs:
             row = ctk.CTkFrame(sto_frame, fg_color="transparent")
             row = ctk.CTkFrame(self.mh_models_list_frame, fg_color="transparent")
             row.pack(fill="x", padx=8, pady=3)
             ctk.CTkCheckBox(
                 row,
-                text=spec.label,
-                variable=self.model_vars[spec.name],
+                text=mh_spec.label,
+                variable=self.model_vars[mh_spec.name],
                 command=self.render_summary,
             ).pack(anchor="w", padx=2, pady=(2, 0))
             ctk.CTkLabel(
                 row,
-                text=f"patrzy na: {spec.focus}",
+                text=f"patrzy na: {mh_spec.focus}",
                 font=("Arial", 10),
                 text_color="#a7b0ba",
                 justify="left",
@@ -210,12 +212,42 @@ class MainPageConfigFormMixin:
 
     def _open_custom_heuristic_dialog(self):
         presets = {
-            "Termin / SLA": ("Custom_STO_EDD", "Moja kolejka SLA", "d", "Najpierw elementy z najbliższym terminem albo limitem SLA."),
-            "Najkrótsza obsługa": ("Custom_STO_SPT", "Moja szybka kolejka", "p", "Najpierw krótkie zadania, dostawy lub zgłoszenia, żeby szybko odblokować kolejkę."),
-            "Najmniejszy zapas": ("Custom_STO_Slack", "Moja Slack", "d - p", "Najpierw elementy z najmniejszym buforem czasu."),
-            "Critical ratio": ("Custom_STO_CR", "Moja CR", "d / p", "Relacja terminu do czasu obsługi; niżej oznacza pilniejsze."),
-            "Ryzyko opóźnienia": ("Custom_STO_Risk", "Moje ryzyko", "d - 1.5 * p", "Mocniej karze długie elementy blisko terminu."),
-            "Priorytet logistyczny": ("Custom_STO_Logistics", "Moja logistyka", "0.65 * d + 0.35 * p", "Miesza termin i czas obsługi, dobre do kolejek logistycznych."),
+            "Termin / SLA": (
+                "Custom_STO_EDD",
+                "Moja kolejka SLA",
+                "d",
+                "Najpierw elementy z najbliższym terminem albo limitem SLA.",
+            ),
+            "Najkrótsza obsługa": (
+                "Custom_STO_SPT",
+                "Moja szybka kolejka",
+                "p",
+                "Najpierw krótkie zadania, dostawy lub zgłoszenia, żeby szybko odblokować kolejkę.",
+            ),
+            "Najmniejszy zapas": (
+                "Custom_STO_Slack",
+                "Moja Slack",
+                "d - p",
+                "Najpierw elementy z najmniejszym buforem czasu.",
+            ),
+            "Critical ratio": (
+                "Custom_STO_CR",
+                "Moja CR",
+                "d / p",
+                "Relacja terminu do czasu obsługi; niżej oznacza pilniejsze.",
+            ),
+            "Ryzyko opóźnienia": (
+                "Custom_STO_Risk",
+                "Moje ryzyko",
+                "d - 1.5 * p",
+                "Mocniej karze długie elementy blisko terminu.",
+            ),
+            "Priorytet logistyczny": (
+                "Custom_STO_Logistics",
+                "Moja logistyka",
+                "0.65 * d + 0.35 * p",
+                "Miesza termin i czas obsługi, dobre do kolejek logistycznych.",
+            ),
         }
         dialog = ctk.CTkToplevel(self)
         dialog.title("Własna heurystyka kolejności")
@@ -242,7 +274,9 @@ class MainPageConfigFormMixin:
         name_var = ctk.StringVar(value="Custom_STO_EDD")
         label_var = ctk.StringVar(value="Moja heurystyka")
         formula_var = ctk.StringVar(value="d")
-        description_var = ctk.StringVar(value="Najpierw elementy z najbliższym terminem albo limitem SLA.")
+        description_var = ctk.StringVar(
+            value="Najpierw elementy z najbliższym terminem albo limitem SLA."
+        )
 
         def _set_guide() -> None:
             text = (
@@ -307,8 +341,12 @@ class MainPageConfigFormMixin:
                     row=row, column=0, columnspan=2, sticky="w", padx=16, pady=(12, 6)
                 )
             else:
-                ctk.CTkLabel(form, text=label_text).grid(row=row, column=0, sticky="w", padx=16, pady=6)
-                ctk.CTkEntry(form, textvariable=variable).grid(row=row, column=1, sticky="ew", padx=16, pady=6)
+                ctk.CTkLabel(form, text=label_text).grid(
+                    row=row, column=0, sticky="w", padx=16, pady=6
+                )
+                ctk.CTkEntry(form, textvariable=variable).grid(
+                    row=row, column=1, sticky="ew", padx=16, pady=6
+                )
             row += 1
 
         ctk.CTkLabel(
@@ -351,7 +389,7 @@ class MainPageConfigFormMixin:
         _set_guide()
 
     def _open_custom_model_dialog(self):
-        task_labels = {
+        dialog_options: dict[str, object] = {
             "quality": "Jakość / regresja",
             "delay": "Opóźnienie / regresja",
             "schedule": "Harmonogram / klasyfikacja",
@@ -396,7 +434,12 @@ class MainPageConfigFormMixin:
                 "note": "Klasyfikator drzewiasty do harmonogramu. Dobry, gdy klasy nie są liniowo rozdzielne.",
             },
         }
-        task_by_label = {value: key for key, value in task_labels.items()}
+        task_labels: dict[ModelTask, str] = {
+            "quality": cast(str, dialog_options["quality"]),
+            "delay": cast(str, dialog_options["delay"]),
+            "schedule": cast(str, dialog_options["schedule"]),
+        }
+        task_by_label: dict[str, ModelTask] = {value: key for key, value in task_labels.items()}
 
         dialog = ctk.CTkToplevel(self)
         dialog.title("Własny model sklearn")
@@ -510,12 +553,12 @@ class MainPageConfigFormMixin:
         )
 
     def _open_custom_model_dialog_v2(self):
-        task_labels = {
+        task_labels: dict[ModelTask, str] = {
             "quality": "Jakość / regresja",
             "delay": "Opóźnienie / regresja",
             "schedule": "Harmonogram / klasyfikacja",
         }
-        task_by_label = {value: key for key, value in task_labels.items()}
+        task_by_label: dict[str, ModelTask] = {value: key for key, value in task_labels.items()}
         presets = {
             "RandomForest: najprostszy start": {
                 "task": "quality",
@@ -690,7 +733,7 @@ class MainPageConfigFormMixin:
 
         def _apply_preset(name: str) -> None:
             preset = presets[name]
-            task_var.set(task_labels[preset["task"]])
+            task_var.set(task_labels[cast(ModelTask, preset["task"])])
             name_var.set(preset["name"])
             label_var.set("Mój model ML")
             scaler_var.set(preset["scaler"])
@@ -739,7 +782,9 @@ class MainPageConfigFormMixin:
                 )
             elif text == "Zadanie":
                 ctk.CTkLabel(form, text=text).grid(row=row, column=0, sticky="w", padx=16, pady=6)
-                task_menu = ctk.CTkOptionMenu(form, values=list(task_labels.values()), variable=task_var)
+                task_menu = ctk.CTkOptionMenu(
+                    form, values=list(task_labels.values()), variable=task_var
+                )
                 task_menu.grid(row=row, column=1, sticky="ew", padx=16, pady=6)
             elif text == "Estymator sklearn":
                 ctk.CTkLabel(form, text=text).grid(row=row, column=0, sticky="w", padx=16, pady=6)
@@ -761,7 +806,9 @@ class MainPageConfigFormMixin:
                 ).grid(row=row, column=1, sticky="w", padx=16, pady=6)
             else:
                 ctk.CTkLabel(form, text=text).grid(row=row, column=0, sticky="w", padx=16, pady=6)
-                ctk.CTkEntry(form, textvariable=var).grid(row=row, column=1, sticky="ew", padx=16, pady=6)
+                ctk.CTkEntry(form, textvariable=var).grid(
+                    row=row, column=1, sticky="ew", padx=16, pady=6
+                )
             row += 1
 
         ctk.CTkLabel(
@@ -936,12 +983,12 @@ class MainPageConfigFormMixin:
         )
 
     def _open_custom_model_dialog_v3(self):
-        task_labels = {
+        task_labels: dict[ModelTask, str] = {
             "quality": "Jakość / regresja",
             "delay": "Opóźnienie / regresja",
             "schedule": "Harmonogram / klasyfikacja",
         }
-        task_by_label = {value: key for key, value in task_labels.items()}
+        task_by_label: dict[str, ModelTask] = {value: key for key, value in task_labels.items()}
         presets = {
             "RandomForest": (
                 "quality",
@@ -1116,7 +1163,9 @@ class MainPageConfigFormMixin:
 
         header = ctk.CTkFrame(dialog, fg_color="transparent")
         header.grid(row=0, column=0, sticky="ew", padx=22, pady=(14, 8))
-        ctk.CTkLabel(header, text="Guide: własny model sklearn", font=("Segoe UI", 24, "bold")).pack(anchor="w")
+        ctk.CTkLabel(
+            header, text="Guide: własny model sklearn", font=("Segoe UI", 24, "bold")
+        ).pack(anchor="w")
         ctk.CTkLabel(
             header,
             text="Nie wybierasz tu nowego celu aplikacji, tylko algorytm sklearn do celu: jakość, opóźnienie albo harmonogram.",
@@ -1178,7 +1227,7 @@ class MainPageConfigFormMixin:
 
         def _apply_preset(preset_name: str) -> None:
             task, name, estimator, scaler, params, note = presets[preset_name]
-            task_var.set(task_labels[task])
+            task_var.set(task_labels[cast(ModelTask, task)])
             name_var.set(name)
             label_var.set("Mój model ML")
             estimator_var.set(estimator)
@@ -1228,7 +1277,21 @@ class MainPageConfigFormMixin:
                 name = path.split(".")[-1]
                 lower = name.lower()
                 task_name = "klasyfikacja" if task == "schedule" else "regresja"
-                needs_scaling = any(key in lower for key in ["sv", "knn", "ridge", "lasso", "elastic", "linear", "logistic", "sgd", "perceptron", "kernel"])
+                needs_scaling = any(
+                    key in lower
+                    for key in [
+                        "sv",
+                        "knn",
+                        "ridge",
+                        "lasso",
+                        "elastic",
+                        "linear",
+                        "logistic",
+                        "sgd",
+                        "perceptron",
+                        "kernel",
+                    ]
+                )
                 if path.startswith("xgboost.") or "xgb" in lower:
                     idea = "XGBoost buduje kolejne drzewa, które poprawiają błędy poprzednich drzew. To mocny boosting gradientowy z regularyzacją."
                     recommended = "Gdy RandomForest/ExtraTrees są za słabe i chcesz dokładniej złapać nieliniowe zależności. To opcja eksperymentalna, wymaga pakietu xgboost."
@@ -1238,8 +1301,12 @@ class MainPageConfigFormMixin:
                     recommended = "Dobry pierwszy wybór, gdy nie wiesz od czego zacząć. Działa dobrze na nieliniowych danych i zwykle nie wymaga skalowania."
                     params = "n_estimators, max_depth, min_samples_leaf, max_features, random_state, n_jobs"
                 elif "extratrees" in lower:
-                    idea = "Las bardzo losowych drzew. Losuje progi podziału mocniej niż RandomForest."
-                    recommended = "Dobre przy szumie, szybkie testowanie i opóźnienia. Zwykle bez skalowania."
+                    idea = (
+                        "Las bardzo losowych drzew. Losuje progi podziału mocniej niż RandomForest."
+                    )
+                    recommended = (
+                        "Dobre przy szumie, szybkie testowanie i opóźnienia. Zwykle bez skalowania."
+                    )
                     params = "n_estimators, max_depth, min_samples_leaf, max_features, random_state, n_jobs"
                 elif "gradientboost" in lower or "histgradient" in lower or "adaboost" in lower:
                     idea = "Boosting: kolejne modele poprawiają błędy poprzednich. HistGradient używa koszyków histogramowych."
@@ -1253,7 +1320,9 @@ class MainPageConfigFormMixin:
                     idea = "KNN przewiduje na podstawie podobnych rekordów historycznych."
                     recommended = "Dobre do prostego testu podobieństwa. Wymaga skalowania, bo używa odległości."
                     params = "n_neighbors, weights, metric, p"
-                elif "ridge" in lower or "lasso" in lower or "elastic" in lower or "linear" in lower:
+                elif (
+                    "ridge" in lower or "lasso" in lower or "elastic" in lower or "linear" in lower
+                ):
                     idea = "Model liniowy: uczy wagi cech i składa wynik jako kombinację cech."
                     recommended = "Dobry baseline i szybki test, czy zależność jest prosta/liniowa. Najlepiej ze skalowaniem."
                     params = "alpha, fit_intercept, max_iter, tol"
@@ -1263,7 +1332,9 @@ class MainPageConfigFormMixin:
                     params = "C, penalty, max_iter, class_weight, random_state"
                 elif "dummy" in lower:
                     idea = "Model kontrolny. Udaje prostą strategię, np. średnią albo najczęstszą klasę."
-                    recommended = "Użyj tylko jako punkt odniesienia: prawdziwy model powinien go pobić."
+                    recommended = (
+                        "Użyj tylko jako punkt odniesienia: prawdziwy model powinien go pobić."
+                    )
                     params = "strategy"
                 elif "gaussianprocess" in lower:
                     idea = "Model probabilistyczny. Oprócz predykcji może opisywać niepewność."
@@ -1273,7 +1344,11 @@ class MainPageConfigFormMixin:
                     idea = "Estymator sklearn zgodny z metodami fit(X, y) i predict(X)."
                     recommended = "Wybierz, jeśli wiesz, że pasuje do Twojego celu albo chcesz eksperymentować."
                     params = "Sprawdź dokumentację klasy; najczęściej random_state, max_iter, alpha/C albo parametry modelu."
-                scaling = "Tak, ustaw standard albo robust." if needs_scaling else "Zwykle nie, auto/none wystarczy dla modeli drzewiastych."
+                scaling = (
+                    "Tak, ustaw standard albo robust."
+                    if needs_scaling
+                    else "Zwykle nie, auto/none wystarczy dla modeli drzewiastych."
+                )
                 return (
                     f"{path}\n\n"
                     f"Typ zadania: {task_name}\n\n"
@@ -1333,9 +1408,9 @@ class MainPageConfigFormMixin:
                 row=0, column=2, padx=6
             )
 
-        ctk.CTkLabel(form, text="1. Wybierz przykład algorytmu", font=("Segoe UI", 17, "bold")).grid(
-            row=0, column=0, columnspan=2, sticky="w", padx=16, pady=(16, 8)
-        )
+        ctk.CTkLabel(
+            form, text="1. Wybierz przykład algorytmu", font=("Segoe UI", 17, "bold")
+        ).grid(row=0, column=0, columnspan=2, sticky="w", padx=16, pady=(16, 8))
         preset_frame = ctk.CTkFrame(form, fg_color="transparent")
         preset_frame.grid(row=1, column=0, columnspan=2, sticky="ew", padx=12, pady=(0, 8))
         preset_frame.grid_columnconfigure((0, 1, 2), weight=1)
@@ -1346,9 +1421,9 @@ class MainPageConfigFormMixin:
                 height=34,
                 command=lambda value=preset_name: _apply_preset(value),
             ).grid(row=index // 3, column=index % 3, sticky="ew", padx=4, pady=4)
-        ctk.CTkLabel(form, textvariable=note_var, text_color="#cbd5e1", justify="left", wraplength=650).grid(
-            row=2, column=0, columnspan=2, sticky="ew", padx=18, pady=(0, 14)
-        )
+        ctk.CTkLabel(
+            form, textvariable=note_var, text_color="#cbd5e1", justify="left", wraplength=650
+        ).grid(row=2, column=0, columnspan=2, sticky="ew", padx=18, pady=(0, 14))
 
         ctk.CTkLabel(form, text="2. Cel i nazwa", font=("Segoe UI", 17, "bold")).grid(
             row=3, column=0, columnspan=2, sticky="w", padx=16, pady=(10, 6)
@@ -1368,16 +1443,28 @@ class MainPageConfigFormMixin:
             justify="left",
             wraplength=650,
         ).grid(row=5, column=0, columnspan=2, sticky="ew", padx=18, pady=(0, 8))
-        ctk.CTkLabel(form, text="Nazwa techniczna").grid(row=6, column=0, sticky="w", padx=16, pady=6)
-        ctk.CTkEntry(form, textvariable=name_var).grid(row=6, column=1, sticky="ew", padx=16, pady=6)
-        ctk.CTkLabel(form, text="Nazwa na ekranie").grid(row=7, column=0, sticky="w", padx=16, pady=6)
-        ctk.CTkEntry(form, textvariable=label_var).grid(row=7, column=1, sticky="ew", padx=16, pady=6)
+        ctk.CTkLabel(form, text="Nazwa techniczna").grid(
+            row=6, column=0, sticky="w", padx=16, pady=6
+        )
+        ctk.CTkEntry(form, textvariable=name_var).grid(
+            row=6, column=1, sticky="ew", padx=16, pady=6
+        )
+        ctk.CTkLabel(form, text="Nazwa na ekranie").grid(
+            row=7, column=0, sticky="w", padx=16, pady=6
+        )
+        ctk.CTkEntry(form, textvariable=label_var).grid(
+            row=7, column=1, sticky="ew", padx=16, pady=6
+        )
 
         ctk.CTkLabel(form, text="3. Estymator i parametry", font=("Segoe UI", 17, "bold")).grid(
             row=8, column=0, columnspan=2, sticky="w", padx=16, pady=(12, 6)
         )
-        ctk.CTkLabel(form, text="Estymator sklearn/xgboost").grid(row=9, column=0, sticky="w", padx=16, pady=6)
-        ctk.CTkEntry(form, textvariable=estimator_var).grid(row=9, column=1, sticky="ew", padx=16, pady=6)
+        ctk.CTkLabel(form, text="Estymator sklearn/xgboost").grid(
+            row=9, column=0, sticky="w", padx=16, pady=6
+        )
+        ctk.CTkEntry(form, textvariable=estimator_var).grid(
+            row=9, column=1, sticky="ew", padx=16, pady=6
+        )
         ctk.CTkButton(
             form,
             text="Pokaż listę estymatorów",
@@ -1391,7 +1478,9 @@ class MainPageConfigFormMixin:
             variable=scaler_var,
             command=lambda _value: _refresh_logic(),
         ).grid(row=11, column=1, sticky="w", padx=16, pady=6)
-        ctk.CTkLabel(form, text="Parametry JSON").grid(row=12, column=0, sticky="nw", padx=16, pady=6)
+        ctk.CTkLabel(form, text="Parametry JSON").grid(
+            row=12, column=0, sticky="nw", padx=16, pady=6
+        )
         params_box = ctk.CTkTextbox(form, height=150)
         params_box.grid(row=12, column=1, sticky="ew", padx=16, pady=6)
         params_box.insert("1.0", presets["RandomForest"][4])
@@ -1412,9 +1501,9 @@ class MainPageConfigFormMixin:
             tutorial.grab_set()
             tutorial.grid_columnconfigure(0, weight=1)
             tutorial.grid_rowconfigure(1, weight=1)
-            ctk.CTkLabel(tutorial, text="Jak dodać własny model krok po kroku", font=("Segoe UI", 22, "bold")).grid(
-                row=0, column=0, sticky="w", padx=18, pady=(16, 8)
-            )
+            ctk.CTkLabel(
+                tutorial, text="Jak dodać własny model krok po kroku", font=("Segoe UI", 22, "bold")
+            ).grid(row=0, column=0, sticky="w", padx=18, pady=(16, 8))
             text = ctk.CTkTextbox(tutorial, wrap="word")
             text.grid(row=1, column=0, sticky="nsew", padx=18, pady=(0, 12))
             text.insert("1.0", self._custom_model_tutorial_text())
@@ -1426,9 +1515,9 @@ class MainPageConfigFormMixin:
         ctk.CTkLabel(guide, text="Pomoc i wzory", font=("Segoe UI", 18, "bold")).grid(
             row=0, column=0, sticky="w", padx=16, pady=(16, 8)
         )
-        ctk.CTkButton(guide, text="Instrukcja krok po kroku", command=_show_step_by_step, height=34).grid(
-            row=1, column=0, sticky="ew", padx=16, pady=(0, 12)
-        )
+        ctk.CTkButton(
+            guide, text="Instrukcja krok po kroku", command=_show_step_by_step, height=34
+        ).grid(row=1, column=0, sticky="ew", padx=16, pady=(0, 12))
         help_box = ctk.CTkTextbox(guide, height=300, wrap="word")
         help_box.grid(row=2, column=0, sticky="ew", padx=16, pady=(0, 14))
         help_box.insert("1.0", self._custom_model_help_text())
@@ -1466,8 +1555,12 @@ class MainPageConfigFormMixin:
             except Exception as exc:
                 messagebox.showerror("Błąd modelu", str(exc), parent=dialog)
 
-        ctk.CTkButton(footer, text="Anuluj", width=130, command=dialog.destroy).grid(row=0, column=1, padx=6, pady=4)
-        ctk.CTkButton(footer, text="Zapisz model", width=170, command=_save).grid(row=0, column=2, padx=6, pady=4)
+        ctk.CTkButton(footer, text="Anuluj", width=130, command=dialog.destroy).grid(
+            row=0, column=1, padx=6, pady=4
+        )
+        ctk.CTkButton(footer, text="Zapisz model", width=170, command=_save).grid(
+            row=0, column=2, padx=6, pady=4
+        )
 
     @staticmethod
     def _custom_model_help_text() -> str:
@@ -1640,6 +1733,14 @@ class MainPageConfigFormMixin:
             height=38,
             fg_color="#155e75",
             hover_color="#0e7490",
+        ).pack(fill="x", padx=10, pady=6)
+        ctk.CTkButton(
+            btns,
+            text="Projektuj i uruchom własną linię produkcyjną",
+            command=self.open_production_line_designer,
+            height=42,
+            fg_color="#7c3aed",
+            hover_color="#6d28d9",
         ).pack(fill="x", padx=10, pady=6)
 
     def _open_file_manager(self):

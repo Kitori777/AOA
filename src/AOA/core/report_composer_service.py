@@ -274,6 +274,33 @@ def sto_analytics_block() -> str:
     )
 
 
+def production_line_block(
+    kpis: dict[str, float | int],
+    *,
+    summary_path: str | Path | None = None,
+    visual_path: str | Path | None = None,
+) -> str:
+    """Build a ready-to-paste report section for a production-line run."""
+    lines = [
+        r"\section{Symulacja linii produkcyjnej}",
+        r"\begin{itemize}",
+        rf"\item Zlecenia: {kpis.get('jobs', 0)}.",
+        rf"\item Stanowiska: {kpis.get('stations', 0)}.",
+        rf"\item Czas calkowity [h]: {kpis.get('makespan_h', 0)}.",
+        rf"\item Przepustowosc [zlecen/h]: {kpis.get('throughput_per_h', 0)}.",
+        rf"\item Opoznione zlecenia: {kpis.get('late_jobs', 0)}.",
+        rf"\item Koszt calkowity: {kpis.get('total_cost', 0)}.",
+        rf"\item Odpad calkowity: {kpis.get('total_waste', 0)}.",
+        rf"\item Srednia jakosc: {kpis.get('mean_quality', 0)}.",
+        r"\end{itemize}",
+    ]
+    if summary_path:
+        lines.extend(["", file_block(summary_path)])
+    if visual_path:
+        lines.extend(["", f"Plik zdarzen do wykresow: \\code{{{Path(visual_path).name}}}."])
+    return "\n".join(lines).strip() + "\n"
+
+
 def prediction_plan_block() -> str:
     return "\n".join(
         [

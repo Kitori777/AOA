@@ -34,6 +34,8 @@ def command_sto_run(args: argparse.Namespace) -> int:
     if result.get("best_path"):
         logger.info("")
         logger.info("BEST: %s", result["best_path"])
+    if result.get("visual_path"):
+        logger.info("VISUAL_STO: %s", result["visual_path"])
     return 0
 
 
@@ -60,4 +62,6 @@ def command_sto_solve(args: argparse.Namespace) -> int:
     if result.get("best_path"):
         logger.info("")
         logger.info("BEST: %s", result["best_path"])
+    if result.get("visual_path"):
+        logger.info("VISUAL_STO: %s", result["visual_path"])
     return 0

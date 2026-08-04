@@ -170,13 +170,17 @@ def data_contract_summary() -> str:
     return "\n".join(lines)
 
 
-def audit_html_controls(html_text: str, *, profile: str = "interactive_chart") -> dict[str, list[str]]:
+def audit_html_controls(
+    html_text: str, *, profile: str = "interactive_chart"
+) -> dict[str, list[str]]:
     required = REQUIRED_HTML_CONTROLS.get(profile, REQUIRED_HTML_CONTROLS["interactive_chart"])
     missing = [control for control in required if control not in html_text]
     present = [control for control in required if control in html_text]
     return {"present": present, "missing": missing}
 
 
-def audit_html_file(path: str | Path, *, profile: str = "interactive_chart") -> dict[str, list[str]]:
+def audit_html_file(
+    path: str | Path, *, profile: str = "interactive_chart"
+) -> dict[str, list[str]]:
     html_text = Path(path).read_text(encoding="utf-8")
     return audit_html_controls(html_text, profile=profile)

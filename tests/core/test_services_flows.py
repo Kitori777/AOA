@@ -275,7 +275,7 @@ def test_solve_models_flow_rejects_csv_with_headers_but_no_rows(tmp_path):
         services.solve_models_flow(pack_path, data_path)
 
 
-def test_analyze_sto_models_saves_each_method_and_combined_tree_csv(monkeypatch, tmp_path):
+def test_analyze_sto_models_saves_each_method_and_light_visual_csv(monkeypatch, tmp_path):
     paths = []
 
     def fake_result_filename(model_name, source_name, suffix=".csv"):
@@ -294,7 +294,9 @@ def test_analyze_sto_models_saves_each_method_and_combined_tree_csv(monkeypatch,
 
     assert len(result["saved_paths"]) == 2
     assert result["all_path"].exists()
+    assert result["visual_path"] == result["all_path"]
     assert all(item["tree_chart"] == "SolutionTree" for item in result["saved_paths"])
     combined = pd.read_csv(result["all_path"])
     assert sorted(combined["sto_model"].unique().tolist()) == ["MO", "MT"]
-    assert "solution_tree_json" in combined.columns
+    assert "solution_tree_json" not in combined.columns
+    assert {"sto_order", "sto_start", "sto_end", "sto_cumulative"}.issubset(combined.columns)

@@ -32,7 +32,9 @@ def test_theory_modern_models_have_complete_learning_content() -> None:
 
 def test_modern_xgboost_theory_mentions_validation_and_baselines() -> None:
     model = find_theory_model("modern_xgboost_quality")
-    content = " ".join((*model.step_details, *model.pseudocode, *model.next_steps, model.tip)).lower()
+    content = " ".join(
+        (*model.step_details, *model.pseudocode, *model.next_steps, model.tip)
+    ).lower()
 
     assert "walidac" in content
     assert "train/test" in content
@@ -42,12 +44,29 @@ def test_modern_xgboost_theory_mentions_validation_and_baselines() -> None:
 
 def test_modern_theory_models_use_distinct_animation_kinds() -> None:
     assert ModelAnimationCard._modern_visual_kind(find_theory_model("tabpfn_quality")) == "tabpfn"
-    assert ModelAnimationCard._modern_visual_kind(find_theory_model("modern_xgboost_quality")) == "xgboost"
+    assert (
+        ModelAnimationCard._modern_visual_kind(find_theory_model("modern_xgboost_quality"))
+        == "xgboost"
+    )
     assert ModelAnimationCard._modern_visual_kind(find_theory_model("modern_mlp_delay")) == "mlp"
-    assert ModelAnimationCard._modern_visual_kind(find_theory_model("modern_stacking_schedule")) == "stacking"
+    assert (
+        ModelAnimationCard._modern_visual_kind(find_theory_model("modern_stacking_schedule"))
+        == "stacking"
+    )
 
 
 def test_modern_theory_footer_formulas_are_model_specific() -> None:
     assert "tree_m" in ModelAnimationCard._formula_label("xgboost", "jakosc")
     assert "sigma" in ModelAnimationCard._formula_label("mlp", "opoznienie")
     assert "meta" in ModelAnimationCard._formula_label("stacking", "schedule")
+
+
+def test_theory_exposes_three_user_sections_and_line_formulas() -> None:
+    assert get_theory_models("ml")
+    assert get_theory_models("mh")
+    line_models = get_theory_models("line")
+    assert {"line_flow", "line_time_formula", "line_kpi_formula"} == {
+        model.key for model in line_models
+    }
+    assert all(model.family == "line" for model in line_models)
+    assert all(len(model.steps) == 12 for model in line_models)

@@ -58,14 +58,18 @@ def _validate_tabpfn_inputs(
     if not np.isfinite(x_array.astype(float, copy=False)).all():
         raise ValueError("TabPFN dostal NaN albo inf w cechach. Najpierw uzupelnij i oczysc dane.")
     if x_array.shape[0] < 3:
-        raise ValueError("TabPFN potrzebuje co najmniej 3 rekordow treningowych do sensownej walidacji.")
+        raise ValueError(
+            "TabPFN potrzebuje co najmniej 3 rekordow treningowych do sensownej walidacji."
+        )
     if classification:
         if pd.isna(pd.Series(y_array)).any():
             raise ValueError("TabPFNClassifier dostal puste klasy w y_train.")
         if np.unique(y_array).size < 2:
             raise ValueError("TabPFNClassifier wymaga co najmniej 2 klas w y_train.")
     elif not np.isfinite(y_array.astype(float, copy=False)).all():
-        raise ValueError("TabPFNRegressor dostal NaN albo inf w celu y. Najpierw oczysc kolumne celu.")
+        raise ValueError(
+            "TabPFNRegressor dostal NaN albo inf w celu y. Najpierw oczysc kolumne celu."
+        )
 
 
 def _build_tabpfn_regressor():
