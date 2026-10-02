@@ -119,6 +119,18 @@ Przyklady metod:
 - `GENETIC` ulepsza populacje kolejnosci przez mutacje i krzyzowanie,
 - `LOCAL_SEARCH` poprawia kolejke lokalnymi zamianami,
 - `RANDOM_RESTART` probuje wielu startow i wybiera najlepszy wynik.
+- `ECO_WASTE` ogranicza odpad i liczbe zmian materialu przy kontroli terminow,
+- `COMPONENT_READY_EDD` najpierw sprawdza BOM i rezerwuje dostepne partie FIFO,
+  uwzglednia godziny przyszlych dostaw, a potem porzadkuje wykonalne zlecenia
+  wedlug gotowosci komponentow i terminu klienta. Brak bez planowanej dostawy
+  daje jawny status `UNSCHEDULABLE` zamiast ukrycia zlecenia.
+
+Dla modelu komponentowego start operacji spelnia dodatkowo:
+
+```text
+Rj = godzina dostepnosci ostatniego wymaganego komponentu
+Sj = max(dostepnosc maszyny, Rj) + przezbrojenie
+```
 
 ## 9. Jak czytac Theory w aplikacji
 

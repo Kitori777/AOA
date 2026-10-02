@@ -14,10 +14,13 @@ dist/
 *.egg-info/
 .eggs/
 logs/
+cache/
 
 # Testing
 .pytest_cache/
 .pytest-tmp/
+.pytest-codex-*/
+.pytest-run/
 .coverage
 .coverage.*
 htmlcov/
@@ -41,12 +44,14 @@ Thumbs.db
 # Local environment files
 .env
 .env.*
+.aoa/
 
 # Jupyter
 .ipynb_checkpoints/
 
 # UV cache
 .uv/
+.uv-cache-codex/
 .vendor/
 third_party/
 
@@ -58,6 +63,12 @@ docs/alice_sources/*.html
 /data/*
 !/data/sample/
 !/data/sample/*.csv
+/data/sample/*_latest.csv
+/data/sample/*_audit.jsonl
+/data/sample/*_recovery.jsonl
+/data/sample/*_runs/
+/data/sample/*_backups/
+/data/weekly_plans/
 
 # Local desktop / temp artifacts
 *.zip

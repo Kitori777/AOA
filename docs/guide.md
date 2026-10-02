@@ -3,6 +3,25 @@
 Ten przewodnik opisuje aktualny sposob pracy w aplikacji AOA: od danych, przez
 modele ML/STO/TabPFN, po wizualizacje, diagramy, raporty i pomoc ALICE.
 
+## Auto Kolejka i plan tygodniowy
+
+Auto Kolejka pracuje w dwóch etapach. Najpierw sprawdza kompletność komponentów
+dla całego zlecenia, a następnie wyznacza kolejność operacji, maszynę oraz
+dokładną godzinę rozpoczęcia. Odznaczenie maszyny oznacza awarię lub planowany
+przestój; algorytm nie przydziela do niej nowych operacji.
+
+W trybie `Ciągły` kolejka może zostać przeliczona po każdej zmianie danych.
+W trybie `Tygodniowy` użyj kolejno:
+
+1. `Przygotuj następny tydzień`, aby zapisać wersjonowany szkic.
+2. Sprawdź tabelę operacji, maszyn i godzin.
+3. `Zatwierdź tydzień`, aby przygotować niezmienny plan.
+
+Od poniedziałku od 06:00 zatwierdzone operacje są zamrożone. Nowe zlecenia
+trafiają poza aktywny horyzont 40 godzin. Awaria lub brak materiału powoduje
+alert, ale nie przesuwa planu automatycznie. Jeśli zmiana jest konieczna, użyj
+`Awaryjnie przeplanuj`, podaj powód i potwierdź utworzenie nowej wersji audytu.
+
 ## 1. Najszybszy przeplyw pracy
 
 1. Wejdz w `Main`.
@@ -127,6 +146,21 @@ Im mniejsze STO, tym lepsza kolejka.
 
 Dostepne metody obejmuja m.in. `MT/EDD`, `MO/SPT`, `MZO/LPT`, `MOPT`,
 `GENETIC`, `SLACK`, `CR`, `NEH`, `LOCAL_SEARCH` i `RANDOM_RESTART`.
+
+### Dwukolejka Auto Queue
+
+Auto Queue planuje w dwoch etapach:
+
+1. Kolejka komponentowa rezerwuje caly wymagany komplet. Zlecenie jest gotowe
+   teraz, oczekuje do potwierdzonego czasu dostawy albo pozostaje niewykonalne,
+   jezeli nie ma wystarczajacego zapasu ani potwierdzonej dostawy.
+2. Kolejka wykonawcza dostaje tylko zlecenia z zabezpieczonym kompletem. Ustala
+   kolejnosc operacji, maszyne, poczatek, koniec i opoznienie. Przyszla dostawa
+   jest twardym najwczesniejszym czasem rozpoczecia.
+
+W panelu stanu maszyn zaznaczenie oznacza maszyne sprawna. Odznaczona maszyna
+zachowuje swoj numer, ale nie przyjmuje nowych operacji. Gdy wszystkie dozwolone
+maszyny danej operacji sa niedostepne, pozycja pozostaje jawnie niewykonalna.
 
 Po analizie STO aplikacja zapisuje lekki plik `sto_visual`. To plik do Visual,
 Results i raportow: zawiera model, zlecenie, maszyne, kolejnosc, start, koniec

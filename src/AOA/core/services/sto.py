@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from AOA.core.component_inventory import annotate_component_readiness
 from AOA.core.data_io import load_csv, save_csv
 from AOA.core.models import load_model_pack
 from AOA.core.sto_models import (
@@ -29,6 +30,17 @@ STO_VISUAL_COLUMNS = [
     "sto_tardiness_positive",
     "sto_cumulative",
     "sto_total_for_model",
+    "sto_setup_h",
+    "sto_waste_kg",
+    "sto_energy_kwh",
+    "produkt_id",
+    "ilosc_szt",
+    "components_ready_h",
+    "material_wait_h",
+    "missing_components",
+    "stock_status",
+    "stock_reservation",
+    "scheduled",
 ]
 
 
@@ -47,16 +59,9 @@ def _jobs_dataframe(jobs, source_df: pd.DataFrame | None = None) -> pd.DataFrame
     if len(source) != len(jobs_df):
         return jobs_df
 
-    machine_column = next(
-        (
-            column
-            for column in ["machine_id", "recommended_machine", "maszyna", "machine"]
-            if column in source.columns
-        ),
-        None,
-    )
-    if machine_column is not None:
-        jobs_df["machine_id"] = source[machine_column].values
+    for column in source.columns:
+        if column not in jobs_df.columns:
+            jobs_df[column] = source[column].values
     return jobs_df
 
 
@@ -65,9 +70,11 @@ def _visual_sto_dataframe(result_df: pd.DataFrame) -> pd.DataFrame:
     return result_df[columns].copy() if columns else result_df.copy()
 
 
-def analyze_sto_models(job_ids_text, processing_text, deadlines_text, selected_methods):
+def analyze_sto_models(
+    job_ids_text, processing_text, deadlines_text, selected_methods, n_machines=1
+):
     jobs = parse_jobs(job_ids_text, processing_text, deadlines_text)
-    results = run_selected_sto_models(jobs, selected_methods)
+    results = run_selected_sto_models(jobs, selected_methods, n_machines=n_machines)
     report = build_sto_report(jobs, results)
 
     saved_paths = []
@@ -76,7 +83,7 @@ def analyze_sto_models(job_ids_text, processing_text, deadlines_text, selected_m
     all_path = None
     if results:
         jobs_df = _jobs_dataframe(jobs)
-        best_result = min(results, key=lambda x: x["sto"])
+        best_result = results[0]
         best_jobs_df = apply_sto_result_to_dataframe(jobs_df, best_result)
         result_frames = []
         for result in results:
@@ -111,7 +118,19 @@ def analyze_sto_models(job_ids_text, processing_text, deadlines_text, selected_m
     }
 
 
-def solve_sto_with_saved_model(model_path, data_path):
+def _component_paths(data_path, bom_path=None, inventory_path=None):
+    data_dir = Path(data_path).resolve().parent
+    bom_candidate = Path(bom_path) if bom_path else data_dir / "bom.csv"
+    inventory_candidate = Path(inventory_path) if inventory_path else data_dir / "inventory.csv"
+    explicit = bool(bom_path or inventory_path)
+    if bom_candidate.is_file() and inventory_candidate.is_file():
+        return bom_candidate, inventory_candidate
+    if explicit or bom_candidate.exists() or inventory_candidate.exists():
+        raise ValueError("Dane komponentow wymagaja obu plikow: bom.csv i inventory.csv.")
+    return None, None
+
+
+def solve_sto_with_saved_model(model_path, data_path, bom_path=None, inventory_path=None):
     if not model_path:
         raise ValueError("Nie wybrano pliku modelu STO.")
     if not data_path:
@@ -125,12 +144,36 @@ def solve_sto_with_saved_model(model_path, data_path):
     if df.empty:
         raise ValueError("Plik danych jest pusty.")
 
-    jobs = dataframe_to_jobs(df)
+    resolved_bom, resolved_inventory = _component_paths(
+        data_path, bom_path=bom_path, inventory_path=inventory_path
+    )
+    component_messages = []
+    if resolved_bom and resolved_inventory:
+        reservation_columns = ["termin_h"]
+        if "zlecenie_id" in df.columns:
+            reservation_columns.append("zlecenie_id")
+        reservation_input = df.sort_values(reservation_columns, kind="stable")
+        df = annotate_component_readiness(
+            reservation_input,
+            load_csv(resolved_bom),
+            load_csv(resolved_inventory),
+        )
+        component_messages.append(
+            f"✔ Komponenty: {resolved_bom.name} + {resolved_inventory.name}"
+        )
+    else:
+        df = annotate_component_readiness(df, None, None)
+        component_messages.append("ℹ Brak BOM/magazynu: komponenty przyjete jako gotowe w godzinie 0")
+
+    jobs = dataframe_to_jobs(df, job_id_col="zlecenie_id" if "zlecenie_id" in df else None)
     selected_methods = model_pack.get("selected_methods", [])
     if not selected_methods:
         raise ValueError("Zapisany model STO nie zawiera żadnych metod.")
 
-    results = run_selected_sto_models(jobs, selected_methods)
+    n_machines = int(
+        model_pack.get("n_machines") or max(1, df.get("machine_id", pd.Series([1])).nunique())
+    )
+    results = run_selected_sto_models(jobs, selected_methods, n_machines=n_machines)
     report = build_sto_report(jobs, results)
     saved_paths = []
     best_result = None
@@ -138,7 +181,7 @@ def solve_sto_with_saved_model(model_path, data_path):
     all_path = None
     if results:
         jobs_df = _jobs_dataframe(jobs, df)
-        best_result = min(results, key=lambda x: x["sto"])
+        best_result = results[0]
         best_jobs_df = apply_sto_result_to_dataframe(jobs_df, best_result)
         result_frames = []
         for result in results:
@@ -171,5 +214,7 @@ def solve_sto_with_saved_model(model_path, data_path):
         "best_path": best_path,
         "all_path": all_path,
         "visual_path": all_path,
-        "messages": ["✔ Rozwiązanie STO zakończone"],
+        "messages": ["✔ Rozwiązanie STO zakończone", *component_messages],
+        "bom_path": resolved_bom,
+        "inventory_path": resolved_inventory,
     }

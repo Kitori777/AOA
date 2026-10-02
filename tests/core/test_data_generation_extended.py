@@ -40,6 +40,7 @@ def test_generate_production_data_supports_multiple_machines():
     assert (df["t_end"] >= df["t_start"]).all()
     assert "lateness_h_sim" in df.columns
     assert (df["lateness_h_sim"] >= 0).all()
+    assert "produkt_id" in df.columns
 
 
 def test_generate_production_data_rejects_invalid_shape():

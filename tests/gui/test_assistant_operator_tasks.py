@@ -244,3 +244,18 @@ def test_collect_operator_tasks_supports_twenty_common_diagram_commands() -> Non
         "drawio:create_inventory",
         "drawio:create_energy",
     ]
+
+
+def test_collect_operator_tasks_supports_queue_agent_tools() -> None:
+    tasks = collect_operator_tasks(
+        "scenariusze kolejki, historia kolejki, diagnostyka kolejki, "
+        "wyjasnij plan kolejki i status sharepoint"
+    )
+
+    assert tasks == [
+        "queue:scenarios",
+        "queue:history",
+        "queue:diagnostics",
+        "queue:explain",
+        "queue:sync_status",
+    ]

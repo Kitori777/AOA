@@ -10,7 +10,7 @@ from sklearn.ensemble import (
     RandomForestRegressor,
 )
 
-from AOA.core.features import prepare_features
+from AOA.core.features import prepare_features, prepare_waste_target
 from AOA.core.ml_models import (
     build_classifier,
     build_regressor,
@@ -253,8 +253,7 @@ def _build_schedule_training_frame(
 def train_selected_models(df_train, selected_models, progress_callback=None, backend="classic"):
     """Train selected production models and return them as a model pack.
 
-    Classic mode now supports 12 model variants:
-    four quality regressors, four delay regressors and four schedule classifiers.
+    Classic mode supports quality, delay, waste and schedule model variants.
     Legacy names (`Quality`, `Delay`, `Schedule`) are still kept as the main
     model slots so older tests, saved flows and CLI calls remain compatible.
     """
@@ -270,9 +269,12 @@ def train_selected_models(df_train, selected_models, progress_callback=None, bac
         raise ValueError(f"Nieznane modele ML: {', '.join(unknown_models)}")
 
     X_train, yq, yd, scaler = prepare_features(df_train)
+    needs_waste = any(get_ml_task(name) == "waste" for name in selected_models)
+    yw = prepare_waste_target(df_train) if needs_waste else None
 
     quality_model = None
     delay_model = None
+    waste_model = None
     schedule_model = None
     variant_models: dict[str, object] = {}
 
@@ -300,6 +302,15 @@ def train_selected_models(df_train, selected_models, progress_callback=None, bac
                 variant_models[model_name] = model
                 if model_name == "Delay" or delay_model is None:
                     delay_model = model
+            elif task == "waste":
+                model = _train_tabpfn_variant_regressor_with_progress(
+                    model_name,
+                    X_train,
+                    yw,
+                    progress_callback=progress_callback,
+                )
+                variant_models[model_name] = model
+                waste_model = model
             elif task == "schedule":
                 _emit_progress(progress_callback, model_name, 0.0, PROGRESS_START)
                 if schedule_training_cache is None:
@@ -339,6 +350,15 @@ def train_selected_models(df_train, selected_models, progress_callback=None, bac
                 variant_models[model_name] = model
                 if model_name == "Delay" or delay_model is None:
                     delay_model = model
+            elif task == "waste":
+                model = _train_variant_regressor_with_progress(
+                    model_name,
+                    X_train,
+                    yw,
+                    progress_callback=progress_callback,
+                )
+                variant_models[model_name] = model
+                waste_model = model
             elif task == "schedule":
                 _emit_progress(progress_callback, model_name, 0.0, PROGRESS_START)
                 if schedule_training_cache is None:
@@ -361,6 +381,7 @@ def train_selected_models(df_train, selected_models, progress_callback=None, bac
     return {
         "quality": quality_model,
         "delay": delay_model,
+        "waste": waste_model,
         "schedule": schedule_model,
         "ml_models": variant_models,
         "scaler": scaler,

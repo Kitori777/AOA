@@ -2,10 +2,9 @@ import traceback
 from datetime import datetime
 from pathlib import Path
 
-from AOA.config import BASE_DIR
+from AOA.config import LOGS_DIR
 
-LOGS_DIR = BASE_DIR / "logs"
-LOGS_DIR.mkdir(exist_ok=True)
+LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def format_exception_trace(exc: Exception) -> str:

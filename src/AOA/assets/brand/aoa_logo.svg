@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect x="16" y="16" width="480" height="480" rx="104" fill="#071b2b"/>
+  <rect x="24" y="24" width="464" height="464" rx="96" fill="none" stroke="#164866" stroke-width="10"/>
+  <path d="M104 238 L214 174 L310 212 L408 112" fill="none" stroke="#36c7f4" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+  <g stroke="#eaf8ff" stroke-width="9">
+    <circle cx="104" cy="238" r="30" fill="#0d79d5"/>
+    <circle cx="214" cy="174" r="24" fill="#0d79d5"/>
+    <circle cx="310" cy="212" r="24" fill="#0d79d5"/>
+    <circle cx="408" cy="112" r="30" fill="#42d69a"/>
+  </g>
+  <path d="M390 92 L438 96 L430 144 Z" fill="#42d69a"/>
+  <text x="256" y="408" text-anchor="middle" font-family="Segoe UI,Arial,sans-serif" font-weight="700" font-size="132" fill="#f4fbff">AOA</text>
+  <rect x="106" y="439" width="300" height="12" rx="6" fill="#0d79d5"/>
+</svg>

@@ -49,9 +49,10 @@ def _tiny_schedule_frame():
 
 
 def test_ml_registry_contains_twelve_models_grouped_by_task():
-    assert len(ML_MODEL_SPECS) == 12
+    assert len(ML_MODEL_SPECS) == 13
     assert len(ML_MODELS_BY_TASK["quality"]) == 4
     assert len(ML_MODELS_BY_TASK["delay"]) == 4
+    assert len(ML_MODELS_BY_TASK["waste"]) == 1
     assert len(ML_MODELS_BY_TASK["schedule"]) == 4
     assert {spec.name for spec in ML_MODEL_SPECS} == set().union(*ML_MODELS_BY_TASK.values())
 
@@ -147,6 +148,8 @@ def test_every_ml_model_can_be_selected_and_trained(spec, monkeypatch):
         assert pack["quality"] is pack["ml_models"][spec.name]
     elif spec.task == "delay":
         assert pack["delay"] is pack["ml_models"][spec.name]
+    elif spec.task == "waste":
+        assert pack["waste"] is pack["ml_models"][spec.name]
     else:
         assert pack["schedule"] is pack["ml_models"][spec.name]
 

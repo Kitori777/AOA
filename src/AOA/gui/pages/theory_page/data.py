@@ -207,6 +207,8 @@ def _task_label(name: str) -> str:
         return "jakosc"
     if name.startswith("Delay"):
         return "opoznienie"
+    if name.startswith("Waste"):
+        return "odpad"
     return "strategia"
 
 
@@ -249,6 +251,8 @@ def _ml_probabilities(name: str) -> tuple[tuple[str, float], ...]:
         return (("wysoka jakosc", 0.72), ("srednia", 0.20), ("ryzyko", 0.08))
     if name.startswith("Delay"):
         return (("niski delay", 0.61), ("sredni", 0.26), ("wysoki", 0.13))
+    if name.startswith("Waste"):
+        return (("maly odpad", 0.67), ("sredni", 0.23), ("duzy", 0.10))
     return (("strategia A", 0.58), ("strategia B", 0.27), ("strategia C", 0.15))
 
 
@@ -257,6 +261,8 @@ def _ml_result(name: str) -> str:
         return "pred_quality: 0.82"
     if name.startswith("Delay"):
         return "pred_delay: 3.4 h"
+    if name.startswith("Waste"):
+        return "pred_waste_kg: 0.42 kg"
     return "schedule: A"
 
 
@@ -277,6 +283,7 @@ def _ml_details(name: str, task: str) -> tuple[str, ...]:
     target = {
         "jakosc": "wartosc jakosci",
         "opoznienie": "liczbe godzin opoznienia",
+        "odpad": "liczbe kilogramow odpadu",
         "strategia": "klase strategii harmonogramowania",
     }[task]
     if kind == "forest":

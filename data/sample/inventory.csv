@@ -1,0 +1,28 @@
+lot_id,component_sku,quantity,available_at_h,source,supplier,unit_cost_pln,quality_status
+LOT-00001,ETYKIETA-STANDARD,126762.1202,0.0,stock,Komponent SA,18.5,released
+LOT-00002,ETYKIETA-STANDARD,52453.2911,24.0,delivery,Nord Supply,8.24,released
+LOT-00003,ETYKIETA-STANDARD,39339.9684,72.0,delivery,Komponent SA,22.09,released
+LOT-00004,MAT-BAWELNA,2555.5015,0.0,stock,Textil Polska,16.27,released
+LOT-00005,MAT-BAWELNA,1057.4489,24.0,delivery,LogiPack,9.89,released
+LOT-00006,MAT-BAWELNA,793.0867,72.0,delivery,Textil Polska,13.8,released
+LOT-00007,MAT-MIKROFIBRA,2990.709,0.0,stock,Nord Supply,3.91,released
+LOT-00008,MAT-MIKROFIBRA,1237.5347,24.0,delivery,Komponent SA,20.63,released
+LOT-00009,MAT-MIKROFIBRA,928.1511,72.0,delivery,Nord Supply,9.41,released
+LOT-00010,MAT-POLIESTER,2682.8692,0.0,stock,LogiPack,13.3,released
+LOT-00011,MAT-POLIESTER,1110.1528,24.0,delivery,Textil Polska,11.63,released
+LOT-00012,MAT-POLIESTER,832.6146,72.0,delivery,LogiPack,6.76,released
+LOT-00013,MAT-WISKOZA,2333.83,0.0,stock,Komponent SA,5.63,released
+LOT-00014,MAT-WISKOZA,965.7228,24.0,delivery,Nord Supply,6.52,released
+LOT-00015,MAT-WISKOZA,724.2921,72.0,delivery,Komponent SA,10.63,released
+LOT-00016,NIC-UNIWERSALNA,181652.3806,0.0,stock,Textil Polska,9.44,released
+LOT-00017,NIC-UNIWERSALNA,75166.5023,24.0,delivery,LogiPack,11.48,released
+LOT-00018,NIC-UNIWERSALNA,56374.8767,72.0,delivery,Textil Polska,4.16,released
+LOT-00019,OPAK-KWADRAT,1811.6153,0.0,stock,Nord Supply,21.21,released
+LOT-00020,OPAK-KWADRAT,749.6339,24.0,delivery,Komponent SA,10.5,released
+LOT-00021,OPAK-KWADRAT,562.2254,72.0,delivery,Nord Supply,3.19,released
+LOT-00022,OPAK-TRAPEZ,1609.3736,0.0,stock,LogiPack,4.3,released
+LOT-00023,OPAK-TRAPEZ,665.9477,24.0,delivery,Textil Polska,21.76,released
+LOT-00024,OPAK-TRAPEZ,499.4608,72.0,delivery,LogiPack,13.11,released
+LOT-00025,OPAK-TROJKAT,1311.6245,0.0,stock,Komponent SA,3.54,released
+LOT-00026,OPAK-TROJKAT,542.7412,24.0,delivery,Nord Supply,13.99,released
+LOT-00027,OPAK-TROJKAT,407.0559,72.0,delivery,Komponent SA,23.91,released

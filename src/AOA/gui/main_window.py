@@ -7,7 +7,10 @@ from tkinter import messagebox
 from typing import Any
 
 import customtkinter as ctk
+from PIL import Image, ImageTk
 
+from AOA import __version__
+from AOA.config import APP_PATHS, ASSETS_DIR
 from AOA.core.file_manager_service import (
     delete_managed_file,
     list_managed_files,
@@ -23,10 +26,13 @@ from AOA.gui.assistant_panel import AOAAssistantPanel
 from AOA.gui.pages.analytics_page import AnalyticsPage
 from AOA.gui.pages.drawio_page import DrawIOPage
 from AOA.gui.pages.main_page import MainPage
+from AOA.gui.pages.queue_dashboard_page import QueueDashboardPage
 from AOA.gui.pages.readme_page import ReadmePage
 from AOA.gui.pages.results_page import ResultsPage
 from AOA.gui.pages.theory_page import TheoryPage
 from AOA.gui.pages.visual_page import VisualPage
+from AOA.gui.theme import COLORS, PAGE_META
+from AOA.settings import load_settings
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
@@ -62,9 +68,20 @@ class App(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("AOA - Aplikacja Optymalnego Algorytmowania")
+        brand_icon = ASSETS_DIR / "brand" / "aoa.ico"
+        brand_logo = ASSETS_DIR / "brand" / "aoa_logo.png"
+        self._window_icon: ImageTk.PhotoImage | None = None
+        try:
+            if brand_icon.exists():
+                self.iconbitmap(str(brand_icon))
+            if brand_logo.exists():
+                self._window_icon = ImageTk.PhotoImage(Image.open(brand_logo))
+                self.iconphoto(True, self._window_icon)
+        except Exception:
+            pass
         self.geometry("1560x880")
         self.minsize(1180, 720)
-        self.configure(fg_color="#08111a")
+        self.configure(fg_color=COLORS["app_bg"])
 
         self.sidebar_expanded = False
         self.active_page = "ReadmePage"
@@ -84,27 +101,81 @@ class App(ctk.CTk):
             self,
             width=88,
             corner_radius=0,
-            fg_color="#0a1722",
+            fg_color=COLORS["sidebar"],
             border_width=1,
-            border_color="#1c2a38",
+            border_color=COLORS["border_soft"],
         )
         self.sidebar.pack(side="left", fill="y")
         self.sidebar.pack_propagate(False)
 
-        self.container = ctk.CTkFrame(self, fg_color="#08111a")
+        self.container = ctk.CTkFrame(self, fg_color=COLORS["app_bg"])
         self.container.pack(side="right", fill="both", expand=True)
+
+        self.topbar = ctk.CTkFrame(
+            self.container,
+            height=72,
+            corner_radius=0,
+            fg_color=COLORS["surface"],
+            border_width=1,
+            border_color=COLORS["border_soft"],
+        )
+        self.topbar.pack(side="top", fill="x")
+        self.topbar.pack_propagate(False)
+
+        if brand_logo.exists():
+            self._brand_image = ctk.CTkImage(
+                light_image=Image.open(brand_logo),
+                dark_image=Image.open(brand_logo),
+                size=(46, 46),
+            )
+            ctk.CTkLabel(self.topbar, text="", image=self._brand_image).pack(
+                side="left", padx=(20, 0), pady=10
+            )
+        title_group = ctk.CTkFrame(self.topbar, fg_color="transparent")
+        title_group.pack(side="left", padx=(12, 24), pady=12)
+        self.page_title = ctk.CTkLabel(
+            title_group,
+            text="",
+            anchor="w",
+            text_color=COLORS["text"],
+            font=("Segoe UI", 18, "bold"),
+        )
+        self.page_title.pack(anchor="w")
+        self.page_subtitle = ctk.CTkLabel(
+            title_group,
+            text="",
+            anchor="w",
+            text_color=COLORS["text_muted"],
+            font=("Segoe UI", 11),
+        )
+        self.page_subtitle.pack(anchor="w")
+
+        runtime_label = "Wersja instalowana" if APP_PATHS.frozen else "Tryb developerski"
+        ctk.CTkLabel(
+            self.topbar,
+            text=f"  Lokalnie  |  {runtime_label}  |  v{__version__}  ",
+            height=30,
+            corner_radius=15,
+            fg_color=COLORS["primary_muted"],
+            text_color="#d9efff",
+            font=("Segoe UI", 11, "bold"),
+        ).pack(side="right", padx=22)
+
+        self.page_container = ctk.CTkFrame(self.container, fg_color=COLORS["app_bg"])
+        self.page_container.pack(side="bottom", fill="both", expand=True)
 
         self.pages = {}
         for Page in (
             ReadmePage,
             MainPage,
+            QueueDashboardPage,
             VisualPage,
             ResultsPage,
             AnalyticsPage,
             DrawIOPage,
             TheoryPage,
         ):
-            page = Page(self.container)
+            page = Page(self.page_container)
             self.pages[Page.__name__] = page
             page.place(relx=0, rely=0, relwidth=1, relheight=1)
 
@@ -115,10 +186,14 @@ class App(ctk.CTk):
         self.after(1200, self._preload_assistant_in_background)
         if self._auto_self_learning_enabled():
             self.after(2500, self._start_self_learning_background)
-        self.after(3000, self._start_runtime_hot_reload)
+        if self._runtime_hot_reload_enabled():
+            self.after(3000, self._start_runtime_hot_reload)
 
     def show(self, name: str) -> None:
         self.active_page = name
+        title, subtitle = PAGE_META.get(name, (name, ""))
+        self.page_title.configure(text=title)
+        self.page_subtitle.configure(text=subtitle)
         self.pages[name].tkraise()
         self._place_assistant_toggle()
         if name == "TheoryPage" and hasattr(self.pages[name], "animation"):
@@ -135,10 +210,10 @@ class App(ctk.CTk):
             text="Menu" if not self.sidebar_expanded else "<  Menu",
             height=46,
             width=56 if not self.sidebar_expanded else 178,
-            fg_color="#132232",
-            hover_color="#1a3147",
+            fg_color=COLORS["surface_raised"],
+            hover_color=COLORS["surface_hover"],
             border_width=1,
-            border_color="#24384b",
+            border_color=COLORS["border"],
             command=self.toggle_sidebar,
         )
         self.toggle_btn.pack(padx=16, pady=(18, 20), fill="x")
@@ -146,6 +221,7 @@ class App(ctk.CTk):
         items = [
             ("ReadmePage", "RD", "Readme"),
             ("MainPage", "MN", "Main"),
+            ("QueueDashboardPage", "AQ", "Auto Queue"),
             ("VisualPage", "VS", "Visual"),
             ("ResultsPage", "RS", "Results"),
             ("AnalyticsPage", "RP", "Report"),
@@ -157,17 +233,17 @@ class App(ctk.CTk):
             btn = ctk.CTkButton(
                 self.sidebar,
                 text=label,
-                height=64 if not self.sidebar_expanded else 42,
+                height=56 if not self.sidebar_expanded else 40,
                 width=62 if not self.sidebar_expanded else 178,
                 corner_radius=10,
-                fg_color="#0e1b28",
-                hover_color="#162b3d",
+                fg_color=COLORS["surface"],
+                hover_color=COLORS["surface_hover"],
                 border_width=1,
-                border_color="#183149",
+                border_color=COLORS["border_soft"],
                 font=("Segoe UI", 11 if not self.sidebar_expanded else 13, "bold"),
                 command=lambda page=name: self.show(page),
             )
-            btn.pack(padx=14, pady=6, fill="x")
+            btn.pack(padx=14, pady=4, fill="x")
             self.nav_buttons[name] = btn
 
         ctk.CTkLabel(self.sidebar, text="", fg_color="transparent").pack(fill="both", expand=True)
@@ -177,10 +253,10 @@ class App(ctk.CTk):
             text=help_text,
             height=40,
             width=62 if not self.sidebar_expanded else 178,
-            fg_color="#0e1b28",
-            hover_color="#162b3d",
+            fg_color=COLORS["surface"],
+            hover_color=COLORS["surface_hover"],
             border_width=1,
-            border_color="#24384b",
+            border_color=COLORS["border"],
             command=self.show_help,
         ).pack(padx=14, pady=(6, 10), fill="x")
 
@@ -190,8 +266,8 @@ class App(ctk.CTk):
             text=collapse_text,
             height=34,
             width=62 if not self.sidebar_expanded else 178,
-            fg_color="#102033",
-            hover_color="#18314b",
+            fg_color=COLORS["surface_raised"],
+            hover_color=COLORS["surface_hover"],
             command=self.toggle_sidebar,
         ).pack(padx=14, pady=(0, 16), fill="x")
         self._refresh_sidebar_buttons()
@@ -205,9 +281,9 @@ class App(ctk.CTk):
         for name, btn in self.nav_buttons.items():
             active = name == self.active_page
             btn.configure(
-                fg_color="#123f78" if active else "#0e1b28",
-                border_color="#1f8fff" if active else "#183149",
-                hover_color="#155ca6" if active else "#162b3d",
+                fg_color=COLORS["primary_muted"] if active else COLORS["surface"],
+                border_color=COLORS["primary"] if active else COLORS["border_soft"],
+                hover_color=COLORS["primary_hover"] if active else COLORS["surface_hover"],
             )
 
     def show_help(self) -> None:
@@ -499,6 +575,13 @@ class App(ctk.CTk):
         self._scan_runtime_files(initialize=True)
         self._schedule_runtime_hot_reload()
 
+    @staticmethod
+    def _runtime_hot_reload_enabled() -> bool:
+        if APP_PATHS.frozen:
+            return False
+        value = os.getenv("AOA_DEV_HOT_RELOAD", "1").strip().lower()
+        return value not in {"0", "false", "no", "off"}
+
     def _schedule_runtime_hot_reload(self) -> None:
         self._hotreload_after_id = self.after(5000, self._runtime_hot_reload_tick)
 
@@ -724,6 +807,36 @@ class App(ctk.CTk):
 
     def _run_assistant_task(self, task_name: str) -> str:
         try:
+            if task_name == "queue:open":
+                self.show("QueueDashboardPage")
+                return "Otworzylam Auto Queue z rankingiem modeli i ostatnim harmonogramem."
+            if task_name == "queue:refresh":
+                self.show("QueueDashboardPage")
+                page = self.pages.get("QueueDashboardPage")
+                if page is not None and hasattr(page, "refresh"):
+                    page.refresh(force=True)
+                return "Odswiezylam Auto Queue i uruchomilam ponowne porownanie modeli."
+            if task_name in {"queue:scenarios", "queue:history", "queue:diagnostics", "queue:explain"}:
+                self.show("QueueDashboardPage")
+                page = self.pages.get("QueueDashboardPage")
+                if page is None:
+                    return "Auto Queue nie jest jeszcze gotowa."
+                if task_name == "queue:scenarios" and hasattr(page, "open_scenario_lab"):
+                    page.open_scenario_lab()
+                    return "Otworzylam laboratorium co-jeśli. Wybierz jeden wariant; porównam go z planem bazowym."
+                if task_name == "queue:history" and hasattr(page, "open_history"):
+                    page.open_history()
+                    return "Otworzylam niezmienną historię przebiegów i kontrolę łańcucha audytu."
+                if task_name == "queue:diagnostics" and hasattr(page, "open_diagnostics"):
+                    page.open_diagnostics()
+                    return "Uruchomilam diagnostykę kolejki bez ujawniania treści danych."
+                if task_name == "queue:explain" and hasattr(page, "explain_current_plan"):
+                    return str(page.explain_current_plan())
+            if task_name == "queue:sync_status":
+                settings = load_settings()
+                if not settings.sync_enabled:
+                    return "Synchronizacja jest wyłączona. Aplikacja pracuje lokalnie i niczego nie wysyła. Adapter SharePoint jest gotowy do późniejszego podłączenia logowania."
+                return "Synchronizacja jest włączona w ustawieniach; przed wysyłką wymagane są transport SharePoint i logowanie użytkownika."
             if task_name == "files:open":
                 self.open_file_manager_window()
                 return "Otworzylam menedzer plikow AOA. Mozesz podejrzec HTML, CSV, raporty, modele i usunac plik dopiero po potwierdzeniu."

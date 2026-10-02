@@ -12,6 +12,7 @@ from urllib.parse import quote_plus
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
+from AOA.config import DOCS_DIR, RESOURCE_ROOT
 from AOA.core.mh_models import get_mh_model_specs
 from AOA.core.ml_models import get_ml_model_specs
 from AOA.core.release_segments import (
@@ -43,12 +44,12 @@ class BrainEntry:
 
 
 def _workspace_root() -> Path:
-    return Path(__file__).resolve().parents[3]
+    return RESOURCE_ROOT
 
 
 @lru_cache(maxsize=1)
 def _load_brain_entries() -> tuple[BrainEntry, ...]:
-    path = _workspace_root() / "docs" / "alice_brain.json"
+    path = DOCS_DIR / "alice_brain.json"
     if not path.exists():
         return ()
     try:
@@ -73,7 +74,7 @@ def _load_brain_entries() -> tuple[BrainEntry, ...]:
 def _collect_docs() -> list[tuple[str, str]]:
     root = _workspace_root()
     files: list[Path] = []
-    docs_dir = root / "docs"
+    docs_dir = DOCS_DIR
     if docs_dir.exists():
         files.extend(sorted(docs_dir.glob("*.md")))
     alice_sources = docs_dir / "alice_sources"

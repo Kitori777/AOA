@@ -1,17 +1,21 @@
-from pathlib import Path
+from AOA.platform import bootstrap_user_data, resolve_app_paths
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-DATA_DIR = BASE_DIR / "data"
-MODELS_DIR = BASE_DIR / "models"
-DOCS_DIR = BASE_DIR / "docs"
-ASSETS_DIR = BASE_DIR / "src" / "AOA" / "assets"
+APP_PATHS = resolve_app_paths()
+bootstrap_user_data(APP_PATHS)
+
+# Compatibility aliases used by the existing services. In a source checkout
+# these keep the portable repository layout; in a packaged build they point to
+# writable per-user directories.
+BASE_DIR = APP_PATHS.user_root
+RESOURCE_ROOT = APP_PATHS.resource_root
+CONFIG_DIR = APP_PATHS.config_root
+DATA_DIR = APP_PATHS.data_dir
+MODELS_DIR = APP_PATHS.models_dir
+DOCS_DIR = APP_PATHS.docs_dir
+LOGS_DIR = APP_PATHS.logs_dir
+CACHE_DIR = APP_PATHS.cache_dir
+ASSETS_DIR = APP_PATHS.assets_dir
 ASSISTANT_ASSETS_DIR = ASSETS_DIR / "assistant"
-
-DATA_DIR.mkdir(exist_ok=True)
-MODELS_DIR.mkdir(exist_ok=True)
-DOCS_DIR.mkdir(exist_ok=True)
-ASSETS_DIR.mkdir(parents=True, exist_ok=True)
-ASSISTANT_ASSETS_DIR.mkdir(parents=True, exist_ok=True)
 
 MODEL_FILE = MODELS_DIR / "model.pkl"
 DEFAULT_RESULT_FILE = DATA_DIR / "wynik_priority.csv"

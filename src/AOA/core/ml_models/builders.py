@@ -165,6 +165,21 @@ REGRESSOR_FACTORIES: dict[str, ModelFactory] = {
         ),
         "wydajny boosting histogramowy dla ryzyka opóźnień",
     ),
+    "Waste_RF": ModelFactory(
+        "Waste_RF",
+        lambda: _numeric_tree_pipeline(
+            RandomForestRegressor(
+                n_estimators=360,
+                min_samples_leaf=2,
+                max_features=0.85,
+                bootstrap=True,
+                oob_score=True,
+                random_state=44,
+                n_jobs=-1,
+            )
+        ),
+        "model odpadu bez przecieku kolumny celu do cech",
+    ),
     "Quality_RIDGE": ModelFactory(
         "Quality_RIDGE",
         lambda: _scaled_pipeline(Ridge(alpha=1.4), robust=True),
@@ -229,8 +244,6 @@ CLASSIFIER_FACTORIES: dict[str, ModelFactory] = {
                 learning_rate=0.045,
                 max_depth=3,
                 subsample=0.9,
-                validation_fraction=0.12,
-                n_iter_no_change=12,
                 random_state=42,
             )
         ),
@@ -258,7 +271,7 @@ def build_regressor(model_name: str):
         return REGRESSOR_FACTORIES[model_name].factory()
     except KeyError:
         config = get_custom_model_config(model_name)
-        if config is not None and config.task in {"quality", "delay"}:
+        if config is not None and config.task in {"quality", "delay", "waste"}:
             return build_custom_model(model_name)
         raise ValueError(f"Nieznany model regresyjny ML: {model_name}") from None
 

@@ -222,6 +222,25 @@ def calculate_model_training_metrics(
     if combined:
         results["Delay"] = combined
 
+    waste_model = model_pack.get("waste")
+    if waste_model is not None:
+        from AOA.core.features import prepare_waste_target
+
+        waste_train = prepare_waste_target(df_train)
+        waste_test = (
+            prepare_waste_target(df_test)
+            if df_test is not None and not df_test.empty and X_test is not None
+            else None
+        )
+        combined = _combine_train_test_metrics(
+            _metrics_for_split(waste_model, X_train, waste_train),
+            _metrics_for_split(waste_model, X_test, waste_test)
+            if X_test is not None and waste_test is not None
+            else None,
+        )
+        if combined:
+            results["Waste_RF"] = combined
+
     if model_pack.get("schedule") is not None:
         results["Schedule"] = {"trained": 1.0}
     return results

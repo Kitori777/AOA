@@ -257,11 +257,19 @@ def train_selected_models(
     return result.model_pack
 
 
-def train_sto_models_flow(selected_methods):
+def train_sto_models_flow(selected_methods, n_machines=1):
     if not selected_methods:
         raise ValueError("Nie wybrano żadnego modelu STO do zapisania.")
+    if int(n_machines) < 1 or int(n_machines) > 8:
+        raise ValueError("Liczba maszyn musi miec wartosc od 1 do 8.")
 
-    pack = {"pack_kind": "sto", "selected_methods": list(selected_methods)}
+    pack = {
+        "pack_kind": "sto",
+        "schema_version": 2,
+        "selected_methods": list(selected_methods),
+        "n_machines": int(n_machines),
+        "objective": "deadline_then_waste",
+    }
     model_path = build_sto_model_filename(selected_methods)
     save_model_pack(pack, model_path)
     return {
@@ -287,6 +295,7 @@ def solve_models_flow(model_path, data_path):
 
     quality_model = model_pack.get("quality")
     delay_model = model_pack.get("delay")
+    waste_model = model_pack.get("waste")
     schedule_model = model_pack.get("schedule")
     scaler = model_pack.get("scaler")
     backend = model_pack.get("backend", "classic")
@@ -302,6 +311,8 @@ def solve_models_flow(model_path, data_path):
             variant_models["Quality"] = quality_model
         if delay_model is not None:
             variant_models["Delay"] = delay_model
+        if waste_model is not None:
+            variant_models["Waste_RF"] = waste_model
         if schedule_model is not None:
             variant_models["Schedule"] = schedule_model
 
@@ -317,6 +328,10 @@ def solve_models_flow(model_path, data_path):
             predictions = model.predict(X_for_pred)
             if model_name == "Delay" or "pred_delay" not in result_df.columns:
                 result_df["pred_delay"] = predictions
+            result_df[f"pred_{safe_name}"] = predictions
+        elif task == "waste":
+            predictions = model.predict(X_for_pred)
+            result_df["pred_waste_kg"] = predictions
             result_df[f"pred_{safe_name}"] = predictions
         elif task == "schedule":
             result_df = _append_schedule_simulation(result_df)

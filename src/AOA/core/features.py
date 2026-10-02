@@ -20,7 +20,8 @@ def prepare_features(df: pd.DataFrame, scaler_obj=None):
     df["ksztalt_q"] = df["ksztalt"].map(KSZTALT_MAP).fillna(0.8)
     df["material_q"] = df["material"].map(MATERIAL_MAP).fillna(0.8)
 
-    df["odpad_norm"] = df["odpad"] / (df["odpad"].max() + 1e-6)
+    waste = pd.to_numeric(df.get("odpad", 0.0), errors="coerce").fillna(0.0)
+    df["odpad_norm"] = waste / (waste.max() + 1e-6)
     df["czas_na_deadline"] = df["czas_produkcji_h"] / (df["termin_h"] + 1e-6)
     df["koszt_czasu"] = df["cena"] * df["czas_produkcji_h"]
     df["presja"] = 1 / (df["termin_h"] + 1e-6)
@@ -39,15 +40,20 @@ def prepare_features(df: pd.DataFrame, scaler_obj=None):
             "pole",
             "ksztalt_q",
             "material_q",
-            "odpad_norm",
             "czas_na_deadline",
             "koszt_czasu",
             "presja",
         ]
     ]
 
-    y_quality = ((1 - df["odpad_norm"]) * df["material_q"] * df["ksztalt_q"]).clip(0, 1)
-    y_delay = df["czas_na_deadline"] * (2 - df["ksztalt_q"])
+    if "quality_score" in df.columns:
+        y_quality = pd.to_numeric(df["quality_score"], errors="coerce").fillna(0.0).clip(0, 1)
+    else:
+        y_quality = ((1 - df["odpad_norm"]) * df["material_q"] * df["ksztalt_q"]).clip(0, 1)
+    if "lateness_h_sim" in df.columns:
+        y_delay = pd.to_numeric(df["lateness_h_sim"], errors="coerce").fillna(0.0)
+    else:
+        y_delay = df["czas_na_deadline"] * (2 - df["ksztalt_q"])
 
     if scaler_obj is None:
         scaler_obj = MinMaxScaler()
@@ -56,3 +62,11 @@ def prepare_features(df: pd.DataFrame, scaler_obj=None):
         X_scaled = scaler_obj.transform(X)
 
     return pd.DataFrame(X_scaled, columns=X.columns), y_quality, y_delay, scaler_obj
+
+
+def prepare_waste_target(df: pd.DataFrame) -> pd.Series:
+    """Return observed waste without exposing it in the model feature matrix."""
+    column = "odpad_kg" if "odpad_kg" in df.columns else "odpad"
+    if column not in df.columns:
+        raise ValueError("Brak kolumny odpadu do treningu modelu Waste_RF.")
+    return pd.to_numeric(df[column], errors="coerce").fillna(0.0).clip(lower=0.0)

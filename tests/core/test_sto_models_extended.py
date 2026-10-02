@@ -1,6 +1,13 @@
 import pytest
 
-from AOA.core.sto_models import Job, parse_jobs, run_selected_sto_models, sequence_genetic
+from AOA.core.sto_models import (
+    OPTIMIZATION_OBJECTIVES,
+    Job,
+    parse_jobs,
+    run_selected_sto_models,
+    sequence_genetic,
+    sequence_mopt,
+)
 
 
 def test_parse_jobs_rejects_empty_inputs():
@@ -68,3 +75,33 @@ def test_sequence_genetic_for_large_input_returns_permutation_of_jobs():
 
     assert len(seq) == len(jobs)
     assert sorted(job.job_id for job in seq) == sorted(job.job_id for job in jobs)
+
+
+@pytest.mark.parametrize("objective", OPTIMIZATION_OBJECTIVES)
+def test_every_exclusive_objective_reports_exact_quality_for_four_jobs(objective):
+    jobs = [
+        Job("A", 4, 5, material="bawelna", waste_kg=2.0),
+        Job("B", 1, 8, material="poliester", waste_kg=0.2),
+        Job("C", 3, 7, material="bawelna", waste_kg=1.0),
+        Job("D", 2, 4, material="poliester", waste_kg=0.4),
+    ]
+
+    results = run_selected_sto_models(
+        jobs,
+        ["MT", "MOPT", "ECO_WASTE"],
+        n_machines=2,
+        objective=objective,
+    )
+
+    assert results[0]["objective"] == objective
+    assert results[0]["optimality_status"] == "OPTIMAL_CONFIRMED"
+    assert results[0]["optimality_gap_pct"] == 0.0
+
+
+def test_mopt_uses_bounded_fallback_for_large_single_machine_queue():
+    jobs = [Job(f"J{index}", 1, index + 5) for index in range(19)]
+
+    sequence = sequence_mopt(jobs)
+
+    assert len(sequence) == 19
+    assert {job.job_id for job in sequence} == {job.job_id for job in jobs}

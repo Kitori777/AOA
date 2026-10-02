@@ -322,7 +322,9 @@ class MainPageStateMixin:
                     self._safe_log(line)
             if sto_models:
                 self._safe_log(f"▶ Start zapisu modelu STO: {', '.join(sto_models)}")
-                sto_pack_result = train_sto_models_flow(sto_models)
+                sto_pack_result = train_sto_models_flow(
+                    sto_models, n_machines=int(self.n_machines_var.get())
+                )
                 for line in sto_pack_result["messages"]:
                     self._safe_log(line)
             if ml_models and sto_models:
@@ -404,6 +406,7 @@ class MainPageStateMixin:
                 processing_text=self.sto_times_var.get(),
                 deadlines_text=self.sto_deadlines_var.get(),
                 selected_methods=sto_models,
+                n_machines=int(self.n_machines_var.get()),
             )
             self.render_sto_report(result["report"] + self._sto_saved_files_text(result))
             self._log_sto_results(result)

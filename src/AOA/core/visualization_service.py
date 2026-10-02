@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import html
 import json
-import re
 import textwrap
 from pathlib import Path
 
@@ -23,6 +22,27 @@ from AOA.core.diagrams.decision_tree_diagram import prepare_decision_tree_data
 from AOA.core.diagrams.gantt_chart import prepare_gantt_chart_data
 from AOA.core.diagrams.line_chart import prepare_line_chart_data
 from AOA.core.diagrams.similarity_matrix import prepare_similarity_matrix_data
+from AOA.core.visualization.catalog import (
+    coerce_chart_for_library as _catalog_coerce_chart,
+)
+from AOA.core.visualization.catalog import (
+    get_supported_chart_types as _catalog_supported_charts,
+)
+from AOA.core.visualization.catalog import (
+    is_chart_supported_by_library as _catalog_is_supported,
+)
+from AOA.core.visualization.command_parser import (
+    best_column_match as _parsed_column_match,
+)
+from AOA.core.visualization.command_parser import (
+    default_columns as _parsed_default_columns,
+)
+from AOA.core.visualization.command_parser import (
+    numeric_columns as _parsed_numeric_columns,
+)
+from AOA.core.visualization.command_parser import (
+    parse_visual_command as _parse_visual_command,
+)
 
 D3_CDN_URL = "https://cdn.jsdelivr.net/npm/d3@7"
 
@@ -238,22 +258,15 @@ CHART_PICKER_META = {
 
 
 def get_supported_chart_types(chart_library: str) -> list[str]:
-    return list(LIBRARY_CHART_SUPPORT.get(chart_library, CHART_TYPES))
+    return _catalog_supported_charts(chart_library)
 
 
 def is_chart_supported_by_library(chart_type: str, chart_library: str) -> bool:
-    if chart_type == "DecisionTree":
-        chart_type = "ML Decision Tree"
-    return chart_type in get_supported_chart_types(chart_library)
+    return _catalog_is_supported(chart_type, chart_library)
 
 
 def coerce_chart_for_library(chart_type: str, chart_library: str) -> str:
-    if chart_type == "DecisionTree":
-        chart_type = "ML Decision Tree"
-    supported = get_supported_chart_types(chart_library)
-    if chart_type in supported:
-        return chart_type
-    return supported[0] if supported else "Scatter"
+    return _catalog_coerce_chart(chart_type, chart_library)
 
 
 SOLUTION_TREE_TEMPLATE_COLUMNS = [
@@ -334,7 +347,7 @@ COMMAND_CHART_ALIASES = {
 
 
 def _numeric_columns(df: pd.DataFrame) -> list[str]:
-    return df.select_dtypes(include=[np.number]).columns.tolist()
+    return _parsed_numeric_columns(df)
 
 
 def plt_colormap(n: int) -> list[tuple[float, float, float, float]]:
@@ -343,86 +356,15 @@ def plt_colormap(n: int) -> list[tuple[float, float, float, float]]:
 
 
 def _default_columns(df: pd.DataFrame) -> tuple[str | None, str | None, str | None]:
-    numeric_cols = _numeric_columns(df)
-    cols = numeric_cols or list(df.columns)
-    if not cols:
-        return None, None, None
-    return (
-        cols[0],
-        cols[1] if len(cols) > 1 else cols[0],
-        cols[2] if len(cols) > 2 else (cols[1] if len(cols) > 1 else cols[0]),
-    )
+    return _parsed_default_columns(df)
 
 
 def _best_column_match(df: pd.DataFrame, token: str) -> str | None:
-    cleaned = token.strip().strip(",.;:()[]{}").lower()
-    if not cleaned:
-        return None
-    by_lower = {column.lower(): column for column in df.columns}
-    if cleaned in by_lower:
-        return by_lower[cleaned]
-    cleaned_norm = cleaned.replace("_", "").replace("-", "")
-    for column in df.columns:
-        column_norm = column.lower().replace("_", "").replace("-", "")
-        if cleaned_norm == column_norm or cleaned_norm in column_norm:
-            return column
-    return None
+    return _parsed_column_match(df, token)
 
 
 def parse_visual_command(df: pd.DataFrame, command: str) -> dict[str, str | None]:
-    if df is None or df.empty:
-        raise ValueError("Najpierw wczytaj dane.")
-    text = command.strip()
-    if not text:
-        raise ValueError("Wpisz opis wykresu, np. 'scatter x cena y odpad'.")
-
-    lowered = text.lower()
-    chart_type = None
-    for alias, resolved in COMMAND_CHART_ALIASES.items():
-        if re.search(rf"\b{re.escape(alias)}\b", lowered):
-            chart_type = resolved
-            break
-    if chart_type is None:
-        chart_type = "Scatter"
-
-    x_default, y_default, z_default = _default_columns(df)
-    result = {"chart_type": chart_type, "x_col": x_default, "y_col": y_default, "z_col": z_default}
-    tokens = re.split(r"\s+", text)
-    key_map = {
-        "x": "x_col",
-        "y": "y_col",
-        "z": "z_col",
-        "kolor": "z_col",
-        "color": "z_col",
-        "rozmiar": "z_col",
-        "size": "z_col",
-    }
-    index = 0
-    while index < len(tokens) - 1:
-        token = tokens[index]
-        key = token.lower().strip(":=")
-        if key in key_map:
-            match = _best_column_match(df, tokens[index + 1])
-            if match is not None:
-                result[key_map[key]] = match
-            index += 2
-            continue
-        index += 1
-
-    mentioned = [_best_column_match(df, token) for token in tokens]
-    mentioned = [column for column in mentioned if column is not None]
-    ordered_mentions = list(dict.fromkeys(mentioned))
-    if ordered_mentions:
-        result["x_col"] = result["x_col"] if " x " in f" {lowered} " else ordered_mentions[0]
-    if len(ordered_mentions) > 1 and " y " not in f" {lowered} ":
-        result["y_col"] = ordered_mentions[1]
-    # Z ustawiamy tylko jawnie przez "z"/"kolor"/"color"/"size".
-
-    if chart_type in {"Histogram"}:
-        result["y_col"] = result["x_col"]
-    if chart_type in {"Boxplot"} and ordered_mentions:
-        result["y_col"] = ordered_mentions[0]
-    return result
+    return _parse_visual_command(df, command)
 
 
 def _style_axes(ax, *, title: str | None = None) -> None:

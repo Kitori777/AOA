@@ -66,7 +66,11 @@ def command_workflow(args: argparse.Namespace) -> int:
 
     if sto_models:
         hr("WORKFLOW | ZAPIS STO")
-        sto_result = train_sto_models_flow(sto_models)
+        sto_result = (
+            train_sto_models_flow(sto_models)
+            if args.machines == 1
+            else train_sto_models_flow(sto_models, n_machines=args.machines)
+        )
         print_messages(sto_result.get("messages"))
 
     if ml_models and not args.skip_solve and ml_model_path is not None:

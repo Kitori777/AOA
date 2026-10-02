@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-ModelTask = Literal["quality", "delay", "schedule"]
+ModelTask = Literal["quality", "delay", "waste", "schedule"]
 
 
 @dataclass(frozen=True)
@@ -73,6 +73,13 @@ ML_MODEL_SPECS: tuple[MLModelSpec, ...] = (
         "silne nieliniowosci i wieksze probki",
     ),
     MLModelSpec(
+        "Waste_RF",
+        "waste",
+        "Waste RandomForest",
+        "Random Forest Regressor przewidujacy odpad bez uzywania odpadu jako cechy.",
+        "minimalizacja odpadu materialowego i kontrola przezbrojen",
+    ),
+    MLModelSpec(
         "Schedule",
         "schedule",
         "Schedule RF",
@@ -108,6 +115,7 @@ ML_MODEL_FOCUS = {spec.name: spec.focus for spec in ML_MODEL_SPECS}
 ML_MODELS_BY_TASK: dict[ModelTask, tuple[str, ...]] = {
     "quality": tuple(spec.name for spec in ML_MODEL_SPECS if spec.task == "quality"),
     "delay": tuple(spec.name for spec in ML_MODEL_SPECS if spec.task == "delay"),
+    "waste": tuple(spec.name for spec in ML_MODEL_SPECS if spec.task == "waste"),
     "schedule": tuple(spec.name for spec in ML_MODEL_SPECS if spec.task == "schedule"),
 }
 

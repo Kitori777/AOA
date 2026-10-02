@@ -38,8 +38,10 @@ def test_train_selected_models_produces_stable_predictions_in_expected_ranges():
 
     assert np.all((quality_pred >= 0.0) & (quality_pred <= 1.0))
     assert np.all(delay_pred >= 0.0)
-    assert r2_score(y_quality, quality_pred) > 0.95
-    assert r2_score(y_delay, delay_pred) > 0.95
+    # Targets now come from observed process outcomes and are not repeated in X.
+    # In-sample fit remains useful, but no longer benefits from target leakage.
+    assert r2_score(y_quality, quality_pred) > 0.65
+    assert r2_score(y_delay, delay_pred) > 0.30
 
 
 def test_train_selected_models_is_deterministic_for_same_input_data():

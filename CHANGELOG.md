@@ -1,5 +1,68 @@
 ﻿# CHANGELOG
 
+## [Unreleased]
+
+### Added
+
+* Dodano drugi tryb Auto Kolejki: wersjonowany plan tygodniowy przygotowywany z wyprzedzeniem i zatwierdzany przez planistę.
+* Aktywny tydzień zachowuje przypisane maszyny i godziny, a nowe operacje są planowane poza jego 40-godzinnym horyzontem.
+* Dodano stany szkicu, zatwierdzenia, aktywnego i zamkniętego tygodnia oraz obsługę strefy `Europe/Warsaw`, zmiany czasu i przejścia roku.
+* Dodano awaryjne przeplanowanie aktywnego tygodnia z obowiązkowym powodem, nową wersją planu i wpisem w łańcuchu audytu.
+* Dodano alerty awarii maszyny, braku komponentów i rozbieżności między zatwierdzonym planem a bieżącą kolejką.
+
+### Changed
+
+* Zamrożona operacja pozostaje na zatwierdzonej maszynie i godzinie także po oznaczeniu maszyny jako niedostępnej; problem jest raportowany zamiast cichego przesunięcia.
+* Przepisano README jako krótszą dokumentację produktu, uruchomienia, Auto Kolejki, architektury, danych i procesu jakości.
+* Rozszerzono ustawienia o tryb planowania oraz konfigurowalny kalendarz tygodnia produkcyjnego.
+
+### Safety and tests
+
+* Dodano testy trwałości planu po restarcie, idempotentnego zatwierdzenia, zmiany czasu, przejścia roku, awaryjnej wersji, blokady aktywnego tygodnia i przesuwania nowych zleceń do przyszłego horyzontu.
+
+## [0.10.0] - 2026-09-28
+
+### Added
+
+* Dodano osobna strone desktopowa `Auto Queue`, podlaczona do jednego wybieranego CSV i odswiezana automatycznie co 2 sekundy.
+* Rozdzielono Auto Queue na kolejke kompletności komponentow i dokladny plan wykonawczy; potwierdzona przyszla dostawa wyznacza najwczesniejszy start, a trwaly brak nie przechodzi do planu.
+* Dodano zapamietywany lokalnie stan maszyn. Niedzialajaca maszyna zachowuje numer, nie dostaje operacji i jest uwzgledniana w rankingu, historii oraz scenariuszach.
+* Przyspieszono `ECO_WASTE` i `COMPONENT_READY_EDD` przez usuwanie powtarzanych wariantow i ograniczony budzet ulepszen dla duzych kolejek.
+* Dodano ranking wszystkich wybranych heurystyk, KPI kolejki i szczegolowy harmonogram wykonania na 1-8 maszynach.
+* Dodano statusy `NEW`, `PLANNED`, `IN_PROGRESS`, `DONE` i `BLOCKED` oraz automatyczne archiwum zakonczonych zlecen.
+* Dodano cztery realistyczne zlecenia demonstracyjne, 12 operacji i 32 kolumny w `schedule.csv`.
+* Dodano heurystyke `COMPONENT_READY_EDD`, ktora laczy wykonalnosc materialowa, terminy klienta, opoznienia, odpad i czas zakonczenia.
+* Dodano obsluge BOM, stanow magazynowych i przyszlych dostaw z rezerwacja partii FIFO oraz czytelnym statusem `UNSCHEDULABLE`.
+* Dodano przykladowe `bom.csv` i `inventory.csv`; produkcyjne CSV maja teraz 51 kolumn, w tym gotowosc komponentow, czas oczekiwania i slad rezerwacji.
+* Dodano profesjonalne logo AOA w formatach PNG, SVG i ICO oraz domyslny skrot instalatora na pulpicie.
+* Dodano jeden rozlaczny wybor celu: terminy, odpad, czas wykonania albo wariant zbalansowany; dostepnosc komponentow pozostaje warunkiem twardym.
+* Dodano trwaly zapis ostatniego rankingu modeli i najlepszego harmonogramu obok pliku kolejki.
+* Dodano planowanie zaleznych operacji technologicznych z poprzednikami, ograniczeniami maszyn, gotowoscia komponentow oraz zamrozonymi i rozpoczetymi pozycjami.
+* Dodano laboratorium scenariuszy co-jesli, wyjasnienia decyzji, waskie gardla i rekomendacje bezposrednio w Auto Queue.
+* Dodano niezmienna historie przebiegow, lancuch audytu, kopie bezpieczenstwa, dziennik odzyskiwania i diagnostyke bez tresci danych.
+* Dodano gotowa granice integracji SharePoint, synchronizacje dwukierunkowa, konflikty wersji oraz kolejke zmian offline bez zapisywania danych logowania.
+* Rozbito silnik heurystyk na moduly modeli, oceny, celow, klasycznych regul, przeszukiwania, heurystyk zasobowych i wynikow; stary import pozostaje zgodny.
+* Rozpoczeto modulowy podzial wizualizacji od katalogu typow wykresow i parsera polecen, zachowujac zgodny interfejs `visualization_service`.
+
+### Changed
+
+* Kosztowne metody NEH, Local Search, Random Restart i Genetic maja adaptacyjny budzet dla rosnacych kolejek, bez zmiany dokladnego zachowania malych przypadkow.
+* Nietkniety stary `schedule.csv` jest aktualizowany przy instalacji, a plik zmodyfikowany przez uzytkownika pozostaje bez zmian.
+* Harmonogram 1-8 maszyn respektuje godzine dostepnosci wszystkich komponentow i nie uruchamia zlecenia przed skompletowaniem materialu.
+* Aktualizacja desktopowa odswieza nietkniete stare pliki przykladowe, ale zachowuje pliki zmodyfikowane przez uzytkownika.
+* Zachowano dotychczasowe wartosci `cena` i `termin_h` w istniejacych zestawach przykladowych.
+* ALICE dziala w trybie lokalnego agenta: obserwuje aktywny widok, uklada plan dozwolonych operacji, wykonuje go, kontroluje odpowiedzi i podsumowuje wynik.
+* `ECO_WASTE` i `COMPONENT_READY_EDD` porownuja kilka deterministycznych punktow startowych, a MOPT dla duzych kolejek przechodzi na ograniczone przeszukiwanie zamiast sciezki wykladniczej.
+
+### Safety and tests
+
+* Zapis kolejki jest atomowy i wersjonowany; konflikt zmian nie nadpisuje cicho danych innej osoby.
+* Bledny rekord nie zatrzymuje calej kolejki, tylko otrzymuje status `BLOCKED` z opisem przyczyny.
+* Testy obejmuja wszystkie zarejestrowane heurystyki dla 4 zlecen, archiwizacje, dopisywanie i wieksze kolejki.
+* Dodano scenariusze 1, 3 i 4 maszyn, wspoldzielonych komponentow, czesciowego stanu, kilku dostaw oraz trwalego braku materialu.
+* Dla maksymalnie 8 zlecen ranking pokazuje wynik potwierdzony pelnym przegladem permutacji; dla wiekszych kolejek uczciwie oznacza wynik jako najlepszy znany.
+* Pelny zestaw po zmianach: `573 passed`; `ruff check src tests` i `mypy src/AOA` bez bledow.
+
 ## [0.9.0] - 2026-08-04
 
 ### Added
@@ -662,4 +725,3 @@
 ### Fixed
 - Uporządkowano przepływ generowania i podziału danych.
 - Ograniczono logikę wykonywaną bezpośrednio w GUI.
-

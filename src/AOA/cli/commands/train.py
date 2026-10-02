@@ -65,7 +65,12 @@ def command_train(args: argparse.Namespace) -> int:
     if sto_models:
         hr("ZAPIS STO")
         logger.info("Metody STO: %s", ", ".join(sto_models))
-        result = train_sto_models_flow(sto_models)
+        machine_count = args.machines_meta if args.machines_meta is not None else 1
+        result = (
+            train_sto_models_flow(sto_models)
+            if machine_count == 1
+            else train_sto_models_flow(sto_models, n_machines=machine_count)
+        )
         print_messages(result.get("messages"))
         print_key_value("MODEL_STO", result["model_path"])
 

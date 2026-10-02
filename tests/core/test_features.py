@@ -12,3 +12,5 @@ def test_prepare_features_returns_scaled_features_and_targets():
     assert len(yq) == len(df)
     assert len(yd) == len(df)
     assert scaler is not None
+    assert "odpad" not in X.columns
+    assert "odpad_norm" not in X.columns

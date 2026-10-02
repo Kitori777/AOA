@@ -12,7 +12,7 @@ from urllib import request
 
 import pandas as pd
 
-from AOA.config import DATA_DIR
+from AOA.config import DATA_DIR, DOCS_DIR, LOGS_DIR, RESOURCE_ROOT
 from AOA.core.mh_models import get_mh_model_specs
 from AOA.core.ml_models import get_ml_model_specs
 from AOA.core.mlstack.evaluation import run_benchmark
@@ -23,8 +23,8 @@ class AliceSelfLearningLoop:
     """Background evaluator: runs periodic checks and writes learning logs/reports."""
 
     def __init__(self) -> None:
-        self._root_dir = Path(__file__).resolve().parents[3]
-        self._logs_dir = self._root_dir / "logs"
+        self._root_dir = RESOURCE_ROOT
+        self._logs_dir = LOGS_DIR
         self._selflearn_dir = self._logs_dir / "alice_selflearn"
         self._thread: threading.Thread | None = None
         self._stop_event = threading.Event()
@@ -60,7 +60,7 @@ class AliceSelfLearningLoop:
             "https://pandas.pydata.org/docs/",
         ]
         self._learning_state_path = self._logs_dir / "alice_learning_state.json"
-        self._local_sources_dir = self._root_dir / "docs" / "alice_sources"
+        self._local_sources_dir = DOCS_DIR / "alice_sources"
         self._curriculum_state: dict[str, Any] = {
             "learn_queue": [
                 "app_workflow",

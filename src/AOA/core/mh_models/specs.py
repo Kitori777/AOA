@@ -85,6 +85,18 @@ MH_MODEL_SPECS: tuple[MHModelSpec, ...] = (
         "Sprawdza wiele losowych startow i wybiera najlepszy wynik STO.",
         "przeglad roznych wariantow kolejnosci",
     ),
+    MHModelSpec(
+        "ECO_WASTE",
+        "ECO Waste",
+        "Grupuje material i ksztalt, a nastepnie poprawia kolejnosc z uwzglednieniem terminow.",
+        "najmniejszy odpad i mniej przezbrojen przy zachowaniu terminow",
+    ),
+    MHModelSpec(
+        "COMPONENT_READY_EDD",
+        "Component Ready + EDD",
+        "Rezerwuje komponenty ze stanu i dostaw, a wykonalne zlecenia uklada wedlug gotowosci i terminu.",
+        "kompletnosc komponentow, termin klienta, opoznienie, odpad i czas zakonczenia",
+    ),
 )
 
 MH_MODEL_NAMES = {spec.name for spec in MH_MODEL_SPECS}

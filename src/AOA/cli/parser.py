@@ -153,6 +153,7 @@ def build_parser() -> argparse.ArgumentParser:
     sto_run_parser.add_argument(
         "--methods", required=True, type=str, help="Lista metod STO, np. MT,MO,MZO"
     )
+    sto_run_parser.add_argument("--machines", type=int, default=1, help="Liczba maszyn 1-8")
 
     sto_train_parser = subparsers.add_parser(
         "sto-train",
@@ -162,6 +163,7 @@ def build_parser() -> argparse.ArgumentParser:
         formatter_class=formatter,
     )
     sto_train_parser.add_argument("--methods", required=True, type=str, help="Lista metod STO")
+    sto_train_parser.add_argument("--machines", type=int, default=1, help="Liczba maszyn 1-8")
 
     sto_solve_parser = subparsers.add_parser(
         "sto-solve",
@@ -174,6 +176,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--model", required=True, type=str, help="Ścieżka do pliku modelu STO .pkl"
     )
     sto_solve_parser.add_argument("--data", required=True, type=str, help="Ścieżka do pliku CSV")
+    sto_solve_parser.add_argument("--bom", type=str, help="Opcjonalna ścieżka do BOM CSV")
+    sto_solve_parser.add_argument(
+        "--inventory", type=str, help="Opcjonalna ścieżka do stanów i dostaw CSV"
+    )
 
     preview_parser = subparsers.add_parser(
         "preview",

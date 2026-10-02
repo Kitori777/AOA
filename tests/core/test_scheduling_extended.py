@@ -39,6 +39,43 @@ def test_simulate_schedule_preserves_input_order_and_adds_time_columns():
     assert result["lateness_h"].tolist() == [0.0, 4.0, 4.0]
 
 
+def test_simulate_schedule_waits_for_components_and_keeps_shortage_visible():
+    df = _df()
+    df["components_ready_h"] = [7.0, 0.0, float("nan")]
+    df["stock_status"] = ["WAITING_COMPONENTS", "READY", "UNSCHEDULABLE"]
+
+    result = simulate_schedule(df, n_machines=1)
+
+    assert result.loc[0, "t_start"] == 7.0
+    assert result.loc[0, "material_wait_h_actual"] == 7.0
+    assert result.loc[2, "scheduled"] == False  # noqa: E712
+    assert result.loc[2, "machine_id"] == 0
+
+
+def test_two_machine_schedule_keeps_ids_and_excludes_unavailable_machine():
+    df = _df()
+    df["dozwolone_maszyny"] = ["1|2", "1|2", "1|2"]
+
+    baseline = simulate_schedule(df, n_machines=2)
+    all_working = simulate_schedule(df, n_machines=2, unavailable_machines=())
+    outage = simulate_schedule(df, n_machines=2, unavailable_machines=(2,))
+
+    pd.testing.assert_frame_equal(baseline, all_working)
+    assert set(outage.loc[outage["scheduled"], "machine_id"]) == {1}
+    assert outage["scheduled"].all()
+
+
+def test_schedule_reports_jobs_when_every_allowed_machine_is_unavailable():
+    df = _df().iloc[:1].copy()
+    df["dozwolone_maszyny"] = ["2"]
+
+    result = simulate_schedule(df, n_machines=2, unavailable_machines=(2,))
+
+    assert result.loc[0, "scheduled"] == False  # noqa: E712
+    assert result.loc[0, "machine_id"] == 0
+    assert "niedostepne" in result.loc[0, "unscheduled_reason"]
+
+
 def test_extract_schedule_features_returns_expected_keys():
     features = extract_schedule_features(_df())
 

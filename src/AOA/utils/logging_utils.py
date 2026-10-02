@@ -7,7 +7,7 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Final
 
-from AOA.config import BASE_DIR
+from AOA.config import LOGS_DIR
 
 DEFAULT_LOG_FORMAT: Final[str] = "%(message)s"
 VERBOSE_LOG_FORMAT: Final[str] = "%(levelname)s | %(name)s | %(message)s"
@@ -97,4 +97,4 @@ def _resolve_log_file() -> Path | None:
     configured = os.getenv("AOA_LOG_FILE", "").strip()
     if configured:
         return Path(configured)
-    return BASE_DIR / "logs" / "aoa.log"
+    return LOGS_DIR / "aoa.log"

@@ -14,6 +14,7 @@ from tkinter import messagebox
 import customtkinter as ctk
 
 from AOA.config import ASSISTANT_ASSETS_DIR, DATA_DIR
+from AOA.core.alice_agent import AliceAgent
 from AOA.core.assistant_service import AssistantService
 from AOA.core.self_learning import alice_self_learning_loop
 from AOA.core.speech_service import AliceSpeechService, SpeechRequest
@@ -26,6 +27,16 @@ class AssistantAction:
 
 
 OPERATOR_TASK_MAP: list[tuple[tuple[str, ...], str]] = [
+    (("otworz auto queue", "pokaz auto queue", "otworz kolejke"), "queue:open"),
+    (
+        ("odswiez auto queue", "przelicz kolejke", "odswiez kolejke", "policz kolejke"),
+        "queue:refresh",
+    ),
+    (("scenariusze kolejki", "co jesli kolejka", "laboratorium scenariuszy"), "queue:scenarios"),
+    (("historia kolejki", "audyt kolejki", "przebiegi kolejki"), "queue:history"),
+    (("diagnostyka kolejki", "sprawdz kolejke technicznie"), "queue:diagnostics"),
+    (("wyjasnij plan kolejki", "dlaczego taki plan", "waskie gardlo kolejki"), "queue:explain"),
+    (("status synchronizacji", "status sharepoint", "czy sharepoint jest gotowy"), "queue:sync_status"),
     (
         (
             "otworz pliki",
@@ -599,7 +610,7 @@ class AOAAssistantPanel(ctk.CTkToplevel):
         self.response_profile = ctk.StringVar(value="normal")
         self.voice_names = self._load_system_voice_names()
         self.voice_choice = ctk.StringVar(value=self._default_voice_choice(self.voice_names))
-        self.voice_engine = ctk.StringVar(value=os.getenv("AOA_ALICE_VOICE_ENGINE", "Auto"))
+        self.voice_engine = ctk.StringVar(value=os.getenv("AOA_ALICE_VOICE_ENGINE", "Windows"))
         self.voicebox_url = ctk.StringVar(
             value=os.getenv("AOA_VOICEBOX_SPEAK_URL", "http://127.0.0.1:17493/speak")
         )
@@ -615,6 +626,13 @@ class AOAAssistantPanel(ctk.CTkToplevel):
         self._last_daily_summary_key = ""
         self._chat_log_dir = Path(__file__).resolve().parents[3] / "logs" / "alice_chat"
         self._chat_log_session = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.agent = AliceAgent(
+            task_collector=self._collect_tasks,
+            task_runner=self.run_app_task or (lambda _task: "Tryb operatora jest niedostepny."),
+            heavy_predicate=self._is_heavy_task,
+            confirm_heavy=self._confirm_agent_task,
+            context_provider=lambda: f"aktywny widok: {self.current_page()}",
+        )
 
         self.title("ALICE Assistant")
         self.geometry("620x700")
@@ -873,26 +891,19 @@ class AOAAssistantPanel(ctk.CTkToplevel):
             pass
 
     def _run_operator_queue(self, prompt: str) -> str | None:
-        tasks = self._collect_tasks(prompt)
-        if not tasks:
-            return None
         if not callable(self.run_app_task):
             return "Tryb operatora jest chwilowo niedostepny."
+        run = self.agent.run(prompt)
+        return run.format_polish() if run is not None else None
 
-        lines = ["Wykonuje plan operatora:"]
-        for index, task_name in enumerate(tasks, start=1):
-            if self._is_heavy_task(task_name) and not self.auto_confirm_heavy.get():
-                ok = messagebox.askyesno(
-                    "Potwierdz akcje",
-                    f"Czy na pewno wykonac ciezsza akcje: {task_name} ?",
-                    parent=self,
-                )
-                if not ok:
-                    lines.append(f"{index}. Pomijam: {task_name} (anulowane).")
-                    continue
-            reply = self.run_app_task(task_name)
-            lines.append(f"{index}. {reply}")
-        return "\n".join(lines)
+    def _confirm_agent_task(self, task_name: str) -> bool:
+        if self.auto_confirm_heavy.get():
+            return True
+        return messagebox.askyesno(
+            "Jedno potwierdzenie planu",
+            f"ALICE wykona wskazane cięższe działania jako jeden plan:\n{task_name}\n\nKontynuować?",
+            parent=self,
+        )
 
     @staticmethod
     def _is_heavy_task(task_name: str) -> bool:
