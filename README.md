@@ -15,11 +15,13 @@ zewnętrznej usługi do podstawowej pracy.
 ## Najważniejsze możliwości
 
 - Auto Kolejka z porównaniem wszystkich zarejestrowanych heurystyk STO.
+- Indywidualne profile maszyn: wydajność, możliwości, koszt, energia, odpad i niezawodność.
 - Dwustopniowe planowanie:
   1. kontrola kompletności komponentów,
   2. przydział operacji do maszyn i wyznaczenie dokładnych godzin.
 - Reakcja na niedostępność maszyny bez ukrywania niewykonalnych operacji.
 - Tryb ciągły oraz zatwierdzany plan tygodniowy.
+- `ROBUST_MC` i 1000-scenariuszowa analiza Monte Carlo awarii oraz przestojów.
 - Zależności między operacjami, dozwolone maszyny i zamrożone pozycje planu.
 - Analizy scenariuszy „co-jeśli”, historia przebiegów i audyt zmian.
 - Modele jakości, opóźnień i strategii harmonogramowania.
@@ -62,6 +64,33 @@ Uwzględnia między innymi:
 
 Ranking heurystyk jest liczony na podstawie dokładnego planu operacji, dlatego
 liczba niewykonalnych pozycji w rankingu i tabeli maszyn jest zgodna.
+
+### Profile maszyn i produkty
+
+Przycisk **Profile maszyn** otwiera edytor jednej lub wielu zaznaczonych maszyn.
+Można wspólnie albo indywidualnie zmienić:
+
+- prędkość, odpad, energię, koszt godziny i czas przezbrojenia,
+- obsługiwane produkty, materiały i operacje,
+- planowany czas pracy,
+- MTBF, MTTR oraz ryzyko i czas przestoju po przezbrojeniu.
+
+Profile są zapisywane obok kolejki jako `schedule.csv.machines.json`. Zmiana
+liczby maszyn zachowuje istniejące profile i uzupełnia brakujące ustawieniami
+domyślnymi. Niezgodna maszyna nie przyjmuje operacji i jest jawnie pokazana jako
+ograniczenie, zamiast otrzymać zlecenie przez cichy fallback.
+
+### Monte Carlo i efektywność
+
+Metoda **Robust Monte Carlo** porównuje kandydatów z istniejących heurystyk w
+1000 powtarzalnych scenariuszach. Symulacja obejmuje zwykłe awarie opisane przez
+MTBF/MTTR oraz podwyższone ryzyko po przezbrojeniu. Rozpoczęta operacja jest
+wstrzymywana i kontynuowana po naprawie.
+
+Przycisk **Wyniki maszyn** pokazuje produktywność, przezbrojenia, bezczynność,
+wykorzystanie, dostępność, wydajność, jakość, szacowane OEE, koszt, odpad,
+energię oraz średni/P50/P90/P95 czas przestoju. P90 pozwala planować z zapasem,
+a eksport CSV zachowuje pełną tabelę.
 
 ## Plan tygodniowy
 
@@ -199,6 +228,10 @@ src/AOA/
 │   ├── history/           przebiegi i łańcuch audytu
 │   ├── reliability/       kopie, diagnostyka i odzyskiwanie
 │   ├── storage/           atomowy zapis lokalny i granica synchronizacji
+│   ├── machine_catalog.py profile, możliwości i niezawodność maszyn
+│   ├── product_routing.py trasy produktów i dozwolone maszyny
+│   ├── monte_carlo.py     symulacja ryzyka i percentyle
+│   ├── machine_efficiency.py  wykorzystanie i szacowane OEE
 │   ├── queue_service.py   dwukolejka i zapis wyników
 │   └── component_inventory.py
 ├── gui/                   strony i okna CustomTkinter

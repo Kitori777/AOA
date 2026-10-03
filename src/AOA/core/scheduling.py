@@ -5,6 +5,9 @@ from typing import Any
 
 import pandas as pd
 
+from AOA.core.machine_catalog import MachineSpec, ReliabilitySpec
+from AOA.core.product_routing import product_id_from_row
+
 SUPPORTED_MATERIALS = frozenset({"bawelna", "mikrofibra", "poliester", "wiskoza"})
 
 
@@ -15,6 +18,13 @@ class MachineProfile:
     waste_factor: float = 1.0
     energy_kwh_per_hour: float = 4.0
     supported_materials: frozenset[str] = SUPPORTED_MATERIALS
+    machine_name: str = ""
+    external_id: str = ""
+    supported_products: frozenset[str] = frozenset()
+    supported_operations: frozenset[str] = frozenset()
+    setup_time_h: float = 0.0
+    cost_per_hour: float = 0.0
+    reliability: ReliabilitySpec = ReliabilitySpec()
 
 
 def build_machine_profiles(n_machines: int) -> tuple[MachineProfile, ...]:
@@ -38,6 +48,35 @@ def build_machine_profiles(n_machines: int) -> tuple[MachineProfile, ...]:
                 waste_factor=waste,
                 energy_kwh_per_hour=energy,
                 supported_materials=materials,
+            )
+        )
+    return tuple(profiles)
+
+
+def machine_profiles_from_specs(
+    machine_specs: tuple[MachineSpec, ...] | list[MachineSpec],
+) -> tuple[MachineProfile, ...]:
+    if not machine_specs:
+        raise ValueError("Katalog maszyn Auto Queue nie moze byc pusty.")
+    if len(machine_specs) > 8:
+        raise ValueError("Auto Queue obsluguje od 1 do 8 profili maszyn.")
+    profiles = []
+    for index, raw_machine in enumerate(machine_specs, 1):
+        machine = raw_machine.normalized(index)
+        profiles.append(
+            MachineProfile(
+                machine_id=index,
+                speed_factor=machine.speed_factor,
+                waste_factor=machine.waste_factor,
+                energy_kwh_per_hour=machine.energy_kwh_per_hour,
+                supported_materials=machine.capability.materials or SUPPORTED_MATERIALS,
+                machine_name=machine.name,
+                external_id=machine.machine_id,
+                supported_products=machine.capability.products,
+                supported_operations=machine.capability.operations,
+                setup_time_h=machine.setup_time_h,
+                cost_per_hour=machine.cost_per_hour,
+                reliability=machine.reliability,
             )
         )
     return tuple(profiles)
@@ -77,6 +116,7 @@ def simulate_schedule(
     *,
     n_machines: int = 1,
     machine_profiles: tuple[MachineProfile, ...] | None = None,
+    machine_specs: tuple[MachineSpec, ...] | list[MachineSpec] | None = None,
     objective: str = "deadline_then_waste",
     unavailable_machines: tuple[int, ...] = (),
 ) -> pd.DataFrame:
@@ -86,7 +126,13 @@ def simulate_schedule(
         raise ValueError("Brak danych do harmonogramowania.")
     if time_col not in df.columns or "termin_h" not in df.columns:
         raise ValueError("Harmonogram wymaga kolumn czasu produkcji i terminu.")
-    profiles = machine_profiles or build_machine_profiles(n_machines)
+    if machine_profiles is not None and machine_specs is not None:
+        raise ValueError("Podaj profile albo katalog maszyn, nie oba jednoczesnie.")
+    profiles = (
+        machine_profiles
+        or (machine_profiles_from_specs(machine_specs) if machine_specs is not None else None)
+        or build_machine_profiles(n_machines)
+    )
     if len(profiles) != n_machines:
         raise ValueError("Liczba profili maszyn nie zgadza sie z n_machines.")
     unavailable = set(unavailable_machines)
@@ -128,12 +174,24 @@ def simulate_schedule(
             scheduled_rows.append(record)
             continue
         material = str(row.get("material", ""))
+        product_id = product_id_from_row(row)
+        operation_id = str(row.get("operation_id", row.get("station_type", ""))).strip()
         declared = _eligible_machine_ids(row.get("dozwolone_maszyny"), profiles)
         supported = [
             profile
             for profile in profiles
             if profile.machine_id in declared
             and (not material or material in profile.supported_materials)
+            and (
+                not profile.supported_products
+                or not product_id
+                or product_id in profile.supported_products
+            )
+            and (
+                not profile.supported_operations
+                or not operation_id
+                or operation_id in profile.supported_operations
+            )
         ]
         eligible = [profile for profile in supported if profile.machine_id not in unavailable]
         if not eligible:
@@ -169,6 +227,10 @@ def simulate_schedule(
         candidates: list[tuple[tuple[float, ...], MachineProfile, dict[str, float]]] = []
         for profile in eligible:
             setup_h, changeover_waste = _changeover_values(row, previous_rows[profile.machine_id])
+            if previous_rows[profile.machine_id] is not None:
+                previous_product = product_id_from_row(previous_rows[profile.machine_id])
+                if previous_product != product_id:
+                    setup_h += profile.setup_time_h
             raw_release = row.get("components_ready_h", 0.0)
             release_h = 0.0 if raw_release is None or pd.isna(raw_release) else max(0.0, float(raw_release))
             setup_start = max(availability[profile.machine_id], release_h)
@@ -216,6 +278,11 @@ def simulate_schedule(
         record = row.to_dict()
         record.update(metrics)
         record["machine_id"] = machine_id
+        record["machine_external_id"] = selected_profile.external_id or str(machine_id)
+        record["machine_name"] = selected_profile.machine_name or f"Maszyna {machine_id}"
+        record["machine_cost_actual"] = (
+            metrics["t_end"] - metrics["setup_start"]
+        ) * selected_profile.cost_per_hour
         record["machine_speed_factor"] = selected_profile.speed_factor
         record["machine_waste_factor"] = selected_profile.waste_factor
         record["schedule_order"] = source_order

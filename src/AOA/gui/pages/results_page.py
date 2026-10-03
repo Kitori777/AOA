@@ -5,6 +5,7 @@ import customtkinter as ctk
 import pandas as pd
 
 from AOA.config import DATA_DIR
+from AOA.core.machine_efficiency import build_machine_efficiency, efficiency_summary
 from AOA.core.result_viewer_service import (
     build_dataset_profile,
     build_missing_report,
@@ -130,7 +131,7 @@ class ResultsPage(ctk.CTkFrame):
         self.assistant_sections["toolbar"] = toolbar
         toolbar.grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 8))
         toolbar.grid_columnconfigure(1, weight=2)
-        toolbar.grid_columnconfigure(6, weight=1)
+        toolbar.grid_columnconfigure(7, weight=1)
 
         ctk.CTkButton(toolbar, text="Wczytaj dane", command=self.load_file, width=138).grid(
             row=0, column=0, padx=(12, 6), pady=12
@@ -152,8 +153,15 @@ class ResultsPage(ctk.CTkFrame):
         ctk.CTkButton(toolbar, text="Odśwież", command=self.refresh_view, width=98).grid(
             row=0, column=5, padx=6, pady=12
         )
+        ctk.CTkButton(
+            toolbar,
+            text="Efektywność maszyn",
+            command=self.show_machine_efficiency,
+            width=154,
+            fg_color="#0f766e",
+        ).grid(row=0, column=6, padx=6, pady=12)
         ctk.CTkButton(toolbar, text="Eksport CSV", command=self.export_visible, width=116).grid(
-            row=0, column=6, padx=6, pady=12, sticky="e"
+            row=0, column=7, padx=6, pady=12, sticky="e"
         )
         ctk.CTkSegmentedButton(
             toolbar,
@@ -161,17 +169,17 @@ class ResultsPage(ctk.CTkFrame):
             variable=self.view_mode_var,
             command=lambda _value: self._set_view_mode(),
             width=162,
-        ).grid(row=0, column=7, padx=6, pady=12, sticky="e")
+        ).grid(row=0, column=8, padx=6, pady=12, sticky="e")
         ctk.CTkLabel(
             toolbar,
             text="Kliknij nagłówek tabeli, aby sortować.",
             text_color="#94a3b8",
             justify="left",
-        ).grid(row=0, column=8, padx=(6, 12), pady=12, sticky="e")
+        ).grid(row=0, column=9, padx=(6, 12), pady=12, sticky="e")
 
         loader = ctk.CTkFrame(toolbar, fg_color="#0b1220", corner_radius=14)
         self.loader_frame = loader
-        loader.grid(row=1, column=0, columnspan=9, sticky="ew", padx=12, pady=(0, 12))
+        loader.grid(row=1, column=0, columnspan=10, sticky="ew", padx=12, pady=(0, 12))
         loader.grid_columnconfigure(8, weight=1)
         ctk.CTkLabel(
             loader, text="1. Tryb:", text_color="#cbd5e1", font=("Arial", 12, "bold")
@@ -561,6 +569,110 @@ class ResultsPage(ctk.CTkFrame):
             messagebox.showinfo("OK", f"Zapisano widok: {path}")
         except Exception as e:
             messagebox.showerror("Błąd zapisu", str(e))
+
+    def show_machine_efficiency(self) -> None:
+        if self.df_loaded is None or self.df_loaded.empty:
+            messagebox.showerror(
+                "Brak danych",
+                "Wczytaj plik machine_efficiency albo zdarzenia linii produkcyjnej.",
+            )
+            return
+        try:
+            if {"machine_id", "productive_h", "estimated_oee_pct"}.issubset(
+                self.df_loaded.columns
+            ):
+                report = self.df_loaded.copy()
+            else:
+                report = build_machine_efficiency(self.df_loaded)
+            self._open_machine_efficiency_window(report)
+        except Exception as exc:
+            messagebox.showerror("Brak danych maszynowych", str(exc))
+
+    def _open_machine_efficiency_window(self, report: pd.DataFrame) -> None:
+        summary = efficiency_summary(report)
+        window = ctk.CTkToplevel(self)
+        window.title("Efektywność maszyn")
+        window.geometry("1280x720")
+        window.minsize(960, 560)
+        window.transient(self.winfo_toplevel())
+        window.grid_columnconfigure(0, weight=1)
+        window.grid_rowconfigure(2, weight=1)
+        ctk.CTkLabel(
+            window,
+            text="Efektywność maszyn — praca, straty i ryzyko",
+            font=("Segoe UI", 24, "bold"),
+        ).grid(row=0, column=0, sticky="w", padx=18, pady=(14, 8))
+        cards = ctk.CTkFrame(window, corner_radius=14)
+        cards.grid(row=1, column=0, sticky="ew", padx=18, pady=(0, 8))
+        values = (
+            ("Maszyny", summary["machines"]),
+            ("Praca [h]", f"{summary['productive_h']:.2f}"),
+            ("Przezbrojenia [h]", f"{summary['setup_h']:.2f}"),
+            ("Przestoje [h]", f"{summary['downtime_h']:.2f}"),
+            ("Śr. wykorzystanie", f"{summary['mean_utilization_pct']:.1f}%"),
+            ("Szacowane OEE", f"{summary['mean_estimated_oee_pct']:.1f}%"),
+        )
+        for column, (label, value) in enumerate(values):
+            cards.grid_columnconfigure(column, weight=1)
+            card = ctk.CTkFrame(cards, fg_color="#0f172a", corner_radius=12)
+            card.grid(row=0, column=column, sticky="nsew", padx=5, pady=7)
+            ctk.CTkLabel(card, text=label, text_color="#94a3b8").pack(pady=(8, 1))
+            ctk.CTkLabel(card, text=str(value), font=("Segoe UI", 18, "bold")).pack(
+                pady=(0, 8)
+            )
+        shell = ctk.CTkFrame(window, corner_radius=14)
+        shell.grid(row=2, column=0, sticky="nsew", padx=18, pady=8)
+        shell.grid_columnconfigure(0, weight=1)
+        shell.grid_rowconfigure(0, weight=1)
+        tree = ttk.Treeview(shell, show="headings", style="Results.Treeview")
+        columns = [str(column) for column in report.columns]
+        tree.configure(columns=columns)
+        for column_name in columns:
+            tree.heading(column_name, text=column_name)
+            tree.column(
+                column_name,
+                width=self._column_width(report, column_name),
+                minwidth=82,
+            )
+        for index, (_, row) in enumerate(report.iterrows()):
+            tree.insert(
+                "",
+                "end",
+                values=[self._format_cell(row[column]) for column in columns],
+                tags=("even" if index % 2 == 0 else "odd",),
+            )
+        tree.tag_configure("odd", background="#111c2d")
+        tree.tag_configure("even", background="#0f172a")
+        tree.grid(row=0, column=0, sticky="nsew", padx=(8, 0), pady=(8, 0))
+        y_scroll = ttk.Scrollbar(shell, orient="vertical", command=tree.yview)
+        y_scroll.grid(row=0, column=1, sticky="ns", pady=(8, 0))
+        x_scroll = ttk.Scrollbar(shell, orient="horizontal", command=tree.xview)
+        x_scroll.grid(row=1, column=0, sticky="ew", padx=(8, 0), pady=(0, 8))
+        tree.configure(yscrollcommand=y_scroll.set, xscrollcommand=x_scroll.set)
+
+        def export_report() -> None:
+            path = filedialog.asksaveasfilename(
+                parent=window,
+                title="Eksport efektywności maszyn",
+                defaultextension=".csv",
+                filetypes=[("CSV", "*.csv")],
+            )
+            if path:
+                report.to_csv(path, index=False)
+                messagebox.showinfo("Zapisano", f"Zapisano raport:\n{path}", parent=window)
+
+        footer = ctk.CTkFrame(window, fg_color="transparent")
+        footer.grid(row=3, column=0, sticky="ew", padx=18, pady=(0, 14))
+        footer.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(
+            footer,
+            text="OEE jest oznaczone jako szacowane, gdy dane nie zawierają pełnej liczby dobrych sztuk.",
+            text_color="#94a3b8",
+        ).grid(row=0, column=0, sticky="w")
+        ctk.CTkButton(footer, text="Eksport CSV", command=export_report).grid(
+            row=0, column=1, padx=6
+        )
+        ctk.CTkButton(footer, text="Zamknij", command=window.destroy).grid(row=0, column=2)
 
     def _sort_by_column(self, column: str) -> None:
         if self.sort_var.get() == column:

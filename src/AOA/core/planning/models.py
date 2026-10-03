@@ -21,6 +21,8 @@ class OperationSpec:
     fixed_machine_id: int | None = None
     fixed_start_h: float | None = None
     station_type: str = ""
+    product_id: str = ""
+    material: str = ""
 
 
 @dataclass(frozen=True)

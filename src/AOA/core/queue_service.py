@@ -3,6 +3,7 @@ from __future__ import annotations
 import io
 import re
 from dataclasses import dataclass, replace
+from dataclasses import field as dataclass_field
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -15,7 +16,10 @@ from AOA.core.component_inventory import (
     annotate_component_readiness,
 )
 from AOA.core.history import AuditLog, RunStore
+from AOA.core.machine_catalog import MachineSpec
+from AOA.core.machine_efficiency import build_machine_efficiency
 from AOA.core.mh_models import get_mh_model_names
+from AOA.core.monte_carlo import MonteCarloConfig, simulate_schedule_risk
 from AOA.core.optimization.objectives import balanced_score, metric_key
 from AOA.core.planning import (
     OperationSpec,
@@ -29,6 +33,7 @@ from AOA.core.planning import (
     planning_result_to_dataframe,
     schedule_operations,
 )
+from AOA.core.queue_machine_config import default_queue_machines
 from AOA.core.reliability import BackupManager, RecoveryJournal, RecoveryRecord
 from AOA.core.sto_models import (
     OPTIMIZATION_OBJECTIVES,
@@ -100,6 +105,7 @@ class QueueEvaluation:
     machine_count: int
     objective: str = "deadline_then_waste"
     unavailable_machines: tuple[int, ...] = ()
+    machine_specs: tuple[MachineSpec, ...] = ()
     persistence_warning: str = ""
     component_queue: ComponentQueueState | None = None
     operation_plan: PlanningResult | None = None
@@ -110,6 +116,8 @@ class QueueEvaluation:
     weekly_status: str = "CONTINUOUS"
     weekly_locked_count: int = 0
     weekly_alerts: tuple[str, ...] = ()
+    machine_efficiency: tuple[dict[str, object], ...] = ()
+    risk_summary: dict[str, float | int] = dataclass_field(default_factory=dict)
 
     @property
     def best(self) -> dict | None:
@@ -282,12 +290,16 @@ def evaluate_queue(
     weekly_policy: WeeklyPlanningPolicy | None = None,
     weekly_plan: WeeklyPlan | None = None,
     now: datetime | None = None,
+    machine_specs: tuple[MachineSpec, ...] | list[MachineSpec] | None = None,
 ) -> QueueEvaluation:
     if n_machines < 1 or n_machines > 8:
         raise ValueError("Liczba maszyn musi miescic sie w zakresie 1-8.")
     if objective not in OPTIMIZATION_OBJECTIVES:
         raise ValueError(f"Nieznany cel optymalizacji: {objective}")
     unavailable = tuple(sorted(set(unavailable_machines)))
+    configured_machines = tuple(machine_specs or ())
+    if configured_machines and len(configured_machines) != n_machines:
+        raise ValueError("Liczba profili maszyn nie zgadza sie z liczba maszyn Auto Queue.")
     invalid_unavailable = [
         machine_id for machine_id in unavailable if machine_id < 1 or machine_id > n_machines
     ]
@@ -324,6 +336,7 @@ def evaluate_queue(
             machine_count=n_machines,
             objective=objective,
             unavailable_machines=unavailable,
+            machine_specs=configured_machines,
             component_queue=ComponentQueueState(pd.DataFrame(), (), (), ()),
             weekly_plan_id=weekly_plan_id,
             weekly_plan_version=weekly_plan_version,
@@ -353,7 +366,10 @@ def evaluate_queue(
     ].copy()
     if order_frame.empty:
         operation_plan = schedule_operations(
-            [], machine_count=n_machines, unavailable_machines=unavailable
+            [],
+            machine_count=n_machines,
+            unavailable_machines=unavailable,
+            machine_specs=configured_machines or None,
         )
         evaluation = QueueEvaluation(
             snapshot=snapshot,
@@ -362,6 +378,7 @@ def evaluate_queue(
             machine_count=n_machines,
             objective=objective,
             unavailable_machines=unavailable,
+            machine_specs=configured_machines,
             component_queue=component_queue,
             operation_plan=operation_plan,
             explanation=explain_plan(operation_plan, []),
@@ -380,6 +397,7 @@ def evaluate_queue(
         n_machines=n_machines,
         objective=objective,
         unavailable_machines=unavailable,
+        machine_specs=configured_machines or None,
     )
     operations_by_method: dict[str, tuple[list[OperationSpec], PlanningResult]] = {}
     operation_order_by_id = {
@@ -396,6 +414,7 @@ def evaluate_queue(
             operations,
             machine_count=n_machines,
             unavailable_machines=unavailable,
+            machine_specs=configured_machines or None,
         )
         machine_blocked = {
             operation_order_by_id.get(operation_id, operation_id)
@@ -429,10 +448,16 @@ def evaluate_queue(
             best_operations,
             machine_count=n_machines,
             unavailable_machines=unavailable,
+            machine_specs=configured_machines or None,
         )
     else:
         best_operations, operation_plan = operations_by_method[str(best["method"])]
     explanation = explain_plan(operation_plan, best_operations)
+    machine_efficiency, risk_summary = _queue_machine_outcomes(
+        operation_plan,
+        best_operations,
+        configured_machines or default_queue_machines(n_machines),
+    )
     evaluation = QueueEvaluation(
         snapshot=snapshot,
         results=results,
@@ -440,6 +465,7 @@ def evaluate_queue(
         machine_count=n_machines,
         objective=objective,
         unavailable_machines=unavailable,
+        machine_specs=configured_machines,
         component_queue=component_queue,
         operation_plan=operation_plan,
         explanation=explanation,
@@ -448,8 +474,75 @@ def evaluate_queue(
         weekly_status=weekly_status,
         weekly_locked_count=weekly_locked_count,
         weekly_alerts=weekly_alerts,
+        machine_efficiency=machine_efficiency,
+        risk_summary=risk_summary,
     )
     return _persist_evaluation_safely(evaluation)
+
+
+def _queue_machine_outcomes(
+    plan: PlanningResult,
+    operations: list[OperationSpec],
+    machines: tuple[MachineSpec, ...] | list[MachineSpec],
+) -> tuple[tuple[dict[str, object], ...], dict[str, float | int]]:
+    if not plan.steps:
+        return (), {}
+    operation_by_id = {operation.operation_id: operation for operation in operations}
+    risk_machines = tuple(
+        MachineSpec(
+            machine_id=str(index),
+            name=machine.name,
+            station_id="QUEUE",
+            speed_factor=machine.speed_factor,
+            waste_factor=machine.waste_factor,
+            energy_kwh_per_hour=machine.energy_kwh_per_hour,
+            cost_per_hour=machine.cost_per_hour,
+            setup_time_h=machine.setup_time_h,
+            planned_hours_h=machine.planned_hours_h,
+            capability=machine.capability,
+            reliability=machine.reliability,
+        ).normalized(index)
+        for index, machine in enumerate(machines, 1)
+    )
+    event_rows: list[dict[str, object]] = []
+    for step in plan.steps:
+        operation = operation_by_id[step.operation_id]
+        setup_h = min(operation.setup_time_h, max(0.0, step.end_h - step.start_h))
+        productive_h = max(0.0, step.end_h - step.start_h - setup_h)
+        machine = risk_machines[step.machine_id - 1]
+        event_rows.append(
+            {
+                "sto_job_id": step.order_id,
+                "operation_id": step.operation_id,
+                "station_id": operation.station_type or "QUEUE",
+                "machine_id": str(step.machine_id),
+                "machine_name": machine.name,
+                "setup_start": step.start_h,
+                "setup_h": setup_h,
+                "t_start": step.start_h + setup_h,
+                "t_end": step.end_h,
+                "czas_produkcji_h": productive_h,
+                "base_duration_h": operation.processing_time_h,
+                "termin_h": step.deadline_h,
+                "lateness_h": step.tardiness_h,
+                "quality": 1.0,
+                "cost": (productive_h + setup_h) * machine.cost_per_hour,
+                "waste": operation.waste_kg * machine.waste_factor,
+                "energy_kwh": (
+                    operation.energy_kwh
+                    if machine.energy_kwh_per_hour <= 0
+                    else productive_h * machine.energy_kwh_per_hour
+                ),
+            }
+        )
+    events = pd.DataFrame(event_rows)
+    risk = simulate_schedule_risk(events, risk_machines, MonteCarloConfig())
+    efficiency = build_machine_efficiency(events, risk_machines, risk)
+    records = tuple(
+        {str(key): value for key, value in record.items()}
+        for record in efficiency.to_dict("records")
+    )
+    return records, risk.summary
 
 
 def _aggregate_orders_for_heuristics(active: pd.DataFrame) -> pd.DataFrame:
@@ -601,6 +694,15 @@ def _evaluation_frames(
                 else 0
             ),
             "unavailable_machines": "|".join(map(str, evaluation.unavailable_machines)),
+            "risk_mean_makespan_h": result.get("risk_summary", {}).get(
+                "mean_makespan_h", ""
+            ),
+            "risk_p90_makespan_h": result.get("risk_summary", {}).get(
+                "p90_makespan_h", ""
+            ),
+            "risk_mean_downtime_h": result.get("risk_summary", {}).get(
+                "mean_downtime_h", ""
+            ),
             "order": "|".join(result["order"]),
             "updated_at": updated_at,
         }
@@ -621,6 +723,9 @@ def _evaluation_frames(
         "ready_now_count",
         "waiting_components_count",
         "unavailable_machines",
+        "risk_mean_makespan_h",
+        "risk_p90_makespan_h",
+        "risk_mean_downtime_h",
         "order",
         "updated_at",
     ]

@@ -15,7 +15,7 @@ from AOA.core.production_line import (
     simulate_production_line,
     validate_production_line,
 )
-from AOA.core.production_line_designer import ProductionLineDraft
+from AOA.core.production_line_designer import PROJECT_SCHEMA_VERSION, ProductionLineDraft
 from AOA.core.result_viewer_service import build_viewer_result
 from AOA.core.services import production_line as production_line_service
 
@@ -360,7 +360,7 @@ def test_graphical_project_save_load_and_run_preserve_layout(monkeypatch, tmp_pa
     saved_payload = json.loads(output["spec_path"].read_text(encoding="utf-8"))
 
     assert loaded.layouts["ciecie"].x == 340
-    assert saved_payload["schema_version"] == 2
+    assert saved_payload["schema_version"] == PROJECT_SCHEMA_VERSION
     assert saved_payload["layout"][0]["station_id"] == "ciecie"
     assert saved_payload["connections"] == [{"source": "ciecie", "target": "pakowanie"}]
 

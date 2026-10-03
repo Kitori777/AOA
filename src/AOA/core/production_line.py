@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import heapq
 import math
 import re
 from dataclasses import asdict, dataclass
@@ -9,6 +8,13 @@ from typing import Any
 import pandas as pd
 
 from AOA.core.formula_engine import SafeFormula, compile_formula
+from AOA.core.machine_catalog import MachineCatalog, MachineSpec, build_default_machines
+from AOA.core.product_routing import (
+    ProductRoute,
+    ProductRoutingCatalog,
+    RouteOperation,
+    product_id_from_row,
+)
 
 MAX_EVENT_ROWS = 2_000_000
 BASE_FORMULA_VARIABLES = {
@@ -30,6 +36,11 @@ BASE_FORMULA_VARIABLES = {
     "duration",
     "start",
     "end",
+    "machine_speed_factor",
+    "machine_waste_factor",
+    "machine_energy_kwh_per_hour",
+    "machine_cost_per_hour",
+    "machine_setup_time_h",
 }
 
 
@@ -65,18 +76,53 @@ class ProductionLineSpec:
     line_id: str
     name: str
     stations: tuple[StationSpec, ...]
+    machines: tuple[MachineSpec, ...] = ()
+    product_routes: tuple[ProductRoute, ...] = ()
 
     def normalized(self) -> ProductionLineSpec:
+        stations = tuple(
+            station.normalized(index) for index, station in enumerate(self.stations, 1)
+        )
+        machines = self.machines or build_default_machines(
+            (station.station_id, station.name, station.resources) for station in stations
+        )
+        catalog = MachineCatalog(tuple(machines)).normalized(
+            station.station_id for station in stations
+        )
+        if self.machines:
+            counts = {
+                station.station_id: len(catalog.for_station(station.station_id))
+                for station in stations
+            }
+            stations = tuple(
+                StationSpec(
+                    station.station_id,
+                    station.name,
+                    counts[station.station_id] or station.resources,
+                    station.duration_formula,
+                    station.cost_formula,
+                    station.waste_formula,
+                    station.quality_formula,
+                )
+                for station in stations
+            )
         return ProductionLineSpec(
             line_id=_safe_id(self.line_id, "production_line"),
             name=self.name.strip() or "Moja linia produkcyjna",
-            stations=tuple(
-                station.normalized(index) for index, station in enumerate(self.stations, 1)
-            ),
+            stations=stations,
+            machines=catalog.machines,
+            product_routes=tuple(route.normalized() for route in self.product_routes),
         )
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self.normalized())
+        normalized = self.normalized()
+        return {
+            "line_id": normalized.line_id,
+            "name": normalized.name,
+            "stations": [asdict(station) for station in normalized.stations],
+            "machines": [machine.to_dict() for machine in normalized.machines],
+            "product_routes": [route.to_dict() for route in normalized.product_routes],
+        }
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> ProductionLineSpec:
@@ -85,6 +131,10 @@ class ProductionLineSpec:
             line_id=str(payload.get("line_id") or "production_line"),
             name=str(payload.get("name") or "Moja linia produkcyjna"),
             stations=stations,
+            machines=MachineCatalog.from_list(payload.get("machines")).machines,
+            product_routes=ProductRoutingCatalog.from_list(
+                payload.get("product_routes")
+            ).routes,
         ).normalized()
 
 
@@ -93,6 +143,7 @@ class ProductionLineResult:
     events: pd.DataFrame
     job_summary: pd.DataFrame
     kpis: dict[str, float | int]
+    machine_events: pd.DataFrame
 
 
 def validate_production_line(
@@ -122,6 +173,14 @@ def validate_production_line(
                 compile_formula(formula, allowed)
             except ValueError as exc:
                 raise ValueError(f"Stanowisko {station.name}, wzor {label}: {exc}") from exc
+    machine_catalog = MachineCatalog(normalized.machines).normalized(station_ids)
+    for station in normalized.stations:
+        if not machine_catalog.for_station(station.station_id):
+            raise ValueError(f"Stanowisko {station.name} nie ma przypisanej maszyny.")
+    ProductRoutingCatalog(normalized.product_routes).normalized(
+        station_order=tuple(station_ids),
+        machine_ids={machine.machine_id for machine in normalized.machines},
+    )
     return normalized
 
 
@@ -163,49 +222,136 @@ def simulate_production_line(spec: ProductionLineSpec, jobs: pd.DataFrame) -> Pr
         }
         for index in range(len(source))
     ]
+    product_ids = [product_id_from_row(source.iloc[index]) for index in range(len(source))]
+    route_catalog = ProductRoutingCatalog(spec.product_routes)
+    routes = [route_catalog.for_product(product_id) for product_id in product_ids]
+    configured_products = {route.product_id for route in spec.product_routes}
+    missing_products = sorted(
+        {product_id for product_id in product_ids if configured_products and product_id}
+        - configured_products
+    )
+    if missing_products:
+        raise ValueError(
+            "Brak tras technologicznych dla produktow: " + ", ".join(missing_products)
+        )
     allowed = set(BASE_FORMULA_VARIABLES)
     allowed.update(str(column) for column in source.columns if str(column).isidentifier())
     events: list[dict[str, Any]] = []
 
     for station_index, station in enumerate(spec.stations, start=1):
         formulas = _compile_station_formulas(station, allowed)
-        resource_heap = [
-            (0.0, resource_index) for resource_index in range(1, station.resources + 1)
-        ]
-        heapq.heapify(resource_heap)
-        ordered_jobs = sorted(range(len(source)), key=lambda index: (states[index]["ready"], index))
+        machines = tuple(
+            machine for machine in spec.machines if machine.station_id == station.station_id
+        )
+        availability = {machine.machine_id: 0.0 for machine in machines}
+        previous_products = {machine.machine_id: "" for machine in machines}
+        ordered_jobs = sorted(
+            (
+                index
+                for index in range(len(source))
+                if _route_contains_station(routes[index], station.station_id)
+            ),
+            key=lambda index: (states[index]["ready"], index),
+        )
         for source_index in ordered_jobs:
             state = states[source_index]
-            available, resource_index = heapq.heappop(resource_heap)
-            start = max(float(state["ready"]), float(available))
+            row = source.iloc[source_index]
+            product_id = product_ids[source_index]
+            material = str(row.get("material", "")).strip()
+            route = routes[source_index]
+            operation = _route_operation(route, station.station_id)
+            operation_id = operation.operation_id if operation is not None else station.station_id
+            permitted_ids = set(operation.allowed_machine_ids) if operation is not None else set()
+            candidates: list[tuple[float, str, int, MachineSpec, dict[str, float]]] = []
+            for resource_index, machine in enumerate(machines, 1):
+                if permitted_ids and machine.machine_id not in permitted_ids:
+                    continue
+                if not machine.capability.accepts(
+                    product=product_id,
+                    material=material,
+                    operation=operation_id,
+                ):
+                    continue
+                setup_h = (
+                    machine.setup_time_h
+                    if previous_products[machine.machine_id]
+                    and previous_products[machine.machine_id] != product_id
+                    else 0.0
+                )
+                setup_start = max(float(state["ready"]), availability[machine.machine_id])
+                start = setup_start + setup_h
+                variables = _formula_variables(
+                    row,
+                    state,
+                    station_index=station_index,
+                    resource_index=resource_index,
+                )
+                variables.update(
+                    machine_speed_factor=machine.speed_factor,
+                    machine_waste_factor=machine.waste_factor,
+                    machine_energy_kwh_per_hour=machine.energy_kwh_per_hour,
+                    machine_cost_per_hour=machine.cost_per_hour,
+                    machine_setup_time_h=machine.setup_time_h,
+                )
+                base_duration = _non_negative(
+                    formulas["duration"].evaluate(variables), station.name, "czas"
+                )
+                duration = base_duration / machine.speed_factor
+                if duration <= 0:
+                    raise ValueError(
+                        f"Stanowisko {station.name}: czas musi byc wiekszy od zera."
+                    )
+                end = start + duration
+                variables.update({"duration": duration, "start": start, "end": end})
+                base_cost = _non_negative(
+                    formulas["cost"].evaluate(variables), station.name, "koszt"
+                )
+                base_waste = _non_negative(
+                    formulas["waste"].evaluate(variables), station.name, "odpad"
+                )
+                metrics = {
+                    "setup_start": setup_start,
+                    "setup_h": setup_h,
+                    "start": start,
+                    "end": end,
+                    "base_duration": base_duration,
+                    "duration": duration,
+                    "cost": base_cost + (duration + setup_h) * machine.cost_per_hour,
+                    "waste": base_waste * machine.waste_factor,
+                    "energy": (duration + setup_h) * machine.energy_kwh_per_hour,
+                }
+                candidates.append((end, machine.machine_id, resource_index, machine, metrics))
+            if not candidates:
+                job_id = state["job_id"]
+                raise ValueError(
+                    f"Zlecenie {job_id}: brak maszyny dla produktu {product_id or 'bez ID'}, "
+                    f"materialu {material or 'bez ograniczen'} i operacji {operation_id}."
+                )
+            _, _, resource_index, machine, metrics = min(candidates)
+            duration = metrics["duration"]
+            end = metrics["end"]
             variables = _formula_variables(
-                source.iloc[source_index],
+                row,
                 state,
                 station_index=station_index,
                 resource_index=resource_index,
             )
-            duration = _non_negative(formulas["duration"].evaluate(variables), station.name, "czas")
-            if duration <= 0:
-                raise ValueError(f"Stanowisko {station.name}: czas musi byc wiekszy od zera.")
-            end = start + duration
-            variables.update({"duration": duration, "start": start, "end": end})
-            cost = _non_negative(formulas["cost"].evaluate(variables), station.name, "koszt")
-            waste = _non_negative(formulas["waste"].evaluate(variables), station.name, "odpad")
+            variables.update({"duration": duration, "start": metrics["start"], "end": end})
             quality = formulas["quality"].evaluate(variables)
             if not math.isfinite(quality):
                 raise ValueError(f"Stanowisko {station.name}: jakosc nie jest poprawna liczba.")
 
-            deadline = _numeric(source.iloc[source_index].get("termin_h"), default=0.0)
+            deadline = _numeric(row.get("termin_h"), default=0.0)
             lateness = max(0.0, end - deadline) if deadline > 0 else 0.0
-            resource_id = f"{station.station_id}:M{resource_index}"
             state.update(
                 ready=end,
                 prev_duration=duration,
-                cost_total=float(state["cost_total"]) + cost,
-                waste_total=float(state["waste_total"]) + waste,
+                cost_total=float(state["cost_total"]) + metrics["cost"],
+                waste_total=float(state["waste_total"]) + metrics["waste"],
                 quality=quality,
             )
-            heapq.heappush(resource_heap, (end, resource_index))
+            availability[machine.machine_id] = end
+            previous_products[machine.machine_id] = product_id
             events.append(
                 {
                     "line_id": spec.line_id,
@@ -214,45 +360,88 @@ def simulate_production_line(spec: ProductionLineSpec, jobs: pd.DataFrame) -> Pr
                     "station_id": station.station_id,
                     "station_name": station.name,
                     "station_order": station_index,
-                    "machine_id": resource_id,
-                    "t_start": round(start, 6),
+                    "operation_id": operation_id,
+                    "product_id": product_id,
+                    "machine_id": machine.machine_id,
+                    "machine_name": machine.name,
+                    "setup_start": round(metrics["setup_start"], 6),
+                    "setup_h": round(metrics["setup_h"], 6),
+                    "t_start": round(metrics["start"], 6),
                     "t_end": round(end, 6),
                     "czas_produkcji_h": round(duration, 6),
+                    "base_duration_h": round(metrics["base_duration"], 6),
                     "termin_h": round(deadline, 6),
                     "lateness_h": round(lateness, 6),
-                    "cost": round(cost, 6),
-                    "waste": round(waste, 6),
+                    "cost": round(metrics["cost"], 6),
+                    "waste": round(metrics["waste"], 6),
+                    "energy_kwh": round(metrics["energy"], 6),
+                    "machine_speed_factor": machine.speed_factor,
+                    "machine_waste_factor": machine.waste_factor,
                     "quality": round(quality, 6),
                 }
             )
 
-    event_df = pd.DataFrame(events)
-    final_station = len(spec.stations)
-    final_rows = event_df[event_df["station_order"] == final_station].copy()
+    machine_event_df = pd.DataFrame(events)
     state_by_job = {str(state["job_id"]): state for state in states}
-    job_summary = final_rows[
-        ["sto_job_id", "job_order", "t_end", "termin_h", "lateness_h", "quality"]
-    ].copy()
+    summary_rows = []
+    for index, state in enumerate(states):
+        deadline = _numeric(source.iloc[index].get("termin_h"), default=0.0)
+        completion = float(state["ready"])
+        summary_rows.append(
+            {
+                "sto_job_id": state["job_id"],
+                "job_order": state["job_order"],
+                "t_end": completion,
+                "termin_h": deadline,
+                "lateness_h": max(0.0, completion - deadline) if deadline > 0 else 0.0,
+                "quality": state["quality"],
+            }
+        )
+    job_summary = pd.DataFrame(summary_rows)
     job_summary["cost_total"] = job_summary["sto_job_id"].map(
         lambda job_id: round(float(state_by_job[str(job_id)]["cost_total"]), 6)
     )
     job_summary["waste_total"] = job_summary["sto_job_id"].map(
         lambda job_id: round(float(state_by_job[str(job_id)]["waste_total"]), 6)
     )
-    makespan = float(event_df["t_end"].max()) if not event_df.empty else 0.0
+    makespan = float(machine_event_df["t_end"].max()) if not machine_event_df.empty else 0.0
     kpis: dict[str, float | int] = {
         "jobs": len(source),
         "stations": len(spec.stations),
-        "events": len(event_df),
+        "events": len(machine_event_df),
         "makespan_h": round(makespan, 6),
         "throughput_per_h": round(len(source) / makespan, 6) if makespan > 0 else 0.0,
-        "late_jobs": int((final_rows["lateness_h"] > 0).sum()),
-        "total_lateness_h": round(float(final_rows["lateness_h"].sum()), 6),
+        "machines": len(spec.machines),
+        "late_jobs": int((job_summary["lateness_h"] > 0).sum()),
+        "total_lateness_h": round(float(job_summary["lateness_h"].sum()), 6),
         "total_cost": round(float(job_summary["cost_total"].sum()), 6),
         "total_waste": round(float(job_summary["waste_total"].sum()), 6),
+        "total_energy_kwh": round(float(machine_event_df["energy_kwh"].sum()), 6),
         "mean_quality": round(float(job_summary["quality"].mean()), 6),
     }
-    return ProductionLineResult(events=event_df, job_summary=job_summary, kpis=kpis)
+    compact_columns = [
+        "line_id",
+        "sto_job_id",
+        "job_order",
+        "station_id",
+        "station_name",
+        "station_order",
+        "machine_id",
+        "t_start",
+        "t_end",
+        "czas_produkcji_h",
+        "termin_h",
+        "lateness_h",
+        "cost",
+        "waste",
+        "quality",
+    ]
+    return ProductionLineResult(
+        events=machine_event_df[compact_columns].copy(),
+        job_summary=job_summary,
+        kpis=kpis,
+        machine_events=machine_event_df,
+    )
 
 
 def _compile_station_formulas(station: StationSpec, allowed: set[str]) -> dict[str, SafeFormula]:
@@ -262,6 +451,21 @@ def _compile_station_formulas(station: StationSpec, allowed: set[str]) -> dict[s
         "waste": compile_formula(station.waste_formula, allowed),
         "quality": compile_formula(station.quality_formula, allowed),
     }
+
+
+def _route_operation(route: ProductRoute | None, station_id: str) -> RouteOperation | None:
+    if route is None:
+        return None
+    return next(
+        (operation for operation in route.operations if operation.station_id == station_id),
+        None,
+    )
+
+
+def _route_contains_station(route: ProductRoute | None, station_id: str) -> bool:
+    return route is None or any(
+        operation.station_id == station_id for operation in route.operations
+    )
 
 
 def _formula_variables(

@@ -42,6 +42,15 @@ class MainPageStateMixin:
             f"koszt={kpis.get('total_cost', 0):.3f} | "
             f"jakosc={kpis.get('mean_quality', 0):.3f}"
         )
+        risk = result.get("risk_summary", {})
+        efficiency = result.get("efficiency_summary", {})
+        self.log(
+            "Ryzyko i efektywnosc: "
+            f"P90={risk.get('p90_makespan_h', 0):.3f} h | "
+            f"sredni przestoj={risk.get('mean_downtime_h', 0):.3f} h | "
+            f"wykorzystanie={efficiency.get('mean_utilization_pct', 0):.1f}% | "
+            f"szacowane OEE={efficiency.get('mean_estimated_oee_pct', 0):.1f}%"
+        )
 
     def _ui_config(self):
         return {

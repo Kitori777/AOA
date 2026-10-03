@@ -7,10 +7,15 @@ from pathlib import Path
 from tkinter import filedialog, messagebox, simpledialog, ttk
 
 import customtkinter as ctk
+import pandas as pd
 
 from AOA.config import DATA_DIR
+from AOA.core.machine_catalog import MachineSpec
 from AOA.core.mh_models import get_mh_model_specs
 from AOA.core.planning import WeeklyPlan, WeeklyPlanningPolicy, WeeklyPlanStore
+from AOA.core.production_line import StationSpec
+from AOA.core.production_line_designer import ProductionLineDraft
+from AOA.core.queue_machine_config import load_queue_machines, save_queue_machines
 from AOA.core.queue_service import (
     QueueEvaluation,
     archive_completed_orders,
@@ -19,6 +24,7 @@ from AOA.core.queue_service import (
     load_queue_snapshot,
     mark_queue_item_done,
 )
+from AOA.gui.pages.main_page.machine_configuration_dialog import open_machine_configuration
 from AOA.gui.queue_dialogs import (
     QueueDiagnosticsDialog,
     QueueHistoryDialog,
@@ -39,6 +45,7 @@ class QueueRefreshSignature:
     planning_mode: str
     current_week_id: str
     weekly_plan: WeeklyPlan | None
+    machine_specs: tuple[MachineSpec, ...]
 
 
 class QueueDashboardPage(ctk.CTkFrame):
@@ -198,6 +205,20 @@ class QueueDashboardPage(ctk.CTkFrame):
         ctk.CTkButton(tool_row, text="Diagnostyka", command=self._open_diagnostics, width=120).pack(
             side="left", padx=8
         )
+        ctk.CTkButton(
+            tool_row,
+            text="Profile maszyn",
+            command=self._open_machine_profiles,
+            width=130,
+            fg_color="#0f766e",
+        ).pack(side="left", padx=8)
+        ctk.CTkButton(
+            tool_row,
+            text="Wyniki maszyn",
+            command=self._open_machine_results,
+            width=130,
+            fg_color="#155e75",
+        ).pack(side="left", padx=8)
         ctk.CTkLabel(
             controls,
             text="Jeden cel optymalizacji (dostepnosc komponentow zawsze jest warunkiem):",
@@ -501,6 +522,121 @@ class QueueDashboardPage(ctk.CTkFrame):
     def _open_diagnostics(self) -> None:
         QueueDiagnosticsDialog(self, queue_path=self.path_var.get()).focus_force()
 
+    def _open_machine_profiles(self) -> None:
+        try:
+            machine_count = int(self.machine_var.get())
+            machines = load_queue_machines(self.path_var.get(), machine_count)
+            draft = ProductionLineDraft(
+                line_id="auto_queue",
+                name="Auto Queue",
+                stations=[StationSpec("QUEUE", "Auto Queue", machine_count)],
+                machines=list(machines),
+            )
+        except Exception as exc:
+            self.status_var.set(f"Nie można wczytać profili maszyn: {exc}")
+            return
+
+        def save_profiles() -> None:
+            path = save_queue_machines(self.path_var.get(), draft.machines)
+            self._last_signature = None
+            self.status_var.set(f"Zapisano profile maszyn: {path.name}")
+            self.refresh(force=True)
+
+        open_machine_configuration(
+            self,
+            draft,
+            on_save=save_profiles,
+            show_routes=False,
+        ).focus_force()
+
+    def _open_machine_results(self) -> None:
+        evaluation = self._last_evaluation
+        if evaluation is None or not evaluation.machine_efficiency:
+            messagebox.showinfo(
+                "Brak wyników",
+                "Najpierw przelicz kolejkę z przynajmniej jedną wykonalną operacją.",
+                parent=self,
+            )
+            return
+        report = pd.DataFrame(list(evaluation.machine_efficiency))
+        risk = evaluation.risk_summary
+        window = ctk.CTkToplevel(self)
+        window.title("Auto Queue — efektywność i ryzyko maszyn")
+        window.geometry("1280x720")
+        window.minsize(960, 560)
+        window.transient(self.winfo_toplevel())
+        window.grid_columnconfigure(0, weight=1)
+        window.grid_rowconfigure(2, weight=1)
+        ctk.CTkLabel(
+            window,
+            text="Efektywność i ryzyko maszyn Auto Queue",
+            font=("Segoe UI", 24, "bold"),
+        ).grid(row=0, column=0, sticky="w", padx=18, pady=(14, 8))
+        cards = ctk.CTkFrame(window, corner_radius=14)
+        cards.grid(row=1, column=0, sticky="ew", padx=18, pady=(0, 8))
+        card_values = (
+            ("Maszyny", len(report)),
+            ("Śr. wykorzystanie", f"{report['utilization_pct'].mean():.1f}%"),
+            ("Szacowane OEE", f"{report['estimated_oee_pct'].mean():.1f}%"),
+            ("Śr. przestój", f"{float(risk.get('mean_downtime_h', 0)):.2f} h"),
+            ("P90 czasu planu", f"{float(risk.get('p90_makespan_h', 0)):.2f} h"),
+            ("Ryzyko awarii", f"{float(risk.get('failure_probability', 0)) * 100:.1f}%"),
+        )
+        for column, (label, value) in enumerate(card_values):
+            cards.grid_columnconfigure(column, weight=1)
+            card = ctk.CTkFrame(cards, fg_color="#0f172a", corner_radius=12)
+            card.grid(row=0, column=column, sticky="nsew", padx=5, pady=7)
+            ctk.CTkLabel(card, text=label, text_color="#94a3b8").pack(pady=(8, 1))
+            ctk.CTkLabel(card, text=str(value), font=("Segoe UI", 17, "bold")).pack(
+                pady=(0, 8)
+            )
+        shell = ctk.CTkFrame(window, corner_radius=14)
+        shell.grid(row=2, column=0, sticky="nsew", padx=18, pady=8)
+        shell.grid_columnconfigure(0, weight=1)
+        shell.grid_rowconfigure(0, weight=1)
+        tree = ttk.Treeview(shell, show="headings", style="Queue.Treeview")
+        columns = [str(column) for column in report.columns]
+        tree.configure(columns=columns)
+        for column_name in columns:
+            tree.heading(column_name, text=column_name)
+            tree.column(column_name, width=125, minwidth=82, stretch=False)
+        for _, row in report.iterrows():
+            tree.insert(
+                "",
+                "end",
+                values=[f"{value:.4g}" if isinstance(value, float) else value for value in row],
+            )
+        tree.grid(row=0, column=0, sticky="nsew", padx=(8, 0), pady=(8, 0))
+        y_scroll = ttk.Scrollbar(shell, orient="vertical", command=tree.yview)
+        y_scroll.grid(row=0, column=1, sticky="ns", pady=(8, 0))
+        x_scroll = ttk.Scrollbar(shell, orient="horizontal", command=tree.xview)
+        x_scroll.grid(row=1, column=0, sticky="ew", padx=(8, 0), pady=(0, 8))
+        tree.configure(yscrollcommand=y_scroll.set, xscrollcommand=x_scroll.set)
+
+        def export_report() -> None:
+            path = filedialog.asksaveasfilename(
+                parent=window,
+                title="Eksport wyników maszyn",
+                defaultextension=".csv",
+                filetypes=[("CSV", "*.csv")],
+            )
+            if path:
+                report.to_csv(path, index=False)
+                messagebox.showinfo("Zapisano", f"Zapisano raport:\n{path}", parent=window)
+
+        footer = ctk.CTkFrame(window, fg_color="transparent")
+        footer.grid(row=3, column=0, sticky="ew", padx=18, pady=(0, 14))
+        footer.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(
+            footer,
+            text="Monte Carlo: 1000 powtórzeń; P90 pokazuje bezpieczniejszy wariant planistyczny.",
+            text_color="#94a3b8",
+        ).grid(row=0, column=0, sticky="w")
+        ctk.CTkButton(footer, text="Eksport CSV", command=export_report).grid(
+            row=0, column=1, padx=6
+        )
+        ctk.CTkButton(footer, text="Zamknij", command=window.destroy).grid(row=0, column=2)
+
     def open_diagnostics(self) -> None:
         self._open_diagnostics()
 
@@ -658,6 +794,7 @@ class QueueDashboardPage(ctk.CTkFrame):
                 n_machines=signature.machine_count,
                 objective=signature.objective,
                 unavailable_machines=signature.unavailable_machines,
+                machine_specs=signature.machine_specs,
             )
             if evaluation.operation_plan is None:
                 raise ValueError("Algorytm nie zwrócił planu operacji.")
@@ -711,6 +848,7 @@ class QueueDashboardPage(ctk.CTkFrame):
             planning_mode=mode,
             current_week_id=current_week_id,
             weekly_plan=weekly_plan,
+            machine_specs=load_queue_machines(path, int(self.machine_var.get())),
         )
 
     def _poll(self) -> None:
@@ -754,6 +892,7 @@ class QueueDashboardPage(ctk.CTkFrame):
                 unavailable_machines=signature.unavailable_machines,
                 weekly_policy=weekly_policy,
                 weekly_plan=signature.weekly_plan,
+                machine_specs=signature.machine_specs,
             )
         except Exception as exc:
             message = str(exc)

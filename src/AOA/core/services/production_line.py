@@ -9,6 +9,8 @@ from uuid import uuid4
 import pandas as pd
 
 from AOA.config import DATA_DIR, MODELS_DIR
+from AOA.core.machine_efficiency import build_machine_efficiency, efficiency_summary
+from AOA.core.monte_carlo import MonteCarloConfig, simulate_schedule_risk
 from AOA.core.production_line import (
     ProductionLineResult,
     ProductionLineSpec,
@@ -122,9 +124,17 @@ def run_production_line_flow(
     safe_line_id = sanitize_filename(normalized.line_id)
     csv_path = destination / f"production_line_visual_{safe_line_id}_{run_id}.csv"
     summary_path = destination / f"production_line_summary_{safe_line_id}_{run_id}.csv"
+    efficiency_path = destination / f"machine_efficiency_{safe_line_id}_{run_id}.csv"
+    risk_path = destination / f"monte_carlo_runs_{safe_line_id}_{run_id}.csv"
     spec_path = PRODUCTION_LINES_DIR / f"{safe_line_id}.json"
     visual_events = result.events[PRODUCTION_LINE_VISUAL_COLUMNS].copy()
     summary = build_production_line_summary(normalized, jobs, result)
+    risk = simulate_schedule_risk(
+        result.machine_events,
+        normalized.machines,
+        MonteCarloConfig(),
+    )
+    efficiency = build_machine_efficiency(result.machine_events, normalized.machines, risk)
     _write_production_line_artifacts(
         spec_path=spec_path,
         spec_payload=project.to_dict() if project is not None else normalized.to_dict(),
@@ -132,6 +142,10 @@ def run_production_line_flow(
         visual_events=visual_events,
         summary_path=summary_path,
         summary=summary,
+        efficiency_path=efficiency_path,
+        efficiency=efficiency,
+        risk_path=risk_path,
+        risk_runs=risk.runs,
     )
     return {
         "spec": normalized,
@@ -139,15 +153,24 @@ def run_production_line_flow(
         "spec_path": spec_path,
         "visual_path": csv_path,
         "summary_path": summary_path,
+        "efficiency_path": efficiency_path,
+        "risk_path": risk_path,
         "events": result.events,
+        "machine_events": result.machine_events,
         "visual_events": visual_events,
         "job_summary": result.job_summary,
         "summary": summary,
+        "efficiency": efficiency,
+        "efficiency_summary": efficiency_summary(efficiency),
+        "monte_carlo": risk,
+        "risk_summary": risk.summary,
         "kpis": result.kpis,
         "messages": [
             f"Zapisano projekt linii: {spec_path}",
             f"Lekki CSV do Visual: {csv_path}",
             f"Podsumowanie zlecen do Results/Report/ML: {summary_path}",
+            f"Efektywnosc maszyn: {efficiency_path}",
+            f"Symulacje Monte Carlo: {risk_path}",
         ],
     }
 
@@ -160,12 +183,18 @@ def _write_production_line_artifacts(
     visual_events: pd.DataFrame,
     summary_path: Path,
     summary: pd.DataFrame,
+    efficiency_path: Path,
+    efficiency: pd.DataFrame,
+    risk_path: Path,
+    risk_runs: pd.DataFrame,
 ) -> None:
     token = uuid4().hex
     temporary_paths = {
         spec_path: spec_path.with_name(f".{spec_path.name}.{token}.tmp"),
         visual_path: visual_path.with_name(f".{visual_path.name}.{token}.tmp"),
         summary_path: summary_path.with_name(f".{summary_path.name}.{token}.tmp"),
+        efficiency_path: efficiency_path.with_name(f".{efficiency_path.name}.{token}.tmp"),
+        risk_path: risk_path.with_name(f".{risk_path.name}.{token}.tmp"),
     }
     published: list[Path] = []
     try:
@@ -175,7 +204,9 @@ def _write_production_line_artifacts(
         )
         visual_events.to_csv(temporary_paths[visual_path], index=False)
         summary.to_csv(temporary_paths[summary_path], index=False)
-        for path in (visual_path, summary_path):
+        efficiency.to_csv(temporary_paths[efficiency_path], index=False)
+        risk_runs.to_csv(temporary_paths[risk_path], index=False)
+        for path in (visual_path, summary_path, efficiency_path, risk_path):
             temporary_paths[path].replace(path)
             published.append(path)
         temporary_paths[spec_path].replace(spec_path)

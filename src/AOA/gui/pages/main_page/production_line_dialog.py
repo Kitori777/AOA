@@ -13,6 +13,7 @@ from AOA.core.services import (
     save_production_line_project,
 )
 
+from .machine_configuration_dialog import open_machine_configuration
 from .production_line_canvas import ProductionLineCanvas
 
 
@@ -77,6 +78,7 @@ class ProductionLineDesignerDialog(ctk.CTkToplevel):
             ("Rozłącz", self._disconnect_selected, "#475569"),
             ("Usuń", self._delete_station, "#991b1b"),
             ("Auto-układ", self._auto_layout, "#155e75"),
+            ("Maszyny i trasy", self._open_machine_configuration, "#0f766e"),
             ("−", self._zoom_out, "#334155"),
             ("100%", self._reset_zoom, "#334155"),
             ("+", self._zoom_in, "#334155"),
@@ -86,7 +88,7 @@ class ProductionLineDesignerDialog(ctk.CTkToplevel):
                 toolbar,
                 text=label,
                 command=command,
-                width=105 if column < 5 else 55,
+                width=125 if column == 5 else 105 if column < 5 else 55,
                 fg_color=color,
             ).grid(row=0, column=column, padx=4, pady=8)
         toolbar.grid_columnconfigure(len(buttons), weight=1)
@@ -284,6 +286,21 @@ class ProductionLineDesignerDialog(ctk.CTkToplevel):
     def _auto_layout(self) -> None:
         self.line_canvas.auto_layout()
 
+    def _open_machine_configuration(self) -> None:
+        try:
+            if self.draft.selected_station is not None:
+                self._commit_selected_station()
+        except Exception as exc:
+            messagebox.showerror("Błąd stanowiska", str(exc), parent=self)
+            return
+        open_machine_configuration(self, self.draft, on_save=self._configuration_saved)
+
+    def _configuration_saved(self) -> None:
+        station = self.draft.selected_station
+        if station is not None:
+            self._select_station(station.station_id)
+        self._refresh_project_state()
+
     def _zoom_in(self) -> None:
         self.line_canvas.zoom_in()
 
@@ -372,7 +389,9 @@ class ProductionLineDesignerDialog(ctk.CTkToplevel):
                 "Symulacja zakończona",
                 f"Zlecenia: {kpis['jobs']}\nCzas całkowity: {kpis['makespan_h']:.3f} h\n"
                 f"Opóźnione: {kpis['late_jobs']}\nCSV do Visual:\n{result['visual_path']}\n\n"
-                f"Podsumowanie zleceń:\n{result['summary_path']}",
+                f"Podsumowanie zleceń:\n{result['summary_path']}\n\n"
+                f"Efektywność maszyn:\n{result['efficiency_path']}\n\n"
+                f"Monte Carlo P90: {result['risk_summary']['p90_makespan_h']:.3f} h",
                 parent=self,
             )
         except Exception as exc:

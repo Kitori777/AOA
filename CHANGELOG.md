@@ -4,6 +4,10 @@
 
 ### Added
 
+* Dodano indywidualne, zbiorczo edytowalne profile maszyn dla Auto Queue i projektanta linii: predkosc, odpad, energia, koszt, przezbrojenie, produkty, materialy, operacje oraz niezawodnosc.
+* Dodano trasy technologiczne produktow z kolejnoscia stanowisk i ograniczeniami konkretnych maszyn; stary format projektu jest automatycznie migrowany do schematu v3.
+* Dodano `ROBUST_MC`, ktory wybiera kolejke na podstawie 1000 powtarzalnych scenariuszy awarii, MTBF/MTTR i ryzyka po przezbrojeniu.
+* Dodano gotowe okna wynikow maszyn w Auto Queue i Results Studio oraz eksport produktywnosci, wykorzystania, OEE, kosztu, odpadu, energii i percentyli przestoju.
 * Dodano drugi tryb Auto Kolejki: wersjonowany plan tygodniowy przygotowywany z wyprzedzeniem i zatwierdzany przez planistę.
 * Aktywny tydzień zachowuje przypisane maszyny i godziny, a nowe operacje są planowane poza jego 40-godzinnym horyzontem.
 * Dodano stany szkicu, zatwierdzenia, aktywnego i zamkniętego tygodnia oraz obsługę strefy `Europe/Warsaw`, zmiany czasu i przejścia roku.
@@ -18,6 +22,7 @@
 
 ### Safety and tests
 
+* Dodano kontrakty migracji, mozliwosci maszyn, tras produktow, powtarzalnosci Monte Carlo, raportu efektywnosci oraz `ROBUST_MC`.
 * Dodano testy trwałości planu po restarcie, idempotentnego zatwierdzenia, zmiany czasu, przejścia roku, awaryjnej wersji, blokady aktywnego tygodnia i przesuwania nowych zleceń do przyszłego horyzontu.
 
 ## [0.10.0] - 2026-09-28

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
+from AOA.core.machine_catalog import MachineSpec
 from AOA.core.optimization.models import Job
 from AOA.core.optimization.objectives import OPTIMIZATION_OBJECTIVES, result_key
 from AOA.core.scheduling import simulate_schedule
@@ -10,6 +11,7 @@ from AOA.core.scheduling import simulate_schedule
 def evaluate_sequence(
     sequence: list[Job], n_machines: int = 1, objective: str = "deadline_then_waste",
     unavailable_machines: tuple[int, ...] = (),
+    machine_specs: tuple[MachineSpec, ...] | list[MachineSpec] | None = None,
 ) -> dict:
     if objective not in OPTIMIZATION_OBJECTIVES:
         raise ValueError(f"Nieznany cel optymalizacji: {objective}")
@@ -51,6 +53,7 @@ def evaluate_sequence(
         n_machines=n_machines,
         objective=dispatch_objective,
         unavailable_machines=unavailable_machines,
+        machine_specs=machine_specs,
     )
     sto = 0.0
     steps: list[dict] = []
@@ -117,11 +120,13 @@ def evaluate_sequence(
 def evaluation_key(
     sequence: list[Job], n_machines: int = 1, objective: str = "deadline_then_waste",
     unavailable_machines: tuple[int, ...] = (),
+    machine_specs: tuple[MachineSpec, ...] | list[MachineSpec] | None = None,
 ) -> tuple:
     result = evaluate_sequence(
         sequence,
         n_machines=n_machines,
         objective=objective,
         unavailable_machines=unavailable_machines,
+        machine_specs=machine_specs,
     )
     return result_key(result, sequence, objective)

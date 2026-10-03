@@ -19,6 +19,9 @@ To pozwala rozwijać GUI i CLI niezależnie, bez duplikowania reguł biznesowych
 - heurystyki STO i raportowanie wyników,
 - budowanie danych pod widoki `Visual` i `Results`,
 - serwisy orkiestracji (`core/services`) używane przez GUI i CLI.
+- wspólny katalog fizycznych maszyn i tras produktów,
+- deterministyczna ocena harmonogramów oraz probabilistyczna warstwa Monte Carlo,
+- raportowanie wykorzystania, strat i szacowanego OEE per maszyna.
 
 ### `AOA.gui`
 
@@ -38,6 +41,20 @@ To pozwala rozwijać GUI i CLI niezależnie, bez duplikowania reguł biznesowych
 2. Serwisy `core.services` przygotowują dane do treningu / solve / STO.
 3. Wyniki trafiają do GUI/CLI jako komunikaty i DataFrame.
 4. GUI/CLI odpowiada tylko za prezentację i zapis działań użytkownika.
+
+## Planowanie maszyn i ryzyka
+
+- `machine_catalog.py` definiuje parametry, możliwości i niezawodność maszyny.
+- `product_routing.py` waliduje szeregową trasę produktu i dozwolone maszyny.
+- `planning/` oraz `scheduling.py` korzystają z tych samych profili przy
+  przydziale operacji.
+- `monte_carlo.py` nakłada awarie na gotowy plan, zachowując kolejność operacji
+  zlecenia i maszyny; rozpoczęta operacja jest wznawiana po naprawie.
+- `machine_efficiency.py` buduje jedną tabelę wynikową dla GUI i eksportu.
+
+Monte Carlo jest warstwą ryzyka, a nie zamiennikiem deterministycznej walidacji.
+`ROBUST_MC` generuje kandydatów istniejącymi heurystykami i wybiera kolejkę na
+podstawie wyniku średniego oraz P90.
 
 ## Current design rules
 

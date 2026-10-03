@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from collections import defaultdict
 
+from AOA.core.machine_catalog import MachineSpec
+
 from .models import OperationSpec, OperationStep, PlanningResult
 from .validation import validate_operation_graph
 
@@ -27,6 +29,7 @@ def schedule_operations(
     *,
     machine_count: int,
     unavailable_machines: tuple[int, ...] = (),
+    machine_specs: tuple[MachineSpec, ...] | list[MachineSpec] | None = None,
 ) -> PlanningResult:
     if machine_count < 1 or machine_count > 32:
         raise ValueError("Liczba maszyn musi miescic sie w zakresie 1-32.")
@@ -39,6 +42,16 @@ def schedule_operations(
         raise ValueError(
             "Niedostepne maszyny sa poza zakresem: " + ", ".join(map(str, invalid_unavailable))
         )
+    normalized_machines = (
+        tuple(machine.normalized(index) for index, machine in enumerate(machine_specs, 1))
+        if machine_specs is not None
+        else ()
+    )
+    if normalized_machines and len(normalized_machines) != machine_count:
+        raise ValueError("Liczba profili maszyn nie zgadza sie z machine_count.")
+    machine_by_number = {
+        index: machine for index, machine in enumerate(normalized_machines, 1)
+    }
     validation = validate_operation_graph(operations)
     if not validation.valid:
         return PlanningResult(
@@ -60,6 +73,8 @@ def schedule_operations(
     steps: list[OperationStep] = []
     violations: list[str] = []
     unscheduled: list[str] = []
+    last_product: dict[int, str] = {}
+    scheduled_machine: dict[str, int] = {}
 
     for operation in operations:
         if not (operation.frozen or operation.started):
@@ -105,6 +120,14 @@ def schedule_operations(
             machine_id
             for machine_id in configured_allowed
             if 1 <= machine_id <= machine_count and machine_id not in unavailable
+            and (
+                machine_id not in machine_by_number
+                or machine_by_number[machine_id].capability.accepts(
+                    product=operation.product_id,
+                    material=operation.material,
+                    operation=operation.station_type or operation.operation_id,
+                )
+            )
         )
         if operation.frozen or operation.started:
             machine_id = operation.fixed_machine_id or 0
@@ -139,10 +162,21 @@ def schedule_operations(
                 remaining.remove(operation_id)
                 continue
             candidates = []
-            duration = operation.setup_time_h + operation.processing_time_h
+            duration_by_machine: dict[int, tuple[float, float]] = {}
             for machine_id in allowed:
+                machine = machine_by_number.get(machine_id)
+                machine_setup = (
+                    machine.setup_time_h
+                    if machine is not None
+                    and last_product.get(machine_id)
+                    and last_product[machine_id] != operation.product_id
+                    else 0.0
+                )
+                speed = machine.speed_factor if machine is not None else 1.0
+                duration = operation.setup_time_h + machine_setup + operation.processing_time_h / speed
                 start = _earliest_slot(bookings[machine_id], release, duration)
                 end = start + duration
+                duration_by_machine[machine_id] = (duration, machine_setup)
                 candidates.append((end, start, machine_id))
             end, start, machine_id = min(candidates)
             reason_parts = [f"najwczesniejszy koniec na maszynie {machine_id}"]
@@ -156,6 +190,9 @@ def schedule_operations(
             bookings[machine_id].append((start, end, operation_id))
             bookings[machine_id].sort()
         completion[operation_id] = end
+        scheduled_machine[operation_id] = machine_id
+        if operation.product_id:
+            last_product[machine_id] = operation.product_id
         steps.append(
             OperationStep(
                 operation_id=operation_id,
@@ -184,8 +221,31 @@ def schedule_operations(
         machine_count,
         round(total_tardiness, 3),
         round(makespan, 3),
-        round(sum(by_id[item].waste_kg for item in scheduled_ids), 4),
-        round(sum(by_id[item].energy_kwh for item in scheduled_ids), 3),
+        round(
+            sum(
+                by_id[item].waste_kg
+                * machine_by_number.get(
+                    scheduled_machine[item],
+                    MachineSpec(str(scheduled_machine[item]), "", "QUEUE"),
+                ).waste_factor
+                for item in scheduled_ids
+            ),
+            4,
+        ),
+        round(
+            sum(
+                (
+                    by_id[item].energy_kwh
+                    if scheduled_machine[item] not in machine_by_number
+                    or machine_by_number[scheduled_machine[item]].energy_kwh_per_hour <= 0
+                    else by_id[item].processing_time_h
+                    / machine_by_number[scheduled_machine[item]].speed_factor
+                    * machine_by_number[scheduled_machine[item]].energy_kwh_per_hour
+                )
+                for item in scheduled_ids
+            ),
+            3,
+        ),
         {
             "frozen_count": sum(step.frozen for step in steps),
             "unavailable_machines": tuple(sorted(unavailable)),

@@ -145,7 +145,8 @@ STO = suma T_j
 Im mniejsze STO, tym lepsza kolejka.
 
 Dostepne metody obejmuja m.in. `MT/EDD`, `MO/SPT`, `MZO/LPT`, `MOPT`,
-`GENETIC`, `SLACK`, `CR`, `NEH`, `LOCAL_SEARCH` i `RANDOM_RESTART`.
+`GENETIC`, `SLACK`, `CR`, `NEH`, `LOCAL_SEARCH`, `RANDOM_RESTART` i
+`ROBUST_MC`.
 
 ### Dwukolejka Auto Queue
 
@@ -162,6 +163,17 @@ W panelu stanu maszyn zaznaczenie oznacza maszyne sprawna. Odznaczona maszyna
 zachowuje swoj numer, ale nie przyjmuje nowych operacji. Gdy wszystkie dozwolone
 maszyny danej operacji sa niedostepne, pozycja pozostaje jawnie niewykonalna.
 
+Przycisk `Profile maszyn` pozwala zaznaczyc jedna lub kilka maszyn i zmienic
+ich wspolne parametry. Puste pole podczas edycji wielu pozycji pozostawia
+dotychczasowa wartosc. Konfiguracja obejmuje predkosc, odpad, energie, koszt,
+przezbrojenie, produkty, materialy, operacje, MTBF, MTTR i ryzyko po zmianie.
+Profile sa zapisane w pliku `<kolejka>.machines.json`.
+
+`ROBUST_MC` ocenia kolejki w 1000 scenariuszach awarii. Losowanie ma stale
+ziarno, wiec ten sam plan i ustawienia daja ten sam wynik. Rozpoczeta praca jest
+wstrzymywana i wznawiana po naprawie. `Wyniki maszyn` pokazuje srednia oraz
+P50/P90/P95, stracone godziny, wykorzystanie i szacowane OEE.
+
 Po analizie STO aplikacja zapisuje lekki plik `sto_visual`. To plik do Visual,
 Results i raportow: zawiera model, zlecenie, maszyne, kolejnosc, start, koniec
 i narastajace STO, ale nie przenosi ciezkiego `solution_tree_json`.
@@ -175,15 +187,17 @@ Po wygenerowaniu albo wczytaniu danych kliknij w Main
 2. Zaznacz blok, kliknij `Polacz` albo jego prawy uchwyt, a nastepnie kliknij
    stanowisko docelowe. To strzalki ustalaja kolejnosc obliczen.
 3. Dla kazdego stanowiska ustaw liczbe rownoleglych maszyn.
-4. Przypisz wymagany wzor czasu i opcjonalne wzory kosztu, odpadu i jakosci.
-5. Uzyj auto-ukladu, zoomu albo menu kontekstowego, jezeli diagram jest duzy.
-6. Sprawdz status pod plotnem. Symulacja wymaga jednej spojnej sciezki bez
+4. Uzyj `Maszyny i trasy`, aby zmienic parametry fizycznych maszyn, ich
+   mozliwosci oraz kolejnosc operacji dla produktow.
+5. Przypisz wymagany wzor czasu i opcjonalne wzory kosztu, odpadu i jakosci.
+6. Uzyj auto-ukladu, zoomu albo menu kontekstowego, jezeli diagram jest duzy.
+7. Sprawdz status pod plotnem. Symulacja wymaga jednej spojnej sciezki bez
    cykli i rozgalezien.
-7. Zapisz projekt albo uruchom symulacje. Niedokonczony diagram mozna zapisac,
+8. Zapisz projekt albo uruchom symulacje. Niedokonczony diagram mozna zapisac,
    ale przycisk uruchomienia pozostanie zablokowany.
-8. Wczytaj `production_line_visual_*.csv` w Visual. Dedykowany dashboard zostanie
+9. Wczytaj `production_line_visual_*.csv` w Visual. Dedykowany dashboard zostanie
    wybrany automatycznie.
-9. Wczytaj `production_line_summary_*.csv` w Results albo Report, gdy potrzebujesz
+10. Wczytaj `production_line_summary_*.csv` w Results albo Report, gdy potrzebujesz
    jednego wiersza na zlecenie. Plik zachowuje cechy wejsciowe i dodaje wynik
    calej linii, dlatego moze tez wejsc do przygotowania danych ML.
 
@@ -194,10 +208,11 @@ wykresow i obliczenia KPI. Zmiana zasobow, kolejnosci albo wzorow ma bezposredni
 wplyw na czas, przepustowosc, opoznienia, koszt, odpad i jakosc. Kazdy przebieg
 ma unikalne pliki, a nieudany zapis nie pozostawia czesciowego zestawu wynikow.
 
-Projektant obsluguje obecnie linie szeregowe i rownolegle maszyny na stanowisku.
-Nie modeluje jeszcze rozgalezien, buforow, awarii, zmian ani przezbrojen.
-Projekt JSON w wersji 2 zapisuje tez wspolrzedne blokow i strzalki. Starsze pliki
-sa zgodne wstecznie i po wczytaniu otrzymuja automatyczny uklad poziomy.
+Projektant obsluguje obecnie linie szeregowe, rownolegle maszyny, rozne trasy
+produktow, przezbrojenia oraz awarie. Nie modeluje jeszcze dowolnych rozgalezien,
+buforow ani petli powrotnej. Projekt JSON w wersji 3 zapisuje wspolrzedne,
+strzalki, profile maszyn i trasy. Pliki wersji 1-2 sa zgodne wstecznie, a liczba
+zasobow jest automatycznie migrowana do indywidualnych profili maszyn.
 Pola aktualnie zaznaczonego stanowiska sa zatwierdzane takze przy zapisie projektu
 i uruchomieniu symulacji, wiec ostatnia zmiana wzoru nie zostanie pominieta.
 Plik deklarujacy nowsza, nieobslugiwana wersje schematu jest odrzucany z czytelnym

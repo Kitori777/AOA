@@ -3,9 +3,11 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
+from AOA.core.machine_catalog import MachineCatalog, MachineSpec, build_default_machines
+from AOA.core.product_routing import ProductRoute, ProductRoutingCatalog, RouteOperation
 from AOA.core.production_line import ProductionLineSpec, StationSpec, validate_production_line
 
-PROJECT_SCHEMA_VERSION = 2
+PROJECT_SCHEMA_VERSION = 3
 DEFAULT_NODE_WIDTH = 210
 DEFAULT_NODE_HEIGHT = 112
 
@@ -82,12 +84,28 @@ class ProductionLineDraft:
     selected_index: int | None = None
     layouts: dict[str, StationLayout] = field(default_factory=dict)
     connections: list[LineConnection] = field(default_factory=list)
+    machines: list[MachineSpec] = field(default_factory=list)
+    product_routes: list[ProductRoute] = field(default_factory=list)
     initialize_serial: bool = field(default=True, repr=False)
 
     def __post_init__(self) -> None:
         self.stations = [
             station.normalized(index) for index, station in enumerate(self.stations, 1)
         ]
+        if not self.machines:
+            self.machines = list(
+                build_default_machines(
+                    (station.station_id, station.name, station.resources)
+                    for station in self.stations
+                )
+            )
+        else:
+            self.machines = list(
+                MachineCatalog(tuple(self.machines))
+                .normalized(station.station_id for station in self.stations)
+                .machines
+            )
+        self.product_routes = list(ProductRoutingCatalog(tuple(self.product_routes)).routes)
         if not self.layouts:
             self.layouts = self._automatic_layouts(self.stations)
         else:
@@ -101,7 +119,13 @@ class ProductionLineDraft:
     @classmethod
     def from_spec(cls, spec: ProductionLineSpec) -> ProductionLineDraft:
         normalized = spec.normalized()
-        return cls(normalized.line_id, normalized.name, list(normalized.stations))
+        return cls(
+            normalized.line_id,
+            normalized.name,
+            list(normalized.stations),
+            machines=list(normalized.machines),
+            product_routes=list(normalized.product_routes),
+        )
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> ProductionLineDraft:
@@ -151,6 +175,8 @@ class ProductionLineDraft:
             list(spec.stations),
             layouts=layouts,
             connections=connections,
+            machines=list(spec.machines),
+            product_routes=list(spec.product_routes),
             initialize_serial=False,
         )
 
@@ -161,6 +187,8 @@ class ProductionLineDraft:
             "line_id": self.line_id,
             "name": self.name,
             "stations": [asdict(station) for station in self.stations],
+            "machines": [machine.to_dict() for machine in self.machines],
+            "product_routes": [route.to_dict() for route in self.product_routes],
             "layout": [asdict(self.layouts[station.station_id]) for station in self.stations],
             "connections": [asdict(connection) for connection in self.connections],
         }
@@ -199,6 +227,11 @@ class ProductionLineDraft:
             raise ValueError("Identyfikatory stanowisk musza byc unikalne.")
         previous = self.stations[-1].station_id if self.stations else None
         self.stations.append(normalized)
+        self.machines.extend(
+            build_default_machines(
+                [(normalized.station_id, normalized.name, normalized.resources)]
+            )
+        )
         default_x = 80 + (len(self.stations) - 1) * 260
         self.layouts[normalized.station_id] = StationLayout(
             normalized.station_id,
@@ -224,11 +257,19 @@ class ProductionLineDraft:
             normalized = station.normalized(len(self.stations) + 1)
             if normalized.station_id in self.station_ids:
                 raise ValueError("Identyfikatory stanowisk musza byc unikalne.")
+            candidate_machines = [
+                *self.machines,
+                *build_default_machines(
+                    [(normalized.station_id, normalized.name, normalized.resources)]
+                ),
+            ]
             validate_production_line(
                 ProductionLineSpec(
                     candidate_line_id,
                     candidate_name,
                     tuple([*self.stations, normalized]),
+                    tuple(candidate_machines),
+                    tuple(self.product_routes),
                 ),
                 columns,
             )
@@ -255,10 +296,17 @@ class ProductionLineDraft:
         candidate = list(self.stations)
         candidate[self.selected_index] = normalized
         validate_production_line(
-            ProductionLineSpec(self.line_id, self.name, tuple(candidate)),
+            ProductionLineSpec(
+                self.line_id,
+                self.name,
+                tuple(candidate),
+                tuple(self._reconciled_machines(old_station, normalized)),
+                tuple(self.product_routes),
+            ),
             columns,
         )
         self.stations = candidate
+        self.machines = self._reconciled_machines(old_station, normalized)
         if normalized.station_id != old_station.station_id:
             layout = self.layouts.pop(old_station.station_id)
             self.layouts[normalized.station_id] = StationLayout(
@@ -274,6 +322,23 @@ class ProductionLineDraft:
                     normalized.station_id if edge.target == old_station.station_id else edge.target,
                 )
                 for edge in self.connections
+            ]
+            self.product_routes = [
+                ProductRoute(
+                    route.product_id,
+                    route.name,
+                    tuple(
+                        RouteOperation(
+                            operation.operation_id,
+                            normalized.station_id
+                            if operation.station_id == old_station.station_id
+                            else operation.station_id,
+                            operation.allowed_machine_ids,
+                        )
+                        for operation in route.operations
+                    ),
+                )
+                for route in self.product_routes
             ]
         return self.selected_index
 
@@ -308,6 +373,33 @@ class ProductionLineDraft:
         if station is None or selected_index is None:
             return None
         removed = self.stations.pop(selected_index)
+        removed_machine_ids = {
+            machine.machine_id for machine in self.machines if machine.station_id == removed.station_id
+        }
+        self.machines = [
+            machine for machine in self.machines if machine.station_id != removed.station_id
+        ]
+        self.product_routes = [
+            ProductRoute(
+                route.product_id,
+                route.name,
+                tuple(
+                    RouteOperation(
+                        operation.operation_id,
+                        operation.station_id,
+                        tuple(
+                            machine_id
+                            for machine_id in operation.allowed_machine_ids
+                            if machine_id not in removed_machine_ids
+                        ),
+                    )
+                    for operation in route.operations
+                    if operation.station_id != removed.station_id
+                ),
+            )
+            for route in self.product_routes
+            if any(operation.station_id != removed.station_id for operation in route.operations)
+        ]
         self.layouts.pop(removed.station_id, None)
         self.connections = [
             edge
@@ -429,9 +521,54 @@ class ProductionLineDraft:
             station_by_id[station_id] for station_id in self.ordered_station_ids()
         )
         return validate_production_line(
-            ProductionLineSpec(self.line_id, self.name, ordered_stations),
+            ProductionLineSpec(
+                self.line_id,
+                self.name,
+                ordered_stations,
+                tuple(self.machines),
+                tuple(self.product_routes),
+            ),
             columns,
         )
+
+    def set_machines(self, machines: list[MachineSpec]) -> None:
+        self.set_configuration(machines, self.product_routes)
+
+    def set_configuration(
+        self,
+        machines: list[MachineSpec],
+        routes: list[ProductRoute],
+    ) -> None:
+        catalog = MachineCatalog(tuple(machines)).normalized(self.station_ids)
+        counts = {
+            station.station_id: len(catalog.for_station(station.station_id))
+            for station in self.stations
+        }
+        missing = [station.name for station in self.stations if counts[station.station_id] == 0]
+        if missing:
+            raise ValueError("Kazde stanowisko musi miec maszyne: " + ", ".join(missing))
+        updated_stations = [
+            StationSpec(
+                station.station_id,
+                station.name,
+                counts[station.station_id],
+                station.duration_formula,
+                station.cost_formula,
+                station.waste_formula,
+                station.quality_formula,
+            )
+            for station in self.stations
+        ]
+        route_catalog = ProductRoutingCatalog(tuple(routes)).normalized(
+            station_order=tuple(self.ordered_station_ids()),
+            machine_ids={machine.machine_id for machine in catalog.machines},
+        )
+        self.machines = list(catalog.machines)
+        self.stations = updated_stations
+        self.product_routes = list(route_catalog.routes)
+
+    def set_product_routes(self, routes: list[ProductRoute]) -> None:
+        self.set_configuration(self.machines, routes)
 
     @property
     def station_ids(self) -> set[str]:
@@ -443,7 +580,55 @@ class ProductionLineDraft:
         self.stations = list(replacement.stations)
         self.layouts = dict(replacement.layouts)
         self.connections = list(replacement.connections)
+        self.machines = list(replacement.machines)
+        self.product_routes = list(replacement.product_routes)
         self.selected_index = None
+
+    def _reconciled_machines(
+        self,
+        previous: StationSpec,
+        replacement: StationSpec,
+    ) -> list[MachineSpec]:
+        station_machines = [
+            machine for machine in self.machines if machine.station_id == previous.station_id
+        ]
+        others = [machine for machine in self.machines if machine.station_id != previous.station_id]
+        kept = [
+            MachineSpec(
+                machine.machine_id,
+                machine.name,
+                replacement.station_id,
+                machine.speed_factor,
+                machine.waste_factor,
+                machine.energy_kwh_per_hour,
+                machine.cost_per_hour,
+                machine.setup_time_h,
+                machine.planned_hours_h,
+                machine.capability,
+                machine.reliability,
+            ).normalized(index)
+            for index, machine in enumerate(station_machines[: replacement.resources], 1)
+        ]
+        used_ids = {machine.machine_id for machine in [*others, *kept]}
+        next_index = 1
+        while len(kept) < replacement.resources:
+            candidate = f"{replacement.station_id}:M{next_index}"
+            next_index += 1
+            if candidate in used_ids:
+                continue
+            generated = build_default_machines(
+                [(replacement.station_id, replacement.name, 1)]
+            )[0]
+            kept.append(
+                MachineSpec(
+                    candidate,
+                    f"{replacement.name} — maszyna {len(kept) + 1}",
+                    replacement.station_id,
+                    capability=generated.capability,
+                ).normalized(len(kept) + 1)
+            )
+            used_ids.add(candidate)
+        return [*others, *kept]
 
     def _station_index(self, station_id: str) -> int:
         for index, station in enumerate(self.stations):

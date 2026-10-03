@@ -82,6 +82,10 @@ def dataframe_to_operations(
                 fixed_machine_id=_optional_integer(row.get("fixed_machine_id")),
                 fixed_start_h=_optional_number(row.get("fixed_start_h")),
                 station_type=_text(row.get("station_type", "")),
+                product_id=_text(
+                    row.get("product_id", row.get("produkt_id", row.get("produkt", "")))
+                ),
+                material=_text(row.get("material", "")),
             )
         )
     return operations

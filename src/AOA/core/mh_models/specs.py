@@ -97,6 +97,12 @@ MH_MODEL_SPECS: tuple[MHModelSpec, ...] = (
         "Rezerwuje komponenty ze stanu i dostaw, a wykonalne zlecenia uklada wedlug gotowosci i terminu.",
         "kompletnosc komponentow, termin klienta, opoznienie, odpad i czas zakonczenia",
     ),
+    MHModelSpec(
+        "ROBUST_MC",
+        "Robust Monte Carlo",
+        "Porownuje kolejki w wielu scenariuszach awarii i wybiera wariant odporny na ryzyko.",
+        "spodziewany wynik, P90, przestoje i ryzyko po przezbrojeniu",
+    ),
 )
 
 MH_MODEL_NAMES = {spec.name for spec in MH_MODEL_SPECS}
