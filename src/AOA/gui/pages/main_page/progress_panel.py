@@ -33,7 +33,7 @@ class MainPageProgressPanelMixin:
 
     def _build_summary_section(self, parent):
         frame = ctk.CTkFrame(parent)
-        frame.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 8))
+        frame.pack(fill="x", padx=10, pady=8)
         ctk.CTkLabel(frame, text="Podsumowanie wyboru", font=("Arial", 18, "bold")).pack(
             anchor="w", padx=15, pady=(12, 8)
         )
@@ -43,18 +43,18 @@ class MainPageProgressPanelMixin:
 
     def _build_status_section(self, parent):
         frame = ctk.CTkFrame(parent)
-        frame.grid(row=1, column=0, sticky="ew", padx=10, pady=8)
+        frame.pack(fill="x", padx=10, pady=8)
         ctk.CTkLabel(frame, text="Szybki status", font=("Arial", 18, "bold")).pack(
             anchor="w", padx=15, pady=(12, 8)
         )
         self.status_label = ctk.CTkLabel(
-            frame, text="", font=("Arial", 13), justify="left", wraplength=320
+            frame, text="", font=("Arial", 13), justify="left", wraplength=980
         )
         self.status_label.pack(anchor="w", fill="x", padx=15, pady=(0, 12))
 
     def _build_right_hint_section(self, parent):
         frame = ctk.CTkFrame(parent)
-        frame.grid(row=2, column=0, sticky="ew", padx=10, pady=8)
+        frame.pack(fill="x", padx=10, pady=8)
         frame.grid_columnconfigure(0, weight=1)
         ctk.CTkLabel(frame, text="Jak czytać wyniki", font=("Arial", 18, "bold")).pack(
             anchor="w", padx=15, pady=(12, 8)
@@ -67,7 +67,7 @@ class MainPageProgressPanelMixin:
             "Wyniki zapisują się w katalogu data/.\n\n"
             "Dla TabPFN na CPU najlepiej testować mniejsze zbiory, np. 300–1000 rekordów."
         )
-        ctk.CTkLabel(frame, text=hint, justify="left", wraplength=320, font=("Arial", 12)).pack(
+        ctk.CTkLabel(frame, text=hint, justify="left", wraplength=980, font=("Arial", 12)).pack(
             anchor="w", fill="x", padx=15, pady=(0, 15)
         )
 

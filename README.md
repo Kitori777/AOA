@@ -7,7 +7,7 @@ porównywania heurystyk harmonogramowania, analizy danych oraz przygotowywania
 raportów. Projekt działa offline, zapisuje dane użytkownika lokalnie i nie wymaga
 zewnętrznej usługi do podstawowej pracy.
 
-- Aktualna wersja: **0.10.0**
+- Aktualna wersja: **0.10.1**
 - Python: **3.11–3.14**
 - Interfejs: **CustomTkinter**
 - Repozytorium: **https://github.com/Kitori777/AOA**
@@ -22,6 +22,7 @@ zewnętrznej usługi do podstawowej pracy.
 - Reakcja na niedostępność maszyny bez ukrywania niewykonalnych operacji.
 - Tryb ciągły oraz zatwierdzany plan tygodniowy.
 - `ROBUST_MC` i 1000-scenariuszowa analiza Monte Carlo awarii oraz przestojów.
+- Theory z osobnym wzorem, przykładem, pseudokodem i ograniczeniami każdej z 16 heurystyk.
 - Zależności między operacjami, dozwolone maszyny i zamrożone pozycje planu.
 - Analizy scenariuszy „co-jeśli”, historia przebiegów i audyt zmian.
 - Modele jakości, opóźnień i strategii harmonogramowania.
@@ -138,6 +139,13 @@ uv sync --all-groups
 uv run aoa
 ```
 
+Projekt można nadal uruchamiać bezpośrednio z głównego pliku, bez budowania
+wersji desktopowej:
+
+```powershell
+.\.venv\Scripts\python.exe app.py
+```
+
 Uruchomienie CLI:
 
 ```powershell
@@ -153,6 +161,25 @@ python -m pip install --upgrade pip
 python -m pip install -e .
 aoa
 ```
+
+### Diagnostyka okna Tcl/Tk
+
+Jeżeli importy i testy działają, ale okno nie startuje z komunikatem o
+`init.tcl`, uruchom test tej samej instalacji Pythona:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\check_desktop_runtime.py
+```
+
+Wynik `status: OK` potwierdza jednocześnie zgodność binariów Tcl/Tk i możliwość
+utworzenia natywnego okna. Jeżeli skrypt informuje, że Python widzi `init.tcl`,
+ale Tcl nie może odczytać ścieżki, należy powtórzyć test poza sandboxem lub
+innym mechanizmem izolacji. Nie należy kopiować katalogu `tcl` z innej wersji
+Pythona: skrypty i biblioteki muszą mieć tę samą wersję, np. 8.6.14.
+
+Zweryfikowany zestaw deweloperski Python 3.14.3 + Tcl/Tk 8.6.14 poprawnie
+uruchamia okno AOA. Sam komunikat z procesu ograniczonego nie jest więc dowodem
+uszkodzenia projektu ani powodem do obniżania wersji Pythona.
 
 Narzędzia deweloperskie:
 
@@ -267,7 +294,8 @@ python -m compileall -q src
 ```
 
 Testy obejmują logikę planowania, komponenty, niedostępność maszyn, trwałość
-danych, scenariusze, GUI oraz zgodność starszych przepływów.
+danych, scenariusze, GUI, przykłady wszystkich heurystyk oraz zgodność starszych
+przepływów.
 
 ## Budowanie wersji Windows
 

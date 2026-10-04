@@ -1,8 +1,12 @@
 ﻿# CHANGELOG
 
-## [Unreleased]
+## [0.10.1] - 2026-10-03
 
 ### Added
+
+* Rozbudowano `Theory` o osobne wzory, symbole, pseudokody, policzone przyklady, zlozonosc i ograniczenia wszystkich 16 wbudowanych heurystyk.
+* Dodano `scripts/check_desktop_runtime.py`, ktory rozroznia brak Tcl/Tk od ograniczenia dostepu do sciezek przez sandbox i wykonuje prawdziwy test natywnego okna.
+* Dodano glowny `app.py`, aby aplikacje nadal mozna bylo uruchamiac bezposrednio ze zrodel bez budowania wersji desktopowej.
 
 * Dodano indywidualne, zbiorczo edytowalne profile maszyn dla Auto Queue i projektanta linii: predkosc, odpad, energia, koszt, przezbrojenie, produkty, materialy, operacje oraz niezawodnosc.
 * Dodano trasy technologiczne produktow z kolejnoscia stanowisk i ograniczeniami konkretnych maszyn; stary format projektu jest automatycznie migrowany do schematu v3.
@@ -15,6 +19,10 @@
 * Dodano alerty awarii maszyny, braku komponentów i rozbieżności między zatwierdzonym planem a bieżącą kolejką.
 
 ### Changed
+
+* Widok heurystyk w `Theory` korzysta z pelnej szerokosci animacji i pokazuje kolejke oraz STO zgodne z wybrana metoda zamiast jednego wspolnego przykladu EDD.
+* Dokumentacja teorii opisuje krok po kroku klasyczne reguly, metody przeszukiwania, komponenty oraz Monte Carlo z wzorami i etapowym planem dalszego rozwoju niezawodnosci.
+* Auto Queue, Main i Theory korzystaja z jednego pionowego przeplywu strony; sekcje sa ulozone od gory do dolu, a podstawowe opcje nie wymagaja poziomego przewijania.
 
 * Zamrożona operacja pozostaje na zatwierdzonej maszynie i godzinie także po oznaczeniu maszyny jako niedostępnej; problem jest raportowany zamiast cichego przesunięcia.
 * Przepisano README jako krótszą dokumentację produktu, uruchomienia, Auto Kolejki, architektury, danych i procesu jakości.

@@ -103,7 +103,10 @@ class QueueDashboardPage(ctk.CTkFrame):
         self._poll_ms = max(1000, int(settings.queue_poll_seconds * 1000))
 
         self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(4, weight=1)
+        self.grid_rowconfigure(0, weight=1)
+        self.page = ctk.CTkScrollableFrame(self, fg_color="transparent")
+        self.page.grid(row=0, column=0, sticky="nsew")
+        self.page.grid_columnconfigure(0, weight=1)
         self._configure_tree_style()
         self._build_header()
         self._build_controls()
@@ -111,7 +114,8 @@ class QueueDashboardPage(ctk.CTkFrame):
         self._build_kpis()
         self._build_tables()
         self._load_cached_results()
-        if not os.getenv("AOA_SMOKE_MARKER", "").strip():
+        smoke_test = os.getenv("AOA_SMOKE_TEST", "").strip() == "1"
+        if not smoke_test and not os.getenv("AOA_SMOKE_MARKER", "").strip():
             self.after(250, lambda: self.refresh(force=True))
             self.after(self._poll_ms, self._poll)
 
@@ -140,7 +144,7 @@ class QueueDashboardPage(ctk.CTkFrame):
         style.map("Queue.Treeview", background=[("selected", "#2563eb")])
 
     def _build_header(self) -> None:
-        header = ctk.CTkFrame(self, corner_radius=16, fg_color="#0f1d2b")
+        header = ctk.CTkFrame(self.page, corner_radius=16, fg_color="#0f1d2b")
         header.grid(row=0, column=0, sticky="ew", padx=18, pady=(14, 7))
         header.grid_columnconfigure(0, weight=1)
         ctk.CTkLabel(
@@ -165,7 +169,7 @@ class QueueDashboardPage(ctk.CTkFrame):
         ).grid(row=0, column=1, rowspan=2, sticky="e", padx=16, pady=14)
 
     def _build_controls(self) -> None:
-        controls = ctk.CTkFrame(self, corner_radius=14, fg_color="#111827")
+        controls = ctk.CTkFrame(self.page, corner_radius=14, fg_color="#111827")
         controls.grid(row=1, column=0, sticky="ew", padx=18, pady=7)
         controls.grid_columnconfigure(1, weight=1)
         ctk.CTkButton(controls, text="Wybierz CSV", command=self._choose_file, width=110).grid(
@@ -331,44 +335,55 @@ class QueueDashboardPage(ctk.CTkFrame):
         self.refresh(force=True)
 
     def _build_models(self) -> None:
-        shell = ctk.CTkFrame(self, corner_radius=14, fg_color="#0c1b28")
+        shell = ctk.CTkFrame(self.page, corner_radius=14, fg_color="#0c1b28")
         shell.grid(row=2, column=0, sticky="ew", padx=18, pady=7)
-        shell.grid_columnconfigure(1, weight=1)
+        shell.grid_columnconfigure(0, weight=1)
         ctk.CTkCheckBox(
             shell,
             text="Wszystkie modele",
             variable=self.all_models_var,
             command=self._toggle_all_models,
-        ).grid(row=0, column=0, sticky="nw", padx=12, pady=12)
-        self.model_frame = ctk.CTkScrollableFrame(
+        ).grid(row=0, column=0, sticky="w", padx=12, pady=(10, 4))
+        self.model_frame = ctk.CTkFrame(
             shell,
-            height=68,
-            orientation="horizontal",
             fg_color="#0f2030",
+            corner_radius=10,
         )
-        self.model_frame.grid(row=0, column=1, sticky="ew", padx=(0, 12), pady=8)
+        self.model_frame.grid(row=1, column=0, sticky="ew", padx=12, pady=(0, 10))
+        for column in range(4):
+            self.model_frame.grid_columnconfigure(column, weight=1)
         self._sync_model_controls()
 
     def _sync_model_controls(self) -> None:
         specs = get_mh_model_specs()
         known = set(self.model_vars)
-        for column, spec in enumerate(specs):
+        for visible_index, spec in enumerate(specs):
             if spec.name in known:
                 continue
             variable = ctk.BooleanVar(value=True)
             self.model_vars[spec.name] = variable
-            ctk.CTkCheckBox(
+            row, column = divmod(visible_index, 4)
+            checkbox = ctk.CTkCheckBox(
                 self.model_frame,
                 text=spec.label,
                 variable=variable,
                 command=self._model_selection_changed,
                 width=118,
-            ).grid(row=0, column=column, padx=8, pady=7, sticky="w")
+            )
+            checkbox.grid(row=row * 2, column=column, padx=12, pady=(8, 1), sticky="w")
+            ctk.CTkLabel(
+                self.model_frame,
+                text=spec.focus,
+                text_color="#89a4ba",
+                font=("Segoe UI", 9),
+                justify="left",
+                wraplength=250,
+            ).grid(row=row * 2 + 1, column=column, padx=12, pady=(0, 8), sticky="nw")
 
     def _build_kpis(self) -> None:
-        kpis = ctk.CTkFrame(self, fg_color="transparent")
+        kpis = ctk.CTkFrame(self.page, fg_color="transparent")
         kpis.grid(row=3, column=0, sticky="ew", padx=18, pady=7)
-        for column in range(6):
+        for column in range(3):
             kpis.grid_columnconfigure(column, weight=1)
         cards = (
             ("active", "Aktywne"),
@@ -378,9 +393,10 @@ class QueueDashboardPage(ctk.CTkFrame):
             ("sto", "STO"),
             ("waste", "Odpad kg"),
         )
-        for column, (key, title) in enumerate(cards):
+        for index, (key, title) in enumerate(cards):
+            row, column = divmod(index, 3)
             card = ctk.CTkFrame(kpis, corner_radius=13, fg_color="#102333")
-            card.grid(row=0, column=column, sticky="ew", padx=4)
+            card.grid(row=row, column=column, sticky="ew", padx=4, pady=4)
             ctk.CTkLabel(card, text=title, text_color="#91a7ba", font=("Segoe UI", 10)).pack(
                 pady=(8, 1)
             )
@@ -403,14 +419,12 @@ class QueueDashboardPage(ctk.CTkFrame):
         return tree
 
     def _build_tables(self) -> None:
-        body = ctk.CTkFrame(self, fg_color="transparent")
-        body.grid(row=4, column=0, sticky="nsew", padx=18, pady=(7, 14))
+        body = ctk.CTkFrame(self.page, fg_color="transparent")
+        body.grid(row=4, column=0, sticky="ew", padx=18, pady=(7, 14))
         body.grid_columnconfigure(0, weight=1)
-        body.grid_columnconfigure(1, weight=1)
-        body.grid_rowconfigure(0, weight=1)
 
         left = ctk.CTkFrame(body, corner_radius=14, fg_color="#0c1b28")
-        left.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
+        left.grid(row=0, column=0, sticky="ew", pady=(0, 10))
         ctk.CTkLabel(left, text="Ranking heurystyk", font=("Segoe UI", 14, "bold")).pack(
             anchor="w", padx=12, pady=(10, 6)
         )
@@ -457,7 +471,7 @@ class QueueDashboardPage(ctk.CTkFrame):
         ).pack(fill="x", padx=10, pady=(0, 10))
 
         right = ctk.CTkFrame(body, corner_radius=14, fg_color="#0c1b28")
-        right.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
+        right.grid(row=1, column=0, sticky="ew")
         ctk.CTkLabel(
             right,
             text="Kolejka 2 — dokładne wykonanie na maszynach",
@@ -587,9 +601,7 @@ class QueueDashboardPage(ctk.CTkFrame):
             card = ctk.CTkFrame(cards, fg_color="#0f172a", corner_radius=12)
             card.grid(row=0, column=column, sticky="nsew", padx=5, pady=7)
             ctk.CTkLabel(card, text=label, text_color="#94a3b8").pack(pady=(8, 1))
-            ctk.CTkLabel(card, text=str(value), font=("Segoe UI", 17, "bold")).pack(
-                pady=(0, 8)
-            )
+            ctk.CTkLabel(card, text=str(value), font=("Segoe UI", 17, "bold")).pack(pady=(0, 8))
         shell = ctk.CTkFrame(window, corner_radius=14)
         shell.grid(row=2, column=0, sticky="nsew", padx=18, pady=8)
         shell.grid_columnconfigure(0, weight=1)

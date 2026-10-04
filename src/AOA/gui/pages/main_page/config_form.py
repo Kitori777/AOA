@@ -17,7 +17,11 @@ from AOA.core.ml_models import (
 class MainPageConfigFormMixin:
     def _build_layout(self):
         self.assistant_sections = {}
-        header = ctk.CTkFrame(self)
+        self.page = ctk.CTkScrollableFrame(self, fg_color="transparent")
+        self.page.pack(fill="both", expand=True)
+        self.page.grid_columnconfigure(0, weight=1)
+
+        header = ctk.CTkFrame(self.page)
         header.pack(fill="x", padx=20, pady=(15, 10))
         ctk.CTkLabel(header, text="ML / Optymalizacja", font=("Arial", 24, "bold")).pack(
             anchor="w", padx=15, pady=(12, 2)
@@ -28,28 +32,18 @@ class MainPageConfigFormMixin:
             font=("Arial", 12),
         ).pack(anchor="w", padx=15, pady=(0, 12))
 
-        content = ctk.CTkFrame(self)
-        content.pack(fill="both", expand=True, padx=20, pady=10)
-        content.grid_columnconfigure(0, weight=3)
-        content.grid_columnconfigure(1, weight=1)
-        content.grid_rowconfigure(0, weight=1)
+        content = ctk.CTkFrame(self.page, fg_color="transparent")
+        content.pack(fill="x", padx=20, pady=(0, 18))
 
-        left_panel = ctk.CTkScrollableFrame(content)
-        left_panel.grid(row=0, column=0, sticky="nsew", padx=(0, 10), pady=0)
-
-        right_panel = ctk.CTkScrollableFrame(content, width=380, label_text="Panel boczny")
-        right_panel.grid(row=0, column=1, sticky="nsew", padx=(10, 0), pady=0)
-        right_panel.grid_columnconfigure(0, weight=1)
-
-        self._build_models_section(left_panel)
-        self._build_generation_section(left_panel)
-        self._build_actions_section(left_panel)
-        self._build_preview_section(left_panel)
-        self._build_sto_results_section(left_panel)
-        self._build_log_section(left_panel)
-        self._build_summary_section(right_panel)
-        self._build_status_section(right_panel)
-        self._build_right_hint_section(right_panel)
+        self._build_models_section(content)
+        self._build_generation_section(content)
+        self._build_actions_section(content)
+        self._build_status_section(content)
+        self._build_summary_section(content)
+        self._build_sto_results_section(content)
+        self._build_preview_section(content)
+        self._build_log_section(content)
+        self._build_right_hint_section(content)
 
     def _build_models_section(self, parent):
         frame = ctk.CTkFrame(parent)

@@ -148,6 +148,12 @@ Dostepne metody obejmuja m.in. `MT/EDD`, `MO/SPT`, `MZO/LPT`, `MOPT`,
 `GENETIC`, `SLACK`, `CR`, `NEH`, `LOCAL_SEARCH`, `RANDOM_RESTART` i
 `ROBUST_MC`.
 
+Zakladka `Theory -> Heurystyki` pokazuje dla kazdej z 16 metod jej rzeczywisty
+wzor, kolejne kroki, pseudokod, koszt obliczen, ograniczenie oraz policzony
+przyklad na tych samych czterech zleceniach. Dzieki temu widac nie tylko wynik,
+ale tez dlaczego dwie metody mogly zbudowac inna kolejke. Pelny opis matematyczny
+znajduje sie w `docs/theory.md`.
+
 ### Dwukolejka Auto Queue
 
 Auto Queue planuje w dwoch etapach:

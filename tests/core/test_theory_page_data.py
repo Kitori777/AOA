@@ -1,7 +1,13 @@
 from __future__ import annotations
 
+import pytest
+
+from AOA.core.mh_models.specs import MH_MODEL_SPECS
+from AOA.core.optimization.models import Job
+from AOA.core.optimization.runner import run_selected_sto_models
 from AOA.gui.pages.theory_page.animation import ModelAnimationCard
 from AOA.gui.pages.theory_page.data import find_theory_model, get_theory_models
+from AOA.gui.pages.theory_page.heuristics import HEURISTIC_THEORY
 
 
 def test_theory_modern_models_include_required_segments() -> None:
@@ -70,3 +76,41 @@ def test_theory_exposes_three_user_sections_and_line_formulas() -> None:
     }
     assert all(model.family == "line" for model in line_models)
     assert all(len(model.steps) == 12 for model in line_models)
+
+
+def test_every_builtin_heuristic_has_dedicated_learning_content() -> None:
+    builtin_names = {spec.name for spec in MH_MODEL_SPECS}
+    models = {model.key: model for model in get_theory_models("mh")}
+
+    assert set(HEURISTIC_THEORY) == builtin_names
+    assert builtin_names <= set(models)
+    assert len({models[name].pseudocode for name in builtin_names}) == len(builtin_names)
+    for name in builtin_names:
+        model = models[name]
+        assert len(model.step_details) == 12
+        assert model.formula
+        assert model.symbols
+        assert model.worked_example
+        assert model.complexity
+        assert model.limitation
+        assert len(model.example_order) == 4
+        assert model.short_title == name
+
+
+def test_heuristic_examples_match_the_real_scheduler() -> None:
+    jobs = [
+        Job("J1", 6, 10),
+        Job("J2", 4, 11),
+        Job("J3", 2, 8),
+        Job("J4", 7, 18),
+    ]
+    method_names = [spec.name for spec in MH_MODEL_SPECS]
+
+    results = {
+        result["method"]: result
+        for result in run_selected_sto_models(jobs, method_names, n_machines=1)
+    }
+
+    for name, theory in HEURISTIC_THEORY.items():
+        assert tuple(results[name]["order"]) == theory.example_order
+        assert results[name]["sto"] == pytest.approx(theory.example_sto)

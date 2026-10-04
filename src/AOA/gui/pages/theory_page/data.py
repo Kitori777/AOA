@@ -6,6 +6,8 @@ from typing import Literal
 from AOA.core.mh_models import get_mh_model_specs
 from AOA.core.ml_models import get_ml_model_specs
 
+from .heuristics import theory_for_heuristic
+
 ModelFamily = Literal["ml", "mh", "tabpfn", "line"]
 
 
@@ -48,6 +50,13 @@ class TheoryModel:
     tip: str
     probabilities: tuple[tuple[str, float], ...]
     result: str
+    formula: str = ""
+    symbols: str = ""
+    worked_example: str = ""
+    complexity: str = ""
+    limitation: str = ""
+    example_order: tuple[str, ...] = ()
+    example_sto: float = 0.0
 
 
 EXAMPLE_ROWS: tuple[ExampleRow, ...] = (
@@ -706,6 +715,27 @@ def _build_ml_models() -> list[TheoryModel]:
 def _build_mh_models() -> list[TheoryModel]:
     models: list[TheoryModel] = []
     for spec in get_mh_model_specs():
+        theory = theory_for_heuristic(spec.name)
+        if theory is None:
+            details = _mh_details(spec.label, spec.description)
+            pseudocode = _mh_pseudocode()
+            formula = "score_j = wzór skonfigurowany przez użytkownika"
+            symbols = "score_j to wynik własnej reguły dla zlecenia j"
+            worked_example = "Kolejność zależy od zapisanej formuły użytkownika."
+            complexity = "sortowanie O(n log n) plus obliczenie własnego score."
+            limitation = "Poprawność zależy od formuły, danych i wybranego kierunku sortowania."
+            example_order: tuple[str, ...] = ()
+            example_sto = 0.0
+        else:
+            details = theory.details(spec.label, spec.description)
+            pseudocode = theory.pseudocode
+            formula = theory.formula
+            symbols = theory.symbols
+            worked_example = theory.example
+            complexity = theory.complexity
+            limitation = theory.limitation
+            example_order = theory.example_order
+            example_sto = theory.example_sto
         models.append(
             TheoryModel(
                 key=spec.name,
@@ -719,16 +749,28 @@ def _build_mh_models() -> list[TheoryModel]:
                 metric="STO = suma max(0, Cj - dj); mniej znaczy lepiej",
                 focus=spec.focus,
                 steps=MH_STEPS,
-                step_details=_mh_details(spec.label, spec.description),
-                pseudocode=_mh_pseudocode(),
+                step_details=details,
+                pseudocode=pseudocode,
                 next_steps=(
                     "Nastepny krok przelicza kolejke i pokazuje, skad bierze sie STO.",
                     "Na koncu porownujemy wynik z innymi metodami na tych samych zleceniach.",
                     "Najlepszy wariant mozna przeniesc do raportu, CSV albo Visual.",
                 ),
-                tip="Heurystyka nie trenuje modelu ML. Ma jawna regule lub procedure szukania kolejnosci.",
+                tip=(
+                    "Heurystyka nie trenuje modelu ML. Ma jawną regułę lub procedurę "
+                    f"szukania kolejności. {limitation}"
+                ),
                 probabilities=(("STO", 0.23), ("czas", 0.42), ("bufor", 0.35)),
-                result="Najmniejsze STO",
+                result=(
+                    f"STO={example_sto:g}" if example_order else "Najmniejszy wynik własnej reguły"
+                ),
+                formula=formula,
+                symbols=symbols,
+                worked_example=worked_example,
+                complexity=complexity,
+                limitation=limitation,
+                example_order=example_order,
+                example_sto=example_sto,
             )
         )
     return models

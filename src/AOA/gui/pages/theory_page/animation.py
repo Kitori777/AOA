@@ -38,7 +38,7 @@ class ModelAnimationCard(ctk.CTkFrame):
         self.title.grid(row=0, column=0, sticky="w", padx=18, pady=(14, 6))
 
         self.canvas = tk.Canvas(
-            self, height=760, bg="#07111c", highlightthickness=1, highlightbackground="#203246"
+            self, height=620, bg="#07111c", highlightthickness=1, highlightbackground="#203246"
         )
         self.canvas.grid(row=1, column=0, sticky="nsew", padx=18, pady=(0, 8))
         self.canvas.bind("<Configure>", lambda _event: self._draw_canvas())
@@ -202,7 +202,7 @@ class ModelAnimationCard(ctk.CTkFrame):
         canvas = self.canvas
         canvas.delete("all")
         width = max(canvas.winfo_width(), 1120)
-        height = max(canvas.winfo_height(), 760)
+        height = max(canvas.winfo_height(), 620)
         canvas.configure(scrollregion=(0, 0, width, height))
 
         if self.model.family == "mh":
@@ -218,7 +218,6 @@ class ModelAnimationCard(ctk.CTkFrame):
         self._draw_header(canvas, width, kind, task)
         self._draw_narration(canvas, width)
         self._draw_main_scene(canvas, width, height, kind, task)
-        self._draw_footer(canvas, width, height, kind, task)
 
     @staticmethod
     def _ml_visual_kind(model: TheoryModel) -> str:
@@ -394,7 +393,7 @@ class ModelAnimationCard(ctk.CTkFrame):
 
     def _draw_main_scene(self, c: tk.Canvas, width: int, height: int, kind: str, task: str) -> None:
         top = 232
-        bottom = height - 225
+        bottom = height - 28
         if kind in {"forest", "extra"}:
             box = (62, top, width - 62, bottom)
             self._draw_panel(
@@ -424,6 +423,10 @@ class ModelAnimationCard(ctk.CTkFrame):
             box = (62, top, width - 62, bottom)
             self._draw_panel(c, *box, "Stacking flow", self._kind_color(kind))
             self._draw_stacking_flow(c, box, task)
+            return
+        if kind == "sto":
+            box = (62, top, width - 62, bottom)
+            self._draw_sto_flow(c, box)
             return
 
         data = (62, top, 298, bottom)
@@ -1635,6 +1638,7 @@ class ModelAnimationCard(ctk.CTkFrame):
         )
 
     def _draw_sto_flow(self, c: tk.Canvas, box: tuple[float, float, float, float]) -> None:
+        assert self.model is not None
         x1, y1, x2, y2 = box
         accent = GREEN
         jobs = [
@@ -1716,19 +1720,21 @@ class ModelAnimationCard(ctk.CTkFrame):
         c.create_rectangle(
             rank_x, rank_y - 16, rank_x + 230, rank_y + 92, fill="#0f1b2a", outline=accent, width=2
         )
-        rule = "EDD / MT: sortuj po d_j" if self.step_index < 5 else "ranking: J3 -> J1 -> J2 -> J4"
+        order = self.model.example_order or ("J3", "J1", "J2", "J4")
+        rule = self.model.formula or "T_j=max(0,C_j-d_j); STO=sum(T_j)"
         c.create_text(
             rank_x + 16,
             rank_y + 6,
             text=rule,
             fill="#dcfce7",
             anchor="w",
-            font=("Segoe UI", 11, "bold"),
+            font=("Segoe UI", 9, "bold"),
+            width=198,
         )
         c.create_text(
             rank_x + 16,
-            rank_y + 34,
-            text="Każde zadanie dostaje score.\nNajmniejszy score idzie pierwsze.",
+            rank_y + 48,
+            text="Wynik przykładu:\n" + " -> ".join(order),
             fill="#cbd5e1",
             anchor="nw",
             font=("Segoe UI", 9),
@@ -1750,7 +1756,10 @@ class ModelAnimationCard(ctk.CTkFrame):
         )
         cursor = timeline_x
         completion = 0
-        ordered_jobs = [jobs[0], jobs[2], jobs[1], jobs[3]]
+        jobs_by_id = {job[0]: job for job in jobs}
+        ordered_jobs = [jobs_by_id[job_id] for job_id in order if job_id in jobs_by_id]
+        if len(ordered_jobs) != len(jobs):
+            ordered_jobs = [jobs[0], jobs[2], jobs[1], jobs[3]]
         scale = max(16, (x2 - timeline_x - 360) / 21)
         total_tardiness = 0
         for index, (job, proc, deadline, color) in enumerate(ordered_jobs):
@@ -1920,10 +1929,11 @@ class ModelAnimationCard(ctk.CTkFrame):
                 ("wynik", self.model.result if self.step_index >= 10 else "predykcja w toku"),
             )
         if kind == "sto":
+            order = " -> ".join(self.model.example_order) or "kolejka użytkownika"
             return (
-                ("wejście", "p_j, d_j"),
-                ("wzór", "T_j=max(0,C_j-d_j)"),
-                ("oznaczenia", "C_j koniec, d_j termin"),
+                ("reguła", self.model.formula or "T_j=max(0,C_j-d_j)"),
+                ("przykład", order),
+                ("koszt obliczeń", self.model.complexity or "zależny od metody"),
                 ("wynik", self.model.result if self.step_index >= 10 else "ranking w toku"),
             )
         if kind == "line":
@@ -1976,8 +1986,7 @@ class ModelAnimationCard(ctk.CTkFrame):
             return "w wagi, b bias"
         return "p czas, d termin"
 
-    @staticmethod
-    def _logic_sentence(kind: str, task: str) -> str:
+    def _logic_sentence(self, kind: str, task: str) -> str:
         if kind == "xgboost":
             return (
                 f"Wejscie: cechy X i cel y. XGBoost dodaje kolejne drzewa korekcyjne: "
@@ -2006,10 +2015,17 @@ class ModelAnimationCard(ctk.CTkFrame):
                 "W praktyce porownujemy ja z classic ML na tych samych metrykach i tym samym podziale testowym."
             )
         if kind == "sto":
+            assert self.model is not None
+            if self.step_index < 4:
+                return f"Wzór metody: {self.model.formula} Oznaczenia: {self.model.symbols}"
+            if self.step_index < 9:
+                return (
+                    f"Przeliczenie: {self.model.worked_example} Każde T_j=max(0,C_j-d_j), "
+                    "a STO jest sumą T_j."
+                )
             return (
-                "Wejście: czasy p_j i terminy d_j. Kolejka daje czasy zakończenia C_j. "
-                "Opóźnienie pojedynczego zlecenia: T_j = max(0, C_j - d_j). "
-                "Cel STO: minimalizować sumę dodatnich opóźnień, czyli STO = ΣT_j."
+                f"Koszt obliczeń: {self.model.complexity} "
+                f"Najważniejsze ograniczenie: {self.model.limitation}"
             )
         if kind == "line":
             return (

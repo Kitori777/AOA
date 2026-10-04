@@ -42,14 +42,35 @@ def _write_smoke_marker() -> None:
 def main(argv: Sequence[str] | None = None) -> int:
     options = _parse_args(argv)
     configure_logging()
+    previous_smoke_flag = os.environ.get("AOA_SMOKE_TEST")
+    if options.smoke_test:
+        # Pages inspect this flag while they are being constructed.  Setting it
+        # before importing/creating the window prevents background refreshes
+        # from racing with the deliberately short smoke-test lifetime.
+        os.environ["AOA_SMOKE_TEST"] = "1"
     from AOA.gui.main_window import App
 
     application = App()
     if options.smoke_test:
         application.withdraw()
-        application.after(750, application.destroy)
+        # CTk performs Windows title-bar setup immediately before entering the
+        # Tk loop.  Destroying the window from a timer can therefore tear down
+        # Tcl while CTk is still finishing that setup.  Quit the loop first and
+        # destroy the widget only after mainloop has returned.
+        application.after(750, application.quit)
         _write_smoke_marker()
-    application.mainloop()
+    try:
+        application.mainloop()
+    finally:
+        if options.smoke_test:
+            try:
+                application.destroy()
+            except Exception:
+                pass
+            if previous_smoke_flag is None:
+                os.environ.pop("AOA_SMOKE_TEST", None)
+            else:
+                os.environ["AOA_SMOKE_TEST"] = previous_smoke_flag
     return 0
 
 

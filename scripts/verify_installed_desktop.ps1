@@ -14,6 +14,7 @@ $relativeFiles = @(
     "AOA.exe",
     "_internal\AOA\assets\assistant\model_pack.json",
     "_internal\docs\guide.md",
+    "_internal\docs\theory.md",
     "_internal\data\sample\production.csv",
     "_internal\data\sample\train.csv",
     "_internal\data\sample\test.csv",
