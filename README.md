@@ -7,7 +7,7 @@ porównywania heurystyk harmonogramowania, analizy danych oraz przygotowywania
 raportów. Projekt działa offline, zapisuje dane użytkownika lokalnie i nie wymaga
 zewnętrznej usługi do podstawowej pracy.
 
-- Aktualna wersja: **0.11.1**
+- Aktualna wersja: **0.11.2**
 - Python: **3.11–3.14**
 - Interfejs: **CustomTkinter**
 - Repozytorium: **https://github.com/Kitori777/AOA**

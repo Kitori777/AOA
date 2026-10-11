@@ -75,6 +75,7 @@ class EngineeringModePage(ctk.CTkFrame):
         self._build_header()
         self._build_source()
         self._build_methods()
+        self._build_charts()
         self._build_results()
         self.after(50, self.load_default_data)
 
@@ -223,11 +224,80 @@ class EngineeringModePage(ctk.CTkFrame):
             pady=(10, 12),
         )
 
-    def _build_results(self) -> None:
+    def _build_charts(self) -> None:
         card = ctk.CTkFrame(self.page, corner_radius=14, fg_color=COLORS["surface"])
         card.grid(row=3, column=0, sticky="ew", padx=18, pady=(7, 16))
+        card.grid_columnconfigure((0, 1), weight=1)
+        ctk.CTkLabel(card, text="3. Wykresy", font=("Segoe UI", 16, "bold")).grid(
+            row=0, column=0, columnspan=2, sticky="w", padx=14, pady=(12, 2)
+        )
+        ctk.CTkLabel(
+            card,
+            text=(
+                "Tworz wykresy bez szukania dodatkowych opcji. Gantt uzyje wyniku "
+                "zaznaczonego w tabeli, a przed pierwszym uzyciem sam uruchomi obliczenia."
+            ),
+            text_color=COLORS["text_muted"],
+            justify="left",
+            wraplength=1100,
+        ).grid(row=1, column=0, columnspan=2, sticky="w", padx=14, pady=(0, 8))
+
+        tree_card = ctk.CTkFrame(card, corner_radius=12, fg_color="#0d2a3a")
+        tree_card.grid(row=2, column=0, sticky="nsew", padx=(14, 7), pady=(4, 14))
+        gantt_card = ctk.CTkFrame(card, corner_radius=12, fg_color="#102333")
+        gantt_card.grid(row=2, column=1, sticky="nsew", padx=(7, 14), pady=(4, 14))
+        for chart_card in (tree_card, gantt_card):
+            chart_card.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            tree_card,
+            text="Drzewo rozwiazania MOpt",
+            font=("Segoe UI", 14, "bold"),
+        ).grid(row=0, column=0, sticky="w", padx=14, pady=(12, 2))
+        ctk.CTkLabel(
+            tree_card,
+            text="Pokazuje rozgalezienia, odrzucone warianty i optymalna sciezke.",
+            text_color=COLORS["text_muted"],
+            justify="left",
+            wraplength=520,
+        ).grid(row=1, column=0, sticky="w", padx=14, pady=(0, 10))
+        ctk.CTkButton(
+            tree_card,
+            text="UTWORZ DRZEWO MOPT",
+            command=self.show_mopt_tree,
+            height=44,
+            font=("Segoe UI", 13, "bold"),
+            fg_color="#0f766e",
+            hover_color="#115e59",
+        ).grid(row=2, column=0, sticky="ew", padx=14, pady=(0, 14))
+
+        ctk.CTkLabel(
+            gantt_card,
+            text="Harmonogram Gantta",
+            font=("Segoe UI", 14, "bold"),
+        ).grid(row=0, column=0, sticky="w", padx=14, pady=(12, 2))
+        ctk.CTkLabel(
+            gantt_card,
+            text="Rysuje wybrana metode na 1-3 maszynach z terminami i przezbrojeniami.",
+            text_color=COLORS["text_muted"],
+            justify="left",
+            wraplength=520,
+        ).grid(row=1, column=0, sticky="w", padx=14, pady=(0, 10))
+        ctk.CTkButton(
+            gantt_card,
+            text="UTWORZ WYKRES GANTTA",
+            command=self.show_gantt,
+            height=44,
+            font=("Segoe UI", 13, "bold"),
+            fg_color="#155e75",
+            hover_color="#164e63",
+        ).grid(row=2, column=0, sticky="ew", padx=14, pady=(0, 14))
+
+    def _build_results(self) -> None:
+        card = ctk.CTkFrame(self.page, corner_radius=14, fg_color=COLORS["surface"])
+        card.grid(row=4, column=0, sticky="ew", padx=18, pady=(7, 16))
         card.grid_columnconfigure(0, weight=1)
-        ctk.CTkLabel(card, text="3. Wyniki", font=("Segoe UI", 16, "bold")).grid(
+        ctk.CTkLabel(card, text="4. Wyniki", font=("Segoe UI", 16, "bold")).grid(
             row=0, column=0, sticky="w", padx=14, pady=(12, 6)
         )
         self.result_tree = ttk.Treeview(
@@ -263,28 +333,12 @@ class EngineeringModePage(ctk.CTkFrame):
             "1.0", "Po obliczeniu tutaj pojawi sie interpretacja najlepszego wyniku."
         )
         self.summary.configure(state="disabled")
-        actions = ctk.CTkFrame(card, fg_color="transparent")
-        actions.grid(row=3, column=0, sticky="ew", padx=14, pady=(6, 8))
-        ctk.CTkButton(
-            actions,
-            text="Pokaz drzewo MOpt",
-            command=self.show_mopt_tree,
-            fg_color="#0f766e",
-            hover_color="#115e59",
-        ).pack(side="left", padx=(0, 8))
-        ctk.CTkButton(
-            actions,
-            text="Gantt wybranej metody",
-            command=self.show_gantt,
-            fg_color="#155e75",
-            hover_color="#164e63",
-        ).pack(side="left", padx=8)
         ctk.CTkLabel(
             card,
             textvariable=self.status_var,
             text_color="#8ddbd1",
             anchor="w",
-        ).grid(row=4, column=0, sticky="ew", padx=14, pady=(0, 12))
+        ).grid(row=3, column=0, sticky="ew", padx=14, pady=(6, 12))
 
     def choose_file(self) -> None:
         selected = filedialog.askopenfilename(

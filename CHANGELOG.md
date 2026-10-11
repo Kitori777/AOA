@@ -1,5 +1,14 @@
 ﻿# CHANGELOG
 
+## [0.11.2] - 2026-10-11
+
+### Changed
+
+* W trybie pracy inzynierskiej dodano wyrazna sekcje `3. Wykresy` przed
+  tabela wynikow, z duzymi przyciskami do drzewa MOpt i harmonogramu Gantta.
+* Gantt nadal automatycznie uruchamia obliczenia i wykorzystuje metode
+  zaznaczona w rankingu, a drzewo mozna otworzyc bez liczenia rankingu.
+
 ## [0.11.1] - 2026-10-11
 
 ### Added

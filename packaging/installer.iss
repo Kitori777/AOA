@@ -2,7 +2,7 @@
 #define MyAppPublisher "AOA"
 #define MyAppExeName "AOA.exe"
 #ifndef MyAppVersion
-  #define MyAppVersion "0.11.1"
+  #define MyAppVersion "0.11.2"
 #endif
 
 [Setup]
