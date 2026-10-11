@@ -1,5 +1,38 @@
 ﻿# CHANGELOG
 
+## [0.11.1] - 2026-10-11
+
+### Added
+
+* Dodano do trybu pracy inżynierskiej ECO Waste, Component Ready + EDD oraz
+  Robust Monte Carlo bez pozostałych metod z pełnego trybu.
+* Dodano sześć jawnie przykładowych zestawów od 5 do 10 zleceń z przypadkami
+  ciasnych terminów, komponentów, równoważenia maszyn i przezbrojeń.
+* Gantt wybranego wyniku obsługuje od jednej do trzech maszyn, pokazuje
+  przezbrojenia i wyróżnia spóźnione zlecenia.
+
+### Changed
+
+* Ranking trybu inżynierskiego pokazuje odpad oraz P90 dla Robust Monte Carlo.
+* Dane rozszerzone zachowują minuty i jawnie opisują założenia używane, gdy
+  źródłowy przykład PDF nie ma materiałów albo gotowości komponentów.
+
+## [0.11.0] - 2026-10-09
+
+### Added
+
+* Dodano osobny tryb pracy inżynierskiej dla projektu ESM z metodami MT/EDD,
+  MO/SPT, MZO/LPT i MOpt.
+* Dodano zweryfikowany przykład czterech zleceń z materiału ESM oraz walidację
+  pliku wejściowego do 10 zleceń.
+* Dodano drzewo rozwiązania MOpt i minutowy harmonogram Gantta.
+
+### Changed
+
+* Instalacja zawiera tylko dane projektu ESM zamiast dawnych próbek i wyników.
+* `app.py` potrafi uruchomić aplikację przez lokalne środowisko `.venv` w
+  niezależnym procesie okienkowym.
+
 ## [0.10.1] - 2026-10-03
 
 ### Added

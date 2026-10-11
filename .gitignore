@@ -45,6 +45,7 @@ Thumbs.db
 .env
 .env.*
 .aoa/
+.aoa-backups/
 
 # Jupyter
 .ipynb_checkpoints/
@@ -61,13 +62,10 @@ docs/alice_sources/*.html
 
 # Generated local data artifacts
 /data/*
-!/data/sample/
-!/data/sample/*.csv
-/data/sample/*_latest.csv
-/data/sample/*_audit.jsonl
-/data/sample/*_recovery.jsonl
-/data/sample/*_runs/
-/data/sample/*_backups/
+!/data/esm/
+!/data/esm/esm_jobs.csv
+!/data/esm/examples/
+!/data/esm/examples/*.csv
 /data/weekly_plans/
 
 # Local desktop / temp artifacts

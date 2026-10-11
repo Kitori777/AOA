@@ -7,7 +7,7 @@ project_root = Path(SPECPATH).parent
 
 datas = [
     (str(project_root / "docs"), "docs"),
-    (str(project_root / "data" / "sample"), "data/sample"),
+    (str(project_root / "data" / "esm"), "data/esm"),
     (str(project_root / "src" / "AOA" / "assets"), "AOA/assets"),
 ]
 datas += collect_data_files("customtkinter")

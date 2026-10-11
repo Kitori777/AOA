@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 from pathlib import Path
 
 from AOA.platform.bootstrap import bootstrap_user_data
@@ -20,7 +19,7 @@ def _paths(root: Path) -> AppPaths:
         logs_dir=user / "logs",
         cache_dir=user / "cache",
         assets_dir=resources / "AOA" / "assets",
-        seed_data_dir=resources / "data" / "sample",
+        seed_data_dir=resources / "data" / "esm",
         seed_docs_dir=resources / "docs",
         frozen=True,
     )
@@ -59,25 +58,5 @@ def test_bootstrap_copies_seeds_once_and_preserves_user_edits(tmp_path) -> None:
     assert first["copied_samples"] == 1
     assert second["copied_docs"] == 0
     assert (paths.docs_dir / "guide.md").read_text(encoding="utf-8") == "user guide"
+    assert (paths.data_dir / "esm" / "sample.csv").read_text(encoding="utf-8") == "a\n1\n"
     assert (paths.config_root / "bootstrap.json").exists()
-
-
-def test_bootstrap_refreshes_only_known_legacy_sample(tmp_path, monkeypatch) -> None:
-    paths = _paths(tmp_path)
-    paths.seed_data_dir.mkdir(parents=True)
-    destination = paths.data_dir / "sample"
-    destination.mkdir(parents=True)
-    legacy = b"old bundled sample\n"
-    (destination / "production.csv").write_bytes(legacy)
-    (paths.seed_data_dir / "production.csv").write_text("new,data\n1,2\n", encoding="utf-8")
-    monkeypatch.setitem(
-        __import__("AOA.platform.bootstrap", fromlist=["_LEGACY_SAMPLE_HASHES"])
-        ._LEGACY_SAMPLE_HASHES,
-        "production.csv",
-        hashlib.sha256(legacy).hexdigest(),
-    )
-
-    result = bootstrap_user_data(paths)
-
-    assert result["refreshed_samples"] == 1
-    assert (destination / "production.csv").read_text(encoding="utf-8") == "new,data\n1,2\n"

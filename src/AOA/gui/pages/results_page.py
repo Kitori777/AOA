@@ -477,7 +477,7 @@ class ResultsPage(ctk.CTkFrame):
             self.run_sql_query()
 
     def load_sample_data(self) -> None:
-        sample_path = DATA_DIR / "sample" / "sample_table.csv"
+        sample_path = DATA_DIR / "esm" / "esm_jobs.csv"
         if not sample_path.exists():
             raise FileNotFoundError(f"Brak pliku sample: {sample_path}")
         self.load_path(str(sample_path))

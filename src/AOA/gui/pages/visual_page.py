@@ -294,7 +294,7 @@ class VisualPage(ctk.CTkFrame):
             self.plot_type.set("Production Line Dashboard")
 
     def load_sample_data(self) -> None:
-        sample_path = DATA_DIR / "sample" / "sample_table.csv"
+        sample_path = DATA_DIR / "esm" / "esm_jobs.csv"
         if not sample_path.exists():
             raise FileNotFoundError(f"Brak pliku sample: {sample_path}")
         self.load_path(sample_path)
@@ -414,7 +414,7 @@ class VisualPage(ctk.CTkFrame):
             messagebox.showerror("Błąd", str(e))
 
     def load_sample_and_draw_dashboard(self) -> None:
-        sample_path = DATA_DIR / "sample" / "sample_table.csv"
+        sample_path = DATA_DIR / "esm" / "esm_jobs.csv"
         if not sample_path.exists():
             raise FileNotFoundError(f"Brak pliku sample: {sample_path}")
         result = load_and_prepare_visual_file(str(sample_path))

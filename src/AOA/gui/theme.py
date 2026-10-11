@@ -17,6 +17,10 @@ COLORS = {
 }
 
 PAGE_META: dict[str, tuple[str, str]] = {
+    "EngineeringModePage": (
+        "Praca inzynierska",
+        "ESM: 7 metod, przyklady 4-10 zlecen, drzewo MOpt i Gantt 1-3 maszyn",
+    ),
     "ReadmePage": ("Start", "Przeglad mozliwosci i szybkie kroki"),
     "MainPage": ("Modele i optymalizacja", "Dane, trening, STO i linie produkcyjne"),
     "QueueDashboardPage": (

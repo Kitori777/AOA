@@ -515,10 +515,10 @@ class AliceSelfLearningLoop:
         }
 
     def _resolve_learning_dataset(self) -> Path | None:
-        preferred = DATA_DIR / "sample" / "sample_table.csv"
+        preferred = DATA_DIR / "esm" / "esm_jobs.csv"
         if preferred.exists():
             return preferred
-        sample_dir = DATA_DIR / "sample"
+        sample_dir = DATA_DIR / "esm"
         if sample_dir.exists():
             candidates = sorted(
                 sample_dir.glob("*.csv"), key=lambda p: p.stat().st_mtime, reverse=True

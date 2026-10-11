@@ -96,7 +96,7 @@ def resolve_app_paths(*, frozen: bool | None = None) -> AppPaths:
         logs_dir=user_root / "logs",
         cache_dir=user_root / "cache",
         assets_dir=assets_dir,
-        seed_data_dir=resource_root / "data" / "sample",
+        seed_data_dir=resource_root / "data" / "esm",
         seed_docs_dir=resource_root / "docs",
         frozen=is_frozen,
     )

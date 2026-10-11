@@ -2,13 +2,15 @@ from __future__ import annotations
 
 import pandas as pd
 
+from AOA.core.data_generation import generate_production_data
 from AOA.core.mlstack.evaluation import run_benchmark
 from AOA.core.mlstack.models import ModelRegistry
 from AOA.core.mlstack.pipelines import WorkflowPipeline
 
 
 def _df() -> pd.DataFrame:
-    return pd.read_csv("data/sample/sample_table.csv")
+    frame, _train, _test = generate_production_data(n=80, n_machines=3, seed=42)
+    return frame
 
 
 def test_model_registry_create_and_fit_predict() -> None:

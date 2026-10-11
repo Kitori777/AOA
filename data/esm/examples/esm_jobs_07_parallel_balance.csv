@@ -1,0 +1,8 @@
+zlecenie,czas_obrobki_min,termin_min,material,ksztalt,odpad_kg,czas_przezbrojenia_min,odpad_przezbrojenia_kg,dozwolone_maszyny,components_ready_min,stock_status
+Z1,24,34,bawelna,PLYTA,2,4,0.5,1|2|3,0,READY
+Z2,21,38,poliester,WALEK,1.1,3,0.3,1|2|3,0,READY
+Z3,18,32,bawelna,PLYTA,1.7,4,0.5,1|2|3,8,WAITING_COMPONENTS
+Z4,14,26,wiskoza,DETAL,0.8,5,0.6,1|2|3,0,READY
+Z5,12,30,poliester,WALEK,0.7,3,0.3,1|2|3,0,READY
+Z6,9,18,wiskoza,DETAL,0.5,5,0.6,1|2|3,10,WAITING_COMPONENTS
+Z7,7,22,bawelna,PLYTA,0.6,4,0.5,1|2|3,0,READY

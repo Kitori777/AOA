@@ -30,10 +30,13 @@ try {
     if (-not $result.frozen) {
         throw "Testowana aplikacja nie dziala jako paczka desktopowa."
     }
-    foreach ($sampleName in @("sample_table.csv", "bom.csv", "inventory.csv", "schedule.csv")) {
-        if (-not (Test-Path -LiteralPath (Join-Path $userData "data\sample\$sampleName"))) {
-            throw "Pierwsze uruchomienie nie przygotowalo pliku $sampleName."
-        }
+    $esmData = Join-Path $userData "data\esm\esm_jobs.csv"
+    if (-not (Test-Path -LiteralPath $esmData)) {
+        throw "Pierwsze uruchomienie nie przygotowalo pliku esm_jobs.csv."
+    }
+    $esmExample = Join-Path $userData "data\esm\examples\esm_jobs_10_mixed_constraints.csv"
+    if (-not (Test-Path -LiteralPath $esmExample)) {
+        throw "Pierwsze uruchomienie nie przygotowalo przykladow ESM 5-10 zlecen."
     }
     Write-Output "DESKTOP_SMOKE_OK version=$($result.version)"
 } finally {

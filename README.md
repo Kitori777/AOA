@@ -7,13 +7,17 @@ porównywania heurystyk harmonogramowania, analizy danych oraz przygotowywania
 raportów. Projekt działa offline, zapisuje dane użytkownika lokalnie i nie wymaga
 zewnętrznej usługi do podstawowej pracy.
 
-- Aktualna wersja: **0.10.1**
+- Aktualna wersja: **0.11.1**
 - Python: **3.11–3.14**
 - Interfejs: **CustomTkinter**
 - Repozytorium: **https://github.com/Kitori777/AOA**
 
 ## Najważniejsze możliwości
 
+- Osobny tryb **Praca inżynierska** dla projektu ESM: MT/EDD, MO/SPT,
+  MZO/LPT, MOpt, ECO Waste, Component Ready + EDD i Robust Monte Carlo.
+  Tryb zawiera przykłady od 5 do 10 zleceń, drzewo rozwiązania MOpt oraz
+  wielomaszynowy harmonogram Gantta dla wybranego wyniku.
 - Auto Kolejka z porównaniem wszystkich zarejestrowanych heurystyk STO.
 - Indywidualne profile maszyn: wydajność, możliwości, koszt, energia, odpad i niezawodność.
 - Dwustopniowe planowanie:
@@ -146,6 +150,9 @@ wersji desktopowej:
 .\.venv\Scripts\python.exe app.py
 ```
 
+Dwukrotne kliknięcie `app.py` również korzysta z lokalnego środowiska `.venv`;
+okno aplikacji nie zależy wtedy od czasu trwania sesji terminala lub Codex.
+
 Uruchomienie CLI:
 
 ```powershell
@@ -187,6 +194,21 @@ Narzędzia deweloperskie:
 python -m pip install pytest pytest-cov ruff mypy pre-commit pyinstaller
 ```
 
+## Dane projektu ESM
+
+Jedynym dołączonym zestawem demonstracyjnym jest `data/esm/esm_jobs.csv`:
+
+```csv
+zlecenie,czas_obrobki_min,termin_min
+Z1,10,150
+Z2,20,30
+Z3,100,110
+Z4,50,60
+```
+
+Tryb pracy inżynierskiej przyjmuje od 1 do 10 zleceń, wymaga dodatnich czasów
+i terminów oraz unikalnych identyfikatorów. Dane są liczone w minutach.
+
 ## Dane wejściowe Auto Kolejki
 
 Minimalny plik `schedule.csv`:
@@ -212,9 +234,9 @@ Najważniejsze pola rozszerzone:
 | `fixed_start_h` | niezmienna godzina startu |
 | `status` | `NEW`, `PLANNED`, `IN_PROGRESS`, `DONE` lub `BLOCKED` |
 
-Kompletny, działający przykład znajduje się w
-[`data/sample/schedule.csv`](data/sample/schedule.csv). Przykładowe dane BOM i
-magazynu znajdują się w tym samym katalogu.
+Auto Kolejka potrafi również otworzyć `data/esm/esm_jobs.csv`; wartości minutowe
+są wtedy przeliczane na godziny. Rozszerzone dane produkcyjne można nadal
+wczytać ręcznie, ale nie są dołączane do instalatora.
 
 ## CLI
 
@@ -316,7 +338,7 @@ porównanie kontrolnych plików źródłowych i zainstalowanych.
 |---|---|
 | `src/AOA` | kod aplikacji |
 | `tests` | testy automatyczne |
-| `data/sample` | kontrolowane dane demonstracyjne |
+| `data/esm` | jeden kontrolowany zestaw projektu ESM |
 | `docs` | instrukcje, teoria i architektura |
 | `scripts` | budowanie, smoke testy i generatory |
 | `packaging` | konfiguracja PyInstaller i Inno Setup |

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import webbrowser
+from dataclasses import replace
 from pathlib import Path
 from tkinter import messagebox
 from typing import Any
@@ -25,6 +26,7 @@ from AOA.core.self_learning import alice_self_learning_loop
 from AOA.gui.assistant_panel import AOAAssistantPanel
 from AOA.gui.pages.analytics_page import AnalyticsPage
 from AOA.gui.pages.drawio_page import DrawIOPage
+from AOA.gui.pages.engineering_mode_page import EngineeringModePage
 from AOA.gui.pages.main_page import MainPage
 from AOA.gui.pages.queue_dashboard_page import QueueDashboardPage
 from AOA.gui.pages.readme_page import ReadmePage
@@ -32,7 +34,7 @@ from AOA.gui.pages.results_page import ResultsPage
 from AOA.gui.pages.theory_page import TheoryPage
 from AOA.gui.pages.visual_page import VisualPage
 from AOA.gui.theme import COLORS, PAGE_META
-from AOA.settings import load_settings
+from AOA.settings import load_settings, save_settings
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
@@ -82,6 +84,13 @@ class App(ctk.CTk):
         self.geometry("1560x880")
         self.minsize(1180, 720)
         self.configure(fg_color=COLORS["app_bg"])
+
+        settings = load_settings()
+        initial_mode = settings.app_mode if settings.app_mode in {"full", "engineering"} else "engineering"
+        self.app_mode = initial_mode
+        self.app_mode_var = ctk.StringVar(
+            value="Praca inzynierska" if initial_mode == "engineering" else "Pelny"
+        )
 
         self.sidebar_expanded = False
         self.active_page = "ReadmePage"
@@ -160,13 +169,24 @@ class App(ctk.CTk):
             text_color="#d9efff",
             font=("Segoe UI", 11, "bold"),
         ).pack(side="right", padx=22)
+        ctk.CTkSegmentedButton(
+            self.topbar,
+            values=["Praca inzynierska", "Pelny"],
+            variable=self.app_mode_var,
+            command=self._change_app_mode,
+            selected_color="#0f766e",
+            selected_hover_color="#115e59",
+            unselected_color=COLORS["surface_raised"],
+            unselected_hover_color=COLORS["surface_hover"],
+            font=("Segoe UI", 11, "bold"),
+        ).pack(side="right", padx=(8, 0), pady=16)
 
         self.page_container = ctk.CTkFrame(self.container, fg_color=COLORS["app_bg"])
         self.page_container.pack(side="bottom", fill="both", expand=True)
 
-        self.pages = {}
-        for Page in (
+        page_types = (
             ReadmePage,
+            EngineeringModePage,
             MainPage,
             QueueDashboardPage,
             VisualPage,
@@ -174,22 +194,31 @@ class App(ctk.CTk):
             AnalyticsPage,
             DrawIOPage,
             TheoryPage,
-        ):
-            page = Page(self.page_container)
-            self.pages[Page.__name__] = page
-            page.place(relx=0, rely=0, relwidth=1, relheight=1)
+        )
+        self._page_types: dict[str, type[Any]] = {
+            page_type.__name__: page_type for page_type in page_types
+        }
+        self.pages: dict[str, Any] = {}
 
         self.build_sidebar()
         self._build_assistant_toggle()
         self.bind("<Configure>", self._on_window_resize)
-        self.show("ReadmePage")
-        self.after(1200, self._preload_assistant_in_background)
+        self.show("EngineeringModePage" if self.app_mode == "engineering" else "ReadmePage")
+        if self.app_mode == "full":
+            self.after(1200, self._preload_assistant_in_background)
         if self._auto_self_learning_enabled():
             self.after(2500, self._start_self_learning_background)
         if self._runtime_hot_reload_enabled():
             self.after(3000, self._start_runtime_hot_reload)
 
     def show(self, name: str) -> None:
+        if name not in self.pages:
+            page_type = self._page_types.get(name)
+            if page_type is None:
+                raise KeyError(f"Nieznana strona aplikacji: {name}")
+            page = page_type(self.page_container)
+            self.pages[name] = page
+            page.place(relx=0, rely=0, relwidth=1, relheight=1)
         self.active_page = name
         title, subtitle = PAGE_META.get(name, (name, ""))
         self.page_title.configure(text=title)
@@ -218,16 +247,19 @@ class App(ctk.CTk):
         )
         self.toggle_btn.pack(padx=16, pady=(18, 20), fill="x")
 
-        items = [
-            ("ReadmePage", "RD", "Readme"),
-            ("MainPage", "MN", "Main"),
-            ("QueueDashboardPage", "AQ", "Auto Queue"),
-            ("VisualPage", "VS", "Visual"),
-            ("ResultsPage", "RS", "Results"),
-            ("AnalyticsPage", "RP", "Report"),
-            ("DrawIOPage", "DG", "Diagrams"),
-            ("TheoryPage", "TH", "Theory"),
-        ]
+        if self.app_mode == "engineering":
+            items = [("EngineeringModePage", "ESM", "Inzynierski")]
+        else:
+            items = [
+                ("ReadmePage", "RD", "Readme"),
+                ("MainPage", "MN", "Main"),
+                ("QueueDashboardPage", "AQ", "Auto Queue"),
+                ("VisualPage", "VS", "Visual"),
+                ("ResultsPage", "RS", "Results"),
+                ("AnalyticsPage", "RP", "Report"),
+                ("DrawIOPage", "DG", "Diagrams"),
+                ("TheoryPage", "TH", "Theory"),
+            ]
         for name, icon, text in items:
             label = f"{icon}\n{text}" if not self.sidebar_expanded else f"{icon}  {text}"
             btn = ctk.CTkButton(
@@ -277,6 +309,18 @@ class App(ctk.CTk):
         self.sidebar.configure(width=220 if self.sidebar_expanded else 88)
         self.build_sidebar()
 
+    def _change_app_mode(self, label: str) -> None:
+        mode = "engineering" if label == "Praca inzynierska" else "full"
+        if mode == self.app_mode:
+            return
+        self.app_mode = mode
+        current = load_settings()
+        save_settings(replace(current, app_mode=mode))
+        self.build_sidebar()
+        self.show("EngineeringModePage" if mode == "engineering" else "ReadmePage")
+        if mode == "full" and not self._assistant_ready:
+            self.after(100, self._preload_assistant_in_background)
+
     def _refresh_sidebar_buttons(self) -> None:
         for name, btn in self.nav_buttons.items():
             active = name == self.active_page
@@ -287,7 +331,7 @@ class App(ctk.CTk):
             )
 
     def show_help(self) -> None:
-        self.show("ReadmePage")
+        self.show("EngineeringModePage" if self.app_mode == "engineering" else "ReadmePage")
 
     def open_file_manager_window(self) -> None:
         if self.file_manager_window is not None and self.file_manager_window.winfo_exists():

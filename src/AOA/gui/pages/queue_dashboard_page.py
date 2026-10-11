@@ -54,7 +54,7 @@ class QueueDashboardPage(ctk.CTkFrame):
     def __init__(self, parent):
         super().__init__(parent, fg_color="#071019")
         settings = load_settings()
-        default_path = DATA_DIR / "sample" / "schedule.csv"
+        default_path = DATA_DIR / "esm" / "esm_jobs.csv"
         self.path_var = ctk.StringVar(value=settings.queue_csv_path or str(default_path))
         self.machine_var = ctk.StringVar(value="4")
         self.objective_labels = {

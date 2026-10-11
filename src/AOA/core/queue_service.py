@@ -149,6 +149,20 @@ def _clean_text(value: object) -> str:
 def normalize_queue_frame(frame: pd.DataFrame) -> pd.DataFrame:
     """Normalize legacy/new CSV layouts and isolate malformed rows as BLOCKED."""
     normalized = frame.copy()
+    if "zlecenie_id" not in normalized.columns and "zlecenie" in normalized.columns:
+        normalized = normalized.rename(columns={"zlecenie": "zlecenie_id"})
+    if "czas_produkcji_h" not in normalized.columns and "czas_obrobki_min" in normalized.columns:
+        minutes = pd.to_numeric(
+            normalized["czas_obrobki_min"].astype(str).str.replace(",", "."),
+            errors="coerce",
+        )
+        normalized["czas_produkcji_h"] = minutes / 60.0
+    if "termin_h" not in normalized.columns and "termin_min" in normalized.columns:
+        minutes = pd.to_numeric(
+            normalized["termin_min"].astype(str).str.replace(",", "."),
+            errors="coerce",
+        )
+        normalized["termin_h"] = minutes / 60.0
     for old, new in _ALIASES.items():
         if new not in normalized.columns and old in normalized.columns:
             normalized = normalized.rename(columns={old: new})

@@ -6,13 +6,14 @@ from pathlib import Path
 
 from AOA.config import CONFIG_DIR
 
-SETTINGS_VERSION = 5
+SETTINGS_VERSION = 6
 
 
 @dataclass(frozen=True)
 class AppSettings:
     version: int = SETTINGS_VERSION
     theme: str = "dark"
+    app_mode: str = "engineering"
     storage_provider: str = "local"
     online_services_enabled: bool = False
     queue_csv_path: str = ""

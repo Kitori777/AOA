@@ -18,6 +18,7 @@ def test_settings_round_trip_defaults_to_offline(tmp_path) -> None:
     assert defaults.online_services_enabled is False
     assert defaults.sync_enabled is False
     assert defaults.storage_provider == "local"
+    assert defaults.app_mode == "engineering"
     assert defaults.sharepoint_site_url == ""
     assert load_settings(path) == saved
     assert load_settings(path).queue_unavailable_machines == "2|4"
