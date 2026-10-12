@@ -428,13 +428,17 @@ class EngineeringModePage(ctk.CTkFrame):
                 self.jobs = load_esm_jobs(self.path_var.get())
             nodes = build_mopt_solution_tree(self.jobs)
             figure = build_mopt_tree_figure(nodes)
-            note = "Optymalna sciezka jest zielona; odrzucone warianty sa szare."
+            note = (
+                "Zielone: optimum; zolte: sprawdzona przegrana sciezka; "
+                "czerwone X: odrzucone warianty. Galezie wybieraja zlecenia od konca, "
+                "a lisc pokazuje kolejnosc wykonania."
+            )
+            if "Widok ograniczony" in nodes[0].details:
+                note += " Duze drzewo zostalo skrocone do 80 najwazniejszych wezlow."
             if int(self.machine_var.get()) > 1:
                 note += " Drzewo pokazuje dokladny problem kolejnosci dla jednej maszyny."
             if any(
-                job.components_ready_h > 0
-                or job.setup_time > 0
-                or job.material
+                job.components_ready_h > 0 or job.setup_time > 0 or job.material
                 for job in self.jobs
             ):
                 note += (

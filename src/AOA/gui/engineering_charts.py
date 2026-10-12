@@ -3,56 +3,30 @@ from __future__ import annotations
 from matplotlib.figure import Figure
 
 from AOA.core.esm_project import EsmTreeNode, build_esm_gantt_rows
+from AOA.core.visualization_service import build_solution_tree_figure_from_records
 
 
 def build_mopt_tree_figure(nodes: list[EsmTreeNode]) -> Figure:
-    figure = Figure(figsize=(12, 7), dpi=100, facecolor="#071019")
-    axis = figure.add_subplot(111)
-    axis.set_facecolor("#071019")
-    by_depth: dict[int, list[EsmTreeNode]] = {}
-    for node in nodes:
-        by_depth.setdefault(node.depth, []).append(node)
-    positions: dict[str, tuple[float, float]] = {}
-    for depth, level_nodes in by_depth.items():
-        count = len(level_nodes)
-        for index, node in enumerate(level_nodes):
-            x = (index + 1) / (count + 1)
-            y = 1.0 - depth / max(1, len(by_depth))
-            positions[node.node_id] = (x, y)
-    for node in nodes:
-        if node.parent_id:
-            x0, y0 = positions[node.parent_id]
-            x1, y1 = positions[node.node_id]
-            axis.plot(
-                [x0, x1],
-                [y0, y1],
-                color="#35c98b" if node.chosen else "#64748b",
-                linewidth=2 if node.chosen else 1,
-                alpha=0.9,
-            )
-    for node in nodes:
-        x, y = positions[node.node_id]
-        color = "#0f766e" if node.chosen else "#334155"
-        axis.text(
-            x,
-            y,
-            f"{node.label}\n{node.details}",
-            ha="center",
-            va="center",
-            color="white",
-            fontsize=8,
-            bbox={
-                "boxstyle": "round,pad=0.45",
-                "facecolor": color,
-                "edgecolor": "#8ddbd1" if node.chosen else "#64748b",
-            },
-        )
-    axis.set_title("Drzewo rozwiazania MOpt", color="white", fontsize=16, pad=18)
-    axis.set_xlim(0, 1)
-    axis.set_ylim(-0.04, 1.06)
-    axis.axis("off")
-    figure.tight_layout()
-    return figure
+    records = [
+        {
+            "id": node.node_id,
+            "parent": node.parent_id,
+            "label": node.label,
+            "details": node.details,
+            "edge_label": node.edge_label,
+            "level": str(node.depth),
+            "score": f"{node.score:g}",
+            "is_best": "1" if node.chosen else "0",
+            "status": node.status,
+        }
+        for node in nodes
+    ]
+    return build_solution_tree_figure_from_records(
+        records,
+        title=(
+            "Drzewo rozwiazania MOpt | zielone = optimum, zolte = sprawdzone, czerwone = odrzucone"
+        ),
+    )
 
 
 def build_esm_gantt_figure(result: dict, method_label: str) -> Figure:

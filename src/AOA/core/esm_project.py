@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import cache
 from pathlib import Path
 
@@ -53,6 +53,8 @@ class EsmTreeNode:
     depth: int
     chosen: bool
     leaf: bool = False
+    status: str = "odrzucony"
+    score: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -200,22 +202,24 @@ def build_esm_gantt_rows(result: dict) -> list[dict[str, float | str]]:
     ]
 
 
-def build_mopt_solution_tree(jobs: list[Job]) -> list[EsmTreeNode]:
-    """Return a compact, exact dynamic-programming solution tree for MOpt.
+def build_mopt_solution_tree(jobs: list[Job], *, max_nodes: int = 80) -> list[EsmTreeNode]:
+    """Build an exact, educational backward-branching MOpt solution tree.
 
-    The calculation considers every remaining first choice through memoized
-    subproblems.  The visual trace keeps the optimal branch and up to two best
-    alternatives at each level, so the diagram remains readable for 10 jobs.
+    A branch fixes the selected job at the end of the still-unscheduled block.
+    Therefore the green root-to-leaf decisions are the reverse of the final
+    production order.  Besides the optimum, one deterministic runner-up path
+    is expanded so the diagram can explain both a checked and a pruned route.
     """
 
     if not jobs:
         raise ValueError("Brak zlecen do drzewa MOpt.")
     if len(jobs) > ESM_MAX_JOBS:
         raise ValueError(f"Drzewo MOpt obsluguje maksymalnie {ESM_MAX_JOBS} zlecen.")
+    if max_nodes < len(jobs) + 1:
+        raise ValueError("Limit wezlow drzewa musi pomiescic korzen i pierwszy poziom.")
 
     count = len(jobs)
     full_mask = (1 << count) - 1
-    total_processing = sum(job.processing_time for job in jobs)
     remaining_processing: dict[int, float] = {0: 0.0}
 
     def remaining_sum(mask: int) -> float:
@@ -231,81 +235,151 @@ def build_mopt_solution_tree(jobs: list[Job]) -> list[EsmTreeNode]:
     def optimum(mask: int) -> float:
         if mask == 0:
             return 0.0
-        elapsed = total_processing - remaining_sum(mask)
+        completion = remaining_sum(mask)
         candidates: list[tuple[float, str, int]] = []
         for index, job in enumerate(jobs):
             bit = 1 << index
             if not mask & bit:
                 continue
-            completion = elapsed + job.processing_time
             immediate = max(0.0, completion - job.deadline)
             candidates.append((immediate + optimum(mask ^ bit), job.job_id, index))
         score, _job_id, selected_index = min(candidates)
         choices[mask] = selected_index
         return score
 
-    optimum(full_mask)
+    optimum_score = optimum(full_mask)
+    total_processing = remaining_sum(full_mask)
+
+    def penalties(mask: int, completion: float) -> str:
+        values = [
+            f"{job.job_id}={max(0.0, completion - job.deadline):g}"
+            for index, job in enumerate(jobs)
+            if mask & (1 << index)
+        ]
+        return "p: " + ", ".join(values) if values else "p: -"
+
     nodes = [
         EsmTreeNode(
             node_id="B1",
             parent_id="",
             edge_label="",
-            label="Start",
-            details=f"{count} zlecen | optimum STO={optimum(full_mask):g}",
+            label="B1 | Start",
+            details=(
+                f"S0={total_processing:g} | Kop=0\n"
+                f"{penalties(full_mask, total_processing)}\n"
+                f"optimum STO={optimum_score:g}"
+            ),
             depth=0,
             chosen=True,
+            status="best",
+            score=0.0,
         )
     ]
     next_id = 2
-    parent_id = "B1"
-    mask = full_mask
-    running_sto = 0.0
-    depth = 1
-    while mask:
-        elapsed = total_processing - remaining_sum(mask)
-        selected_index = choices[mask]
-        candidates: list[tuple[float, str, int, float, float]] = []
+    truncated = False
+
+    def candidate_rows(mask: int, kop: float) -> list[tuple[int, float, float, int]]:
+        completion = remaining_sum(mask)
+        rows: list[tuple[int, float, float, int]] = []
         for index, job in enumerate(jobs):
             bit = 1 << index
             if not mask & bit:
                 continue
-            completion = elapsed + job.processing_time
             immediate = max(0.0, completion - job.deadline)
-            total = running_sto + immediate + optimum(mask ^ bit)
-            candidates.append((total, job.job_id, index, completion, immediate))
-        candidates.sort(key=lambda item: (item[0], item[1]))
-        visible = [candidate for candidate in candidates if candidate[2] == selected_index]
-        visible.extend(candidate for candidate in candidates if candidate[2] != selected_index)
-        visible = visible[:3]
+            next_mask = mask ^ bit
+            exact_total = kop + immediate + optimum(next_mask)
+            rows.append((index, immediate, exact_total, next_mask))
+        return rows
 
-        selected_node_id = ""
-        for total, job_id, index, completion, immediate in visible:
-            chosen = index == selected_index
+    def create_level(
+        parent_id: str,
+        mask: int,
+        kop: float,
+        depth: int,
+        path_backward: tuple[str, ...],
+        statuses: dict[int, str],
+    ) -> dict[int, tuple[str, int, float, tuple[str, ...]]]:
+        nonlocal next_id, truncated
+        created: dict[int, tuple[str, int, float, tuple[str, ...]]] = {}
+        completion = remaining_sum(mask)
+        for index, immediate, exact_total, next_mask in candidate_rows(mask, kop):
+            if len(nodes) >= max_nodes:
+                truncated = True
+                break
+            job = jobs[index]
+            status = statuses.get(index, "odrzucony")
+            next_kop = kop + immediate
+            next_completion = remaining_sum(next_mask)
+            next_path = path_backward + (job.job_id,)
+            sequence = tuple(reversed(next_path))
+            detail_lines = [
+                f"S'={completion:g}-{job.processing_time:g}={next_completion:g} | "
+                f"Kop={kop:g}+{immediate:g}={next_kop:g}",
+                penalties(next_mask, next_completion),
+                f"najlepsze mozliwe STO={exact_total:g}",
+            ]
+            if next_mask == 0:
+                detail_lines[-1] = f"kolejnosc: {' -> '.join(sequence)} | STO={next_kop:g}"
             node_id = f"B{next_id}"
             next_id += 1
-            if chosen:
-                selected_node_id = node_id
             nodes.append(
                 EsmTreeNode(
                     node_id=node_id,
                     parent_id=parent_id,
-                    edge_label=job_id,
-                    label=job_id if chosen else f"{job_id} (odrzucono)",
-                    details=(
-                        f"koniec={completion:g} | T+={immediate:g} | "
-                        f"najlepsze mozliwe STO={total:g}"
-                    ),
+                    edge_label=job.job_id,
+                    label=f"{node_id} | {job.job_id}",
+                    details="\n".join(detail_lines),
                     depth=depth,
-                    chosen=chosen,
-                    leaf=(mask ^ (1 << index)) == 0,
+                    chosen=status == "best",
+                    leaf=next_mask == 0 or status == "odrzucony",
+                    status=status,
+                    score=next_kop,
                 )
             )
-        selected_job = jobs[selected_index]
-        selected_completion = elapsed + selected_job.processing_time
-        running_sto += max(0.0, selected_completion - selected_job.deadline)
-        mask ^= 1 << selected_index
-        parent_id = selected_node_id
-        depth += 1
+            created[index] = (node_id, next_mask, next_kop, next_path)
+        return created
+
+    root_candidates = candidate_rows(full_mask, 0.0)
+    best_index = choices[full_mask]
+    ranked_root = sorted(root_candidates, key=lambda item: (item[2], jobs[item[0]].job_id))
+    runner_index = next((item[0] for item in ranked_root if item[0] != best_index), None)
+    root_statuses = {best_index: "best"}
+    if runner_index is not None:
+        root_statuses[runner_index] = "pokonany"
+    root_children = create_level("B1", full_mask, 0.0, 1, (), root_statuses)
+
+    def expand_path(
+        state: tuple[str, int, float, tuple[str, ...]] | None,
+        status: str,
+        depth: int,
+    ) -> None:
+        while state is not None:
+            parent_id, mask, kop, path_backward = state
+            if mask == 0:
+                return
+            selected_index = choices[mask]
+            created = create_level(
+                parent_id,
+                mask,
+                kop,
+                depth,
+                path_backward,
+                {selected_index: status},
+            )
+            state = created.get(selected_index)
+            depth += 1
+
+    # Reserve the node budget for the complete optimum path before expanding
+    # the explanatory runner-up path.
+    expand_path(root_children.get(best_index), "best", 2)
+    if runner_index is not None:
+        expand_path(root_children.get(runner_index), "pokonany", 2)
+
+    if truncated:
+        nodes[0] = replace(
+            nodes[0],
+            details=nodes[0].details + f"\nWidok ograniczony do {max_nodes} wezlow.",
+        )
     return nodes
 
 

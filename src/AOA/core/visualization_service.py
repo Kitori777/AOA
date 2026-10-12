@@ -1736,13 +1736,15 @@ def build_solution_tree_template_csv(path: str | Path) -> Path:
     return output_path
 
 
-def _solution_tree_figure(
-    df: pd.DataFrame,
-    x_col: str | None = None,
-    y_col: str | None = None,
-    z_col: str | None = None,
+def build_solution_tree_figure_from_records(
+    records: list[dict[str, str]],
+    *,
+    title: str = (
+        "SolutionTree - drzewo rozwiazan (warianty STO) | zielone = poprawna/najlepsza sciezka"
+    ),
 ) -> Figure:
-    records = _solution_tree_records(df, x_col, y_col, z_col, max_nodes=32)
+    """Render normalized solution-tree records with the shared AOA tree style."""
+
     children: dict[str, list[dict[str, str]]] = {record["id"]: [] for record in records}
     roots = []
     for record in records:
@@ -1834,13 +1836,19 @@ def _solution_tree_figure(
                     bbox={"boxstyle": "round,pad=0.18", "fc": "#ffffff", "ec": "#cbd5e1"},
                 )
     for record in records:
-        text = "\n".join(textwrap.wrap(record["label"], width=28)) or record["label"]
-        if record["details"]:
-            details = "\n".join(textwrap.wrap(record["details"], width=42)[:3])
-            text += "\n" + details
         is_best = record["id"] in best_nodes
         recovered = (not is_best) and is_recovered(record)
         rejected = (not is_best) and (not recovered) and is_rejected(record)
+        label = record["label"]
+        if rejected:
+            label = f"X  {label}"
+        text = "\n".join(textwrap.wrap(label, width=28)) or label
+        if record["details"]:
+            detail_lines = []
+            for raw_line in str(record["details"]).splitlines():
+                detail_lines.extend(textwrap.wrap(raw_line, width=46) or [""])
+            details = "\n".join(detail_lines[:4])
+            text += "\n" + details
         ax.text(
             x_positions[record["id"]],
             -y_positions[record["id"]],
@@ -1861,18 +1869,23 @@ def _solution_tree_figure(
                 "lw": 1.8 if is_best else (1.5 if recovered else (1.3 if rejected else 1.0)),
             },
         )
-    ax.set_title(
-        "SolutionTree - drzewo rozwiazan (warianty STO) | zielone = poprawna/najlepsza sciezka",
-        fontsize=14,
-        fontweight="bold",
-        pad=16,
-    )
+    ax.set_title(title, fontsize=14, fontweight="bold", pad=16)
     max_x = max(x_positions.values() or [2.4])
     ax.set_xlim(-2.8, max_x + 2.8)
     ax.set_ylim(-max_depth - 1.25, 1.0)
     ax.axis("off")
     fig.tight_layout()
     return fig
+
+
+def _solution_tree_figure(
+    df: pd.DataFrame,
+    x_col: str | None = None,
+    y_col: str | None = None,
+    z_col: str | None = None,
+) -> Figure:
+    records = _solution_tree_records(df, x_col, y_col, z_col, max_nodes=32)
+    return build_solution_tree_figure_from_records(records)
 
 
 def _build_figure_legacy(df, chart_type, x_col=None, y_col=None, z_col=None):

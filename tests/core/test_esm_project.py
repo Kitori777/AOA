@@ -126,15 +126,33 @@ def test_engineering_mode_rejects_more_than_three_machines() -> None:
         evaluate_esm_methods(jobs, ["MT"], n_machines=4)
 
 
-def test_mopt_tree_keeps_exact_optimal_path_and_readable_alternatives() -> None:
+def test_mopt_tree_matches_pdf_backward_branching_and_exact_optimum() -> None:
     jobs = load_esm_jobs("data/esm/esm_jobs.csv")
     nodes = build_mopt_solution_tree(jobs)
     chosen = [node.edge_label for node in nodes if node.chosen and node.parent_id]
 
-    assert chosen == ["Z2", "Z4", "Z1", "Z3"]
+    assert chosen == ["Z3", "Z1", "Z4", "Z2"]
+    assert "S0=180 | Kop=0" in nodes[0].details
+    assert "p: Z1=30, Z2=150, Z3=70, Z4=120" in nodes[0].details
     assert nodes[0].details.endswith("optimum STO=80")
-    assert any(not node.chosen for node in nodes)
+    assert any(node.status == "pokonany" for node in nodes)
+    assert any(node.status == "odrzucony" for node in nodes)
+    assert any(
+        "kolejnosc: Z2 -> Z4 -> Z1 -> Z3 | STO=80" in node.details
+        for node in nodes
+        if node.chosen and node.leaf
+    )
     assert max(node.depth for node in nodes) == 4
+
+
+def test_mopt_tree_caps_large_visual_trace_without_losing_best_path() -> None:
+    jobs = load_esm_jobs("data/esm/examples/esm_jobs_10_mixed_constraints.csv")
+    nodes = build_mopt_solution_tree(jobs, max_nodes=80)
+
+    assert len(nodes) == 80
+    assert "Widok ograniczony do 80 wezlow" in nodes[0].details
+    assert len([node for node in nodes if node.chosen and node.parent_id]) == 10
+    assert any(node.chosen and node.leaf for node in nodes)
 
 
 def test_gantt_rows_are_sequential_and_minute_based() -> None:
@@ -177,6 +195,7 @@ def test_engineering_figures_render_with_expected_titles() -> None:
     tree = build_mopt_tree_figure(build_mopt_solution_tree(jobs))
     gantt = build_esm_gantt_figure(result, "MOpt")
 
-    assert tree.axes[0].get_title() == "Drzewo rozwiazania MOpt"
+    assert tree.axes[0].get_title().startswith("Drzewo rozwiazania MOpt")
+    assert any("X" in text.get_text() for text in tree.axes[0].texts)
     assert gantt.axes[0].get_title() == "Gantt - MOpt"
     assert gantt.axes[0].get_xlabel() == "Czas [min]"
