@@ -1,15 +1,45 @@
 from __future__ import annotations
 
-import argparse
-import json
 import os
 import sys
-from collections.abc import Sequence
 from pathlib import Path
 
-from AOA import __version__
-from AOA.config import APP_PATHS
-from AOA.utils.logging_utils import configure_logging
+
+def _prepare_direct_script_path() -> None:
+    """Prevent ``AOA/platform`` from shadowing Python's stdlib ``platform``.
+
+    PyCharm may run this file directly with ``src/AOA`` as both the script and
+    working directory.  In that mode Python puts the package directory on
+    ``sys.path``, so third-party imports can resolve ``import platform`` to
+    ``AOA/platform``.  Keep ``src`` importable, but remove the unsafe package
+    directory before importing the application or its dependencies.
+    """
+
+    if __package__ not in {None, ""}:
+        return
+    package_dir = Path(__file__).resolve().parent
+    source_root = package_dir.parent
+    safe_entries: list[str] = []
+    for entry in sys.path:
+        try:
+            resolved = Path(entry or os.getcwd()).resolve()
+        except OSError:
+            safe_entries.append(entry)
+            continue
+        if resolved not in {package_dir, source_root}:
+            safe_entries.append(entry)
+    sys.path[:] = [str(source_root), *safe_entries]
+
+
+_prepare_direct_script_path()
+
+import argparse  # noqa: E402
+import json  # noqa: E402
+from collections.abc import Sequence  # noqa: E402
+
+from AOA import __version__  # noqa: E402
+from AOA.config import APP_PATHS  # noqa: E402
+from AOA.utils.logging_utils import configure_logging  # noqa: E402
 
 
 def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:

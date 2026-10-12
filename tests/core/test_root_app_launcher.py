@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import runpy
+import subprocess
 import sys
 from pathlib import Path
 from types import ModuleType
@@ -14,6 +15,28 @@ def test_root_app_launcher_exposes_main_without_starting_gui() -> None:
     namespace = runpy.run_path(str(project_root / "app.py"), run_name="aoa_launcher_test")
 
     assert callable(namespace["main"])
+
+
+def test_direct_source_script_does_not_shadow_stdlib_platform() -> None:
+    project_root = Path(__file__).resolve().parents[2]
+    source_app = project_root / "src" / "AOA" / "app.py"
+    command = (
+        "import runpy; "
+        f"runpy.run_path({str(source_app)!r}, run_name='pycharm_direct_test'); "
+        "import platform; "
+        "assert callable(platform.release)"
+    )
+
+    completed = subprocess.run(
+        [sys.executable, "-c", command],
+        cwd=source_app.parent,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr
 
 
 def test_source_smoke_test_quits_before_destroying(monkeypatch) -> None:
