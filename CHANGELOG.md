@@ -1,5 +1,65 @@
 ﻿# CHANGELOG
 
+## Unreleased - 2026-10-20
+
+* W trybie inżynierskim dodano zestawy wyboru metod (4 podstawowe, 3 dodatkowe,
+  wszystkie), wskaźnik pracy z czasem obliczeń oraz blokadę ponownego uruchomienia.
+* Gotowe porównanie i operacje maszyn można zapisać do CSV dla Excela, a opis
+  wybranego wyniku skopiować do schowka. Eksport zawiera parametry, źródło,
+  SHA-256 wczytanego CSV i status optimum; nie przelicza harmonogramu.
+* Okno Ganttów zapisuje wszystkie zakładki do PNG i SVG w osobnym folderze.
+  Zmiana ścieżki wymaga ponownego wczytania danych; poprzednie wyniki nie są
+  wtedy dostępne do eksportu. Dane wejściowe i algorytmy pozostają bez zmian.
+* Główny przycisk Gantta pokazuje teraz wszystkie zaznaczone metody w układzie
+  2 × 2, także bez przechodzenia do Theory. Siedem metod tworzy dwie zakładki.
+  Wykresy wypełniają okno również po jego powiększeniu.
+* Przeniesiono cztery przykłady publikacji do `data/esm/article`, dodano
+  niezmienioną kopię źródłowego PDF i opis pochodzenia danych. Zawartość
+  wszystkich dotychczasowych CSV pozostała identyczna.
+
+* Przywrócono `esm_jobs.csv` jako główny plik trybu inżynierskiego. Pojedynczy
+  czas jest przeliczany na wybraną liczbę etapów w pamięci, bez zapisywania CSV.
+* Usunięto przełączanie głównego pliku na maszyny równoległe. Przycisk Gantta,
+  ranking i drzewo obliczają ten sam przepływ przez wszystkie wybrane maszyny.
+* Dwa przykłady programu pokazują podział łącznego czasu i pełny czas na każdym
+  etapie, korzystając z tego samego źródła. Starsze przykłady zachowują własne
+  czasy etapów, a po zmianie liczby maszyn program przelicza ich łączny czas.
+* W Theory dodano widok czterech rzeczywistych Ganttów MT/MO/MZO/MOpt w układzie
+  2 × 2, ze wspólną skalą, kolorami, wyborem maszyn i eksportem wykresu.
+
+## Unreleased - 2026-10-19
+
+* ECO i Component w przepływie inżynierskim zachowują poprzedni punkt startowy,
+  a potem stosują przenoszenie i zamiany z limitem 3000 różnych ocen.
+* Robust w adapterze inżynierskim ocenia wybraną kolejność na niezależnej
+  serii symulacji; GUI pokazuje jej P90 i przybliżony przedział średniego STO.
+  Zachowano wcześniejsze kolejności ECO/Component w puli kandydatów ryzyka.
+* Dodano osiem opisanych studiów przypadku 3 × 10, zastępując dwa ogólne
+  scenariusze i dodając pięć nowych CSV. Raport zawiera porównania przed/po,
+  drzewa, Gantty, statusy potwierdzenia optimum i źródłowe wyniki operacji.
+
+* ECO Waste, Component Ready + EDD i Robust Monte Carlo działają również
+  w przepływie inżynierskim. Dodano osobny przykład 3 maszyn / 10 zleceń
+  z materiałami, gotowością komponentów i przezbrojeniami etapów.
+* Porównywane metody respektują te same ograniczenia. Brak komponentów
+  blokuje całe zlecenie; plan częściowy nie otrzymuje potwierdzenia optimum.
+* Naprawiono konwersję minut/godzin Monte Carlo wyłącznie w adapterze
+  inżynierskim, również dla starego formatu danych. Wyniki pokazują średnie
+  i P90 w minutach, odpad oraz nominalny Gantt z przezbrojeniami.
+
+* Tryb inżynierski obsługuje przepływ przez 1–8 maszyn i do 10 zleceń;
+  domyślnie otwiera gotowy przykład 3 maszyn / 10 zleceń.
+* MT, MO, MZO i MOpt korzystają ze wspólnego modelu operacji, terminów i Gantta.
+  Nowy MOpt stosuje podział i ograniczenia z dolnymi granicami oraz dominacją;
+  po limicie jawnie zgłasza niepotwierdzone optimum.
+* Drzewo pokazuje rzeczywisty ślad przeszukiwania oraz najlepszą ścieżkę;
+  ograniczenie rysunku nie zmienia budżetu optymalizacji.
+* Obliczenia działają w tle; zmiana danych unieważnia poprzedni wynik.
+  Wykresy mają przewijanie, powiększanie i eksport przez pasek narzędzi.
+* Zastąpiono sześć rozszerzonych CSV przykładami dla podstawowych metod;
+  dodano scenariusze 3/10, wąskie gardło, pilne zlecenia, remisy, 8 maszyn
+  oraz cztery odtworzone przykłady MPER 2017-0026.
+
 ## [0.11.2] - 2026-10-11
 
 ### Changed

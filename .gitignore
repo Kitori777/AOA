@@ -66,9 +66,17 @@ docs/alice_sources/*.html
 !/data/esm/esm_jobs.csv
 !/data/esm/examples/
 !/data/esm/examples/*.csv
+!/data/esm/README.md
+!/data/esm/article/
+!/data/esm/article/*.csv
+!/data/esm/article/*.pdf
+!/data/esm/article/README.md
 /data/weekly_plans/
 
 # Local desktop / temp artifacts
+/tmp/
+/output/*
+!/output/README.md
 *.zip
 *.7z
 *.rar

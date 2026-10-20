@@ -1742,6 +1742,7 @@ def build_solution_tree_figure_from_records(
     title: str = (
         "SolutionTree - drzewo rozwiazan (warianty STO) | zielone = poprawna/najlepsza sciezka"
     ),
+    detail_line_limit: int = 4,
 ) -> Figure:
     """Render normalized solution-tree records with the shared AOA tree style."""
 
@@ -1847,7 +1848,7 @@ def build_solution_tree_figure_from_records(
             detail_lines = []
             for raw_line in str(record["details"]).splitlines():
                 detail_lines.extend(textwrap.wrap(raw_line, width=46) or [""])
-            details = "\n".join(detail_lines[:4])
+            details = "\n".join(detail_lines[:detail_line_limit])
             text += "\n" + details
         ax.text(
             x_positions[record["id"]],

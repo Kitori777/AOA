@@ -22,6 +22,7 @@ class Job:
     missing_components: str = ""
     stock_status: str = "READY"
     stock_reservation: str = "[]"
+    machine_times: tuple[float, ...] = ()
 
 
 def parse_jobs(job_ids_text: str, processing_text: str, deadlines_text: str) -> list[Job]:
@@ -60,7 +61,9 @@ def dataframe_to_jobs(
         raise ValueError(f"Brak kolumny terminu: {deadline_col}")
     jobs: list[Job] = []
     for idx, row in df.reset_index(drop=True).iterrows():
-        job_id = str(row[job_id_col]) if job_id_col and job_id_col in df.columns else f"JOB_{idx + 1}"
+        job_id = (
+            str(row[job_id_col]) if job_id_col and job_id_col in df.columns else f"JOB_{idx + 1}"
+        )
         processing_time = float(row[processing_col])
         deadline = float(row[deadline_col])
         if round_to_int:

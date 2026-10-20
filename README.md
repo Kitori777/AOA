@@ -15,9 +15,25 @@ zewnętrznej usługi do podstawowej pracy.
 ## Najważniejsze możliwości
 
 - Osobny tryb **Praca inżynierska** dla projektu ESM: MT/EDD, MO/SPT,
-  MZO/LPT, MOpt, ECO Waste, Component Ready + EDD i Robust Monte Carlo.
-  Tryb zawiera przykłady od 5 do 10 zleceń, drzewo rozwiązania MOpt oraz
-  wielomaszynowy harmonogram Gantta dla wybranego wyniku.
+  MZO/LPT, MOpt, ECO Waste, Component Ready + EDD i Robust Monte Carlo
+  dla przepływu przez **1–8 maszyn**, do **10 zleceń**.
+  Główny plik to `data/esm/esm_jobs.csv`: jeden czas na zlecenie, początkowo
+  wybrane są 3 maszyny. Program przygotowuje operacje podczas obliczeń,
+  bez zmiany CSV. Domyślnie dzieli łączny czas na etapy; drugi przykład pokazuje
+  pełny czas na każdej maszynie. Drzewo, ranking i Gantt używają tego samego
+  modelu przepływu. Główny przycisk **Utwórz wykresy Gantta (2 × 2)** pokazuje
+  wszystkie zaznaczone metody, po cztery na zakładkę. Okno dopasowuje wykresy
+  do rozmiaru ekranu. W Theory dostępne jest też porównanie MT/MO/MZO/MOpt.
+  Wszystkie panele mają wspólną skalę czasu i kolory zleceń.
+  Zestawy „Podstawowe 4”, „Dodatkowe 3” i „Wszystkie” przyspieszają wybór metod.
+  Gotowe wyniki i operacje można zapisać do CSV dla Excela, opis skopiować do
+  schowka, a wszystkie zakładki Ganttów wyeksportować do PNG i SVG.
+  Rozszerzony przykład `esm_flow_10_eco_components.csv` zawiera gotowość
+  komponentów, materiały, odpad i przezbrojenia na każdej z trzech maszyn.
+  Osiem opisanych studiów przypadku obejmuje też przerwany MOpt, opłacalny
+  przestój, konflikt STO–odpad i plan niepełny. ECO/Component poprawiają
+  kolejności do zbieżności lub limitu ocen, a Robust sprawdza zwycięzcę
+  na osobnej serii symulacji. Opis: [przypadki do pracy](docs/engineering-cases.md).
 - Auto Kolejka z porównaniem wszystkich zarejestrowanych heurystyk STO.
 - Indywidualne profile maszyn: wydajność, możliwości, koszt, energia, odpad i niezawodność.
 - Dwustopniowe planowanie:
@@ -196,7 +212,34 @@ python -m pip install pytest pytest-cov ruff mypy pre-commit pyinstaller
 
 ## Dane projektu ESM
 
-Jedynym dołączonym zestawem demonstracyjnym jest `data/esm/esm_jobs.csv`:
+Główny zestaw to `data/esm/esm_jobs.csv`, z jednym czasem na zlecenie.
+Liczbę maszyn oraz sposób liczenia etapów wybiera się w programie.
+Osobny przykład syntetyczny `data/esm/examples/esm_flow_10_three_machines.csv`
+zawiera 3 maszyny i 10 zleceń z gotowymi czasami etapów. Przykładowy wiersz:
+
+```csv
+zlecenie,czas_m1_min,czas_m2_min,czas_m3_min,termin_min
+Z1,10,11,23,82
+```
+
+MT sortuje po terminie, MO po rosnącej sumie czasów operacji, MZO po malejącej,
+a MOpt szuka minimum sumy dodatnich opóźnień po ostatniej maszynie. Przy remisie
+wybierany jest krótszy czas zakończenia całej produkcji. MOpt ma limit 10 sekund
+i 100 000 stanów; wyczerpanie limitu oznacza wynik bez potwierdzenia optimum.
+
+Katalog `examples` zawiera wąskie gardło M2, pilne zlecenia, równorzędne
+optima i pełne 8 maszyn. `data/esm/article` zawiera PDF MPER 2017-0026 oraz
+cztery przykłady z jego tabel. [Spis danych](data/esm/README.md).
+Sześć starszych rozszerzonych przykładów zastąpiono danymi przepływowymi,
+zachowując nazwy plików dla istniejących skrótów. Nazwy w aplikacji opisują
+aktualną zawartość. Dane odtwarza `scripts/generate_esm_examples.py`.
+
+Można wybrać mniej etapów niż zapisano w CSV: używane są pierwsze M1…Mm,
+a termin dotyczy ostatniego wybranego etapu. Aby użyć więcej etapów, trzeba
+wczytać plik z ich czasami; aplikacja nie dopisuje fikcyjnych czasów.
+Szczegóły modelu i ograniczenia: [Przepływ ESM](docs/flowshop.md).
+
+Zachowany bazowy przykład jednej maszyny, `data/esm/esm_jobs.csv`:
 
 ```csv
 zlecenie,czas_obrobki_min,termin_min
@@ -234,9 +277,10 @@ Najważniejsze pola rozszerzone:
 | `fixed_start_h` | niezmienna godzina startu |
 | `status` | `NEW`, `PLANNED`, `IN_PROGRESS`, `DONE` lub `BLOCKED` |
 
-Auto Kolejka potrafi również otworzyć `data/esm/esm_jobs.csv`; wartości minutowe
+Auto Kolejka potrafi również otworzyć bazowy `data/esm/esm_jobs.csv`; wartości minutowe
 są wtedy przeliczane na godziny. Rozszerzone dane produkcyjne można nadal
-wczytać ręcznie, ale nie są dołączane do instalatora.
+wczytać ręcznie, ale nie są dołączane do instalatora. CSV przepływu z kolumnami
+`czas_m1_min` itd. są przeznaczone dla trybu pracy inżynierskiej.
 
 ## CLI
 
@@ -338,14 +382,26 @@ porównanie kontrolnych plików źródłowych i zainstalowanych.
 |---|---|
 | `src/AOA` | kod aplikacji |
 | `tests` | testy automatyczne |
-| `data/esm` | jeden kontrolowany zestaw projektu ESM |
-| `docs` | instrukcje, teoria i architektura |
+| `data/esm` | [główny CSV, przykłady i artykuł PDF](data/esm/README.md) |
+| `docs` | [indeks instrukcji, teorii i architektury](docs/README.md) |
 | `scripts` | budowanie, smoke testy i generatory |
 | `packaging` | konfiguracja PyInstaller i Inno Setup |
 | `models` | lokalne modele użytkownika, bez publikowania w Git |
+| `output` | [indeks lokalnych raportów, drzew i Ganttów](output/README.md) |
+| `tmp` | pliki robocze do usunięcia po zakończeniu pracy |
+| `build`, `dist` | pliki budowania, spakowana aplikacja i instalatory |
+| `.aoa`, `.aoa-backups` | lokalny stan aplikacji i kopie bezpieczeństwa |
 
-Katalogi `build`, `dist`, cache testów, logi i wyniki `*_latest.csv` są
-artefaktami lokalnymi i nie należą do historii repozytorium.
+Katalogi `build`, `dist`, `tmp`, wygenerowana zawartość `output`, cache testów,
+logi i wyniki `*_latest.csv` są artefaktami lokalnymi i nie należą do historii
+repozytorium. Indeks `output/README.md` jest wersjonowany; same raporty pozostają
+na komputerze, dlatego po świeżym pobraniu repozytorium ich odnośniki mogą jeszcze
+nie mieć plików docelowych. Sposoby odtworzenia opisano w indeksie.
+
+Po zakończeniu testów można usuwać `.pytest-run`, `.pytest_cache`, `.mypy_cache`,
+`.ruff_cache` i foldery `__pycache__`; narzędzia odtworzą je przy kolejnym użyciu.
+Plików z `data/esm`, modeli, stanu aplikacji i kopii bezpieczeństwa nie należy
+traktować jak pamięci podręcznej. Zawartość `tmp` trzeba sprawdzić przed usunięciem.
 
 ## Rozwój projektu
 

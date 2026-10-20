@@ -1,0 +1,11 @@
+zlecenie,czas_m1_min,czas_m2_min,czas_m3_min,termin_min,material,ksztalt,odpad_kg,odpad_przezbrojenia_kg,czas_przezbrojenia_m1_min,czas_przezbrojenia_m2_min,czas_przezbrojenia_m3_min,components_ready_min,stock_status
+Z1,15,3,10,143,C,X,1,4,5,8,3,20,WAITING_COMPONENTS
+Z2,11,17,13,148,C,X,1,4,5,8,3,0,READY
+Z3,6,11,6,174,A,X,1,4,5,8,3,40,WAITING_COMPONENTS
+Z4,19,24,21,109,A,X,1,4,5,8,3,0,UNSCHEDULABLE
+Z5,4,23,12,70,B,X,1,4,5,8,3,40,WAITING_COMPONENTS
+Z6,13,15,12,70,C,X,1,4,5,8,3,60,WAITING_COMPONENTS
+Z7,19,17,16,97,C,X,1,4,5,8,3,0,READY
+Z8,19,2,4,60,C,X,1,4,5,8,3,20,WAITING_COMPONENTS
+Z9,21,17,12,45,A,X,1,4,5,8,3,60,WAITING_COMPONENTS
+Z10,24,4,8,128,C,X,1,4,5,8,3,0,READY

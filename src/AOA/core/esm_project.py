@@ -1,13 +1,30 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, replace
 from functools import cache
+from math import isfinite
 from pathlib import Path
+from time import perf_counter
 
 import pandas as pd
 
+from AOA.core.engineering_methods import (
+    evaluate_robust_flowshop,
+    sequence_component_ready_flowshop,
+    sequence_eco_flowshop,
+)
+from AOA.core.flowshop import (
+    FLOW_METHODS,
+    FlowShopJob,
+    FlowShopResult,
+    evaluate_flowshop,
+    flowshop_key,
+    flowshop_order,
+    solve_flowshop,
+    validate_flowshop,
+)
 from AOA.core.optimization.models import Job
-from AOA.core.optimization.runner import run_selected_sto_models
 
 ESM_METHODS: tuple[str, ...] = (
     "MT",
@@ -30,16 +47,35 @@ ESM_OPTIONAL_COLUMNS: tuple[str, ...] = (
     "stock_status",
 )
 ESM_MAX_JOBS = 10
-ESM_MAX_MACHINES = 3
+ESM_MAX_MACHINES = 8
+ESM_DEFAULT_SCENARIO = "esm_jobs.csv"
+ESM_COMPARISON_METHODS = ("MT", "MO", "MZO", "MOPT")
+ESM_TIME_MODES = {
+    "total": "Laczny czas podzielony na maszyny",
+    "per_machine": "Pelny czas na kazdej maszynie",
+    "file": "Oryginalne czasy etapow z pliku",
+}
 
 ESM_SCENARIO_LABELS: dict[str, str] = {
-    "esm_jobs.csv": "ESM Z1-Z4 (dane z PDF)",
-    "esm_jobs_05_tight_deadlines.csv": "Z1-Z5 - ciasne terminy",
-    "esm_jobs_06_component_wait.csv": "Z1-Z6 - oczekiwanie na komponenty",
-    "esm_jobs_07_parallel_balance.csv": "Z1-Z7 - balans maszyn",
-    "esm_jobs_08_changeovers.csv": "Z1-Z8 - materialy i przezbrojenia",
-    "esm_jobs_09_urgent_mix.csv": "Z1-Z9 - pilne i dlugie zlecenia",
-    "esm_jobs_10_mixed_constraints.csv": "Z1-Z10 - mieszane ograniczenia",
+    "esm_jobs.csv": "START: esm_jobs.csv - jeden czas zlecenia",
+    "esm_jobs_05_tight_deadlines.csv": "3 maszyny / 5 zlecen - pierwsze rozgalezienia",
+    "esm_jobs_06_component_wait.csv": "3 maszyny / 6 zlecen - porownanie kolejnosci",
+    "esm_jobs_07_parallel_balance.csv": "3 maszyny / 7 zlecen - rozne obciazenia",
+    "esm_jobs_08_changeovers.csv": "3 maszyny / 8 zlecen - konflikt terminow",
+    "esm_jobs_09_urgent_mix.csv": "3 maszyny / 9 zlecen - pilne i dlugie",
+    "esm_jobs_10_mixed_constraints.csv": "PRACA: 3 x 10 - konflikt STO i odpadu",
+    "esm_flow_10_three_machines.csv": "Przyklad: 3 maszyny / 10 zlecen - porownanie metod",
+    "esm_flow_10_bottleneck.csv": "3 maszyny / 10 zlecen - waskie gardlo M2",
+    "esm_flow_10_urgent.csv": "PRACA: 3 x 10 - MOpt z limitem stanow",
+    "esm_flow_10_eco_trap.csv": "PRACA: 3 x 10 - pulapka przezbrojen ECO",
+    "esm_flow_10_component_wait.csv": "PRACA: 3 x 10 - dostawy i poprawa Component",
+    "esm_flow_10_intentional_idle.csv": "PRACA: 3 x 10 - oplacalny przestoj",
+    "esm_flow_10_multiple_optima.csv": "PRACA: 3 x 10 - wiele rownorzednych optimow",
+    "esm_flow_10_blocked_components.csv": "PRACA: 3 x 10 - pozornie lepszy plan niepelny",
+    "esm_flow_06_ties.csv": "3 maszyny / 6 zlecen - rownorzedne optima",
+    "esm_flow_10_eight_machines.csv": "8 maszyn / 10 zlecen - pelny przeplyw",
+    "esm_flow_10_eco_components.csv": "3 maszyny / 10 zlecen - ECO, komponenty i ryzyko",
+    **{f"esm_paper_0{i}.csv": f"Artykul 2017 - przyklad {i} / 2 maszyny" for i in range(1, 5)},
 }
 
 
@@ -62,6 +98,7 @@ class EsmScenario:
     label: str
     path: Path
     job_count: int
+    machine_count: int = 1
 
 
 def load_esm_jobs(path: str | Path) -> list[Job]:
@@ -82,7 +119,8 @@ def list_esm_scenarios(directory: str | Path) -> list[EsmScenario]:
     scenarios: list[EsmScenario] = []
     for path in sorted(root.rglob("*.csv")):
         try:
-            job_count = len(load_esm_jobs(path))
+            jobs = load_esm_jobs(path)
+            job_count = len(jobs)
         except (OSError, ValueError):
             continue
         scenarios.append(
@@ -90,19 +128,44 @@ def list_esm_scenarios(directory: str | Path) -> list[EsmScenario]:
                 label=ESM_SCENARIO_LABELS.get(path.name, f"{path.stem} ({job_count} zlecen)"),
                 path=path,
                 job_count=job_count,
+                machine_count=len(jobs[0].machine_times) or 1,
             )
         )
-    return sorted(scenarios, key=lambda item: (item.job_count, item.label))
+    return sorted(
+        scenarios,
+        key=lambda item: (item.path.name != ESM_DEFAULT_SCENARIO, item.job_count, item.label),
+    )
 
 
 def dataframe_to_esm_jobs(frame: pd.DataFrame) -> list[Job]:
     if frame is None or frame.empty:
         raise ValueError("Plik ESM nie zawiera zlecen.")
-    missing = [column for column in ESM_COLUMNS if column not in frame.columns]
+    stage_columns = [
+        f"czas_m{i}_min"
+        for i in range(1, ESM_MAX_MACHINES + 1)
+        if f"czas_m{i}_min" in frame.columns
+    ]
+    all_stage_columns = [str(c) for c in frame.columns if str(c).startswith("czas_m")]
+    if all_stage_columns and stage_columns != [
+        f"czas_m{i}_min" for i in range(1, len(all_stage_columns) + 1)
+    ]:
+        raise ValueError(
+            "Kolumny przeplywu musza stanowic ciag czas_m1_min ... czas_m8_min bez luk."
+        )
+    required = ("zlecenie", "termin_min") if stage_columns else ESM_COLUMNS
+    missing = [column for column in required if column not in frame.columns]
     if missing:
         raise ValueError("Brak wymaganych kolumn ESM: " + ", ".join(missing))
     if len(frame) > ESM_MAX_JOBS:
         raise ValueError(f"Tryb pracy inzynierskiej obsluguje maksymalnie {ESM_MAX_JOBS} zlecen.")
+    setup_columns = [
+        str(c) for c in frame.columns if re.fullmatch(r"czas_przezbrojenia_m\d+_min", str(c))
+    ]
+    allowed_setups = {f"czas_przezbrojenia_m{i}_min" for i in range(1, len(stage_columns) + 1)}
+    if set(setup_columns) - allowed_setups:
+        raise ValueError(
+            "Przezbrojenia etapow wymagaja odpowiadajacych im czasow operacji M1...Mm."
+        )
 
     jobs: list[Job] = []
     seen: set[str] = set()
@@ -114,10 +177,16 @@ def dataframe_to_esm_jobs(frame: pd.DataFrame) -> list[Job]:
         if job_id in seen:
             raise ValueError(f"Wiersz {row_number}: powtorzone zlecenie {job_id}.")
         seen.add(job_id)
-        processing_time = _positive_number(row["czas_obrobki_min"], row_number, "czas_obrobki_min")
+        machine_times = tuple(_positive_number(row[c], row_number, c) for c in stage_columns)
+        processing_time = (
+            sum(machine_times)
+            if machine_times
+            else _positive_number(row["czas_obrobki_min"], row_number, "czas_obrobki_min")
+        )
         deadline = _positive_number(row["termin_min"], row_number, "termin_min")
+        job_type = FlowShopJob if machine_times else Job
         jobs.append(
-            Job(
+            job_type(
                 job_id=job_id,
                 processing_time=processing_time,
                 deadline=deadline,
@@ -136,13 +205,32 @@ def dataframe_to_esm_jobs(frame: pd.DataFrame) -> list[Job]:
                     row, "components_ready_min", row_number
                 ),
                 stock_status=str(row.get("stock_status", "READY")).strip().upper() or "READY",
+                machine_times=machine_times,
             )
         )
+        if machine_times and setup_columns:
+            flow_job = jobs[-1]
+            assert isinstance(flow_job, FlowShopJob)
+            jobs[-1] = replace(
+                flow_job,
+                machine_setup_times=tuple(
+                    _optional_nonnegative_number(row, f"czas_przezbrojenia_m{i}_min", row_number)
+                    for i in range(1, len(stage_columns) + 1)
+                ),
+            )
+    if stage_columns:
+        validate_flowshop(jobs, len(stage_columns))
     return jobs
 
 
 def evaluate_esm_methods(
-    jobs: list[Job], selected_methods: list[str], *, n_machines: int = 1
+    jobs: list[Job],
+    selected_methods: list[str],
+    *,
+    n_machines: int = 1,
+    time_limit_s: float = 10.0,
+    max_states: int = 100_000,
+    time_mode: str | None = None,
 ) -> list[dict]:
     if not jobs:
         raise ValueError("Brak zlecen do obliczen.")
@@ -151,16 +239,160 @@ def evaluate_esm_methods(
         raise ValueError("Tryb pracy inzynierskiej nie udostepnia metod: " + ", ".join(unknown))
     if not 1 <= n_machines <= ESM_MAX_MACHINES:
         raise ValueError(f"Tryb pracy inzynierskiej obsluguje od 1 do {ESM_MAX_MACHINES} maszyn.")
-    return run_selected_sto_models(
-        jobs,
+    prepared = prepare_esm_flow_jobs(jobs, n_machines=n_machines, time_mode=time_mode)
+    results = evaluate_flowshop_methods(
+        prepared,
         selected_methods,
         n_machines=n_machines,
-        objective="deadline_then_waste",
+        time_limit_s=time_limit_s,
+        max_states=max_states,
     )
+    effective = esm_time_mode(jobs, n_machines, time_mode)
+    for result in results:
+        result["time_mode"] = effective
+        if "flowshop_solution" in result:
+            result["flowshop_solution"].evaluation["time_mode"] = effective
+    return results
+
+
+def esm_time_mode(jobs: list[Job], n_machines: int, time_mode: str | None = None) -> str:
+    """Keep explicit operation data when possible; scalar data always uses flow."""
+    if time_mode is not None:
+        if time_mode not in ESM_TIME_MODES:
+            raise ValueError("Nieznany sposob interpretacji czasu ESM.")
+        return time_mode
+    return "file" if jobs and all(len(j.machine_times) >= n_machines for j in jobs) else "total"
+
+
+def prepare_esm_flow_jobs(
+    jobs: list[Job], *, n_machines: int, time_mode: str | None = None
+) -> list[Job]:
+    """Build immutable runtime operations; never write or modify the source CSV.
+
+    total: processing_time is line-wide work, distributed evenly over m stages.
+    per_machine: processing_time is repeated at every stage (a separate model).
+    file: preserve supplied stage times, including their per-stage setups.
+    Scalar setup is line-wide in total mode and per-stage in per_machine mode.
+    Explicit setup vectors are summed before redistribution, like processing.
+    """
+    if isinstance(n_machines, bool) or not isinstance(n_machines, int) or not 1 <= n_machines <= 8:
+        raise ValueError("Przeplyw obsluguje od 1 do 8 maszyn.")
+    if not jobs:
+        raise ValueError("Brak zlecen do obliczen.")
+    mode = esm_time_mode(jobs, n_machines, time_mode)
+    prepared = []
+    for job in jobs:
+        if mode == "file":
+            if len(job.machine_times) < n_machines:
+                raise ValueError("Brak czasow etapow: wybierz podzial lacznego czasu w programie.")
+            updated = replace(
+                job,
+                machine_times=job.machine_times[:n_machines],
+                processing_time=sum(job.machine_times[:n_machines]),
+            )
+            if isinstance(updated, FlowShopJob):
+                updated = replace(
+                    updated, machine_setup_times=updated.machine_setup_times[:n_machines]
+                )
+            prepared.append(updated)
+        else:
+            duration = job.processing_time / n_machines if mode == "total" else job.processing_time
+            setup_vector = getattr(job, "machine_setup_times", ())
+            setup = sum(setup_vector) if setup_vector else job.setup_time
+            setup = setup / n_machines if mode == "total" else setup
+            updated = replace(
+                job,
+                machine_times=(duration,) * n_machines,
+                processing_time=duration * n_machines,
+                setup_time=setup,
+            )
+            if isinstance(updated, FlowShopJob):
+                updated = replace(updated, machine_setup_times=())
+            prepared.append(updated)
+    validate_flowshop(prepared, n_machines)
+    return prepared
+
+
+def evaluate_flowshop_methods(
+    jobs: list[Job],
+    selected_methods: list[str],
+    *,
+    n_machines: int,
+    time_limit_s: float = 10.0,
+    max_states: int = 100_000,
+) -> list[dict]:
+    validate_flowshop(jobs, n_machines)
+    if not selected_methods:
+        raise ValueError("Wybierz przynajmniej jedna metode.")
+    if unsupported := [m for m in selected_methods if m not in FLOW_METHODS]:
+        raise ValueError("Nieznane metody przeplywu: " + ", ".join(unsupported))
+    results = []
+    solved = None
+    for method in dict.fromkeys(selected_methods):
+        started = perf_counter()
+        if method == "MOPT":
+            solved = solve_flowshop(
+                jobs, n_machines=n_machines, time_limit_s=time_limit_s, max_states=max_states
+            )
+            evaluation = dict(solved.evaluation)
+            evaluation["flowshop_solution"] = solved
+        elif method == "ROBUST_MC":
+            evaluation = evaluate_robust_flowshop(jobs, n_machines=n_machines)
+        else:
+            if method == "ECO_WASTE":
+                order = sequence_eco_flowshop(jobs, n_machines=n_machines)
+            elif method == "COMPONENT_READY_EDD":
+                order = sequence_component_ready_flowshop(jobs, n_machines=n_machines)
+            else:
+                order = flowshop_order(jobs, method, n_machines)
+            evaluation = evaluate_flowshop(order, n_machines=n_machines)
+        results.append({**evaluation, "method": method, "elapsed_s": perf_counter() - started})
+    results.sort(key=lambda r: (*flowshop_key(r), r["method"]))
+    reference = solved.evaluation if solved else results[0]
+    for result in results:
+        equal = flowshop_key(result) == flowshop_key(reference)
+        result["optimality_status"] = (
+            "OPTIMAL_CONFIRMED"
+            if solved and solved.confirmed and equal
+            else "GAP_TO_OPTIMUM"
+            if solved and solved.confirmed
+            else "BEST_KNOWN"
+            if equal
+            else "CANDIDATE"
+        )
+        if result["unscheduled_count"]:
+            result["optimality_status"] = "PARTIAL_PLAN"
+        elif result["method"] == "ROBUST_MC":
+            result["optimality_status"] = "RISK_ASSESSED"
+        result["sto_gap_min"] = max(0.0, result["sto"] - reference["sto"])
+    return results
 
 
 def esm_method_warnings(jobs: list[Job], selected_methods: list[str]) -> list[str]:
-    warnings: list[str] = []
+    if any(job.machine_times for job in jobs):
+        warnings = [
+            "Przeplyw: MO/MZO szereguja wedlug sumy czasow na wybranych maszynach. "
+            "Opoznienie jest liczone po ostatniej operacji. Gotowosc komponentow i dodatkowe "
+            "przezbrojenia obowiazuja wszystkie porownywane metody."
+        ]
+        if "ECO_WASTE" in selected_methods and not any(
+            j.material or j.shape or j.changeover_waste_kg for j in jobs
+        ):
+            warnings.append(
+                "ECO Waste: brak materialow lub zmian ksztaltu; odpad nie zalezy od kolejnosci."
+            )
+        if "COMPONENT_READY_EDD" in selected_methods and not any(
+            j.components_ready_h or j.stock_status != "READY" for j in jobs
+        ):
+            warnings.append("Component Ready + EDD: wszystkie komponenty gotowe od 0 min.")
+        if "ROBUST_MC" in selected_methods:
+            warnings.append(
+                "Robust Monte Carlo: wybor 1000 symulacji (42), weryfikacja 1000 (43); "
+                "syntetyczne profile MTBF=80 h, "
+                "MTTR=2 h. Czasy sa przeliczane min -> h -> min. Ranking pokazuje nominalne STO."
+            )
+        return warnings
+    warnings = []
     if "ECO_WASTE" in selected_methods and not any(
         job.material
         or job.shape
@@ -180,7 +412,8 @@ def esm_method_warnings(jobs: list[Job], selected_methods: list[str]) -> list[st
         )
     if "ROBUST_MC" in selected_methods:
         warnings.append(
-            "Robust Monte Carlo: symulacja korzysta z konserwatywnych profili niezawodnosci maszyn."
+            "Robust Monte Carlo: symulacja korzysta z syntetycznych profili niezawodnosci maszyn "
+            "(MTBF=80 h, MTTR=2 h), z poprawna konwersja minut."
         )
     return warnings
 
@@ -196,13 +429,20 @@ def build_esm_gantt_rows(result: dict) -> list[dict[str, float | str]]:
             "deadline": float(step["deadline"]),
             "tardiness": float(step["tardiness_positive"]),
             "setup": float(step.get("setup_time", 0.0)),
+            "final_operation": bool(step.get("final_operation", True)),
         }
         for step in result.get("steps", [])
         if step.get("scheduled", True)
     ]
 
 
-def build_mopt_solution_tree(jobs: list[Job], *, max_nodes: int = 80) -> list[EsmTreeNode]:
+def build_mopt_solution_tree(
+    jobs: list[Job],
+    *,
+    max_nodes: int = 80,
+    n_machines: int = 1,
+    solution: FlowShopResult | None = None,
+) -> list[EsmTreeNode]:
     """Build an exact, educational backward-branching MOpt solution tree.
 
     A branch fixes the selected job at the end of the still-unscheduled block.
@@ -211,6 +451,17 @@ def build_mopt_solution_tree(jobs: list[Job], *, max_nodes: int = 80) -> list[Es
     is expanded so the diagram can explain both a checked and a pruned route.
     """
 
+    if solution is not None and tuple(jobs) != solution.source_jobs:
+        jobs = prepare_esm_flow_jobs(
+            jobs, n_machines=n_machines, time_mode=solution.evaluation.get("time_mode")
+        )
+    elif n_machines > 1 and not any(job.machine_times for job in jobs):
+        jobs = prepare_esm_flow_jobs(jobs, n_machines=n_machines)
+    if any(job.machine_times for job in jobs):
+        solved = solution or solve_flowshop(jobs, n_machines=n_machines)
+        if solved.evaluation["machine_count"] != n_machines or solved.source_jobs != tuple(jobs):
+            raise ValueError("Drzewo i wynik musza dotyczyc tych samych danych i liczby maszyn.")
+        return _flowshop_tree(jobs, solved, max_nodes=max_nodes)
     if not jobs:
         raise ValueError("Brak zlecen do drzewa MOpt.")
     if len(jobs) > ESM_MAX_JOBS:
@@ -383,12 +634,91 @@ def build_mopt_solution_tree(jobs: list[Job], *, max_nodes: int = 80) -> list[Es
     return nodes
 
 
+def _flowshop_tree(jobs: list[Job], solved: FlowShopResult, *, max_nodes: int) -> list[EsmTreeNode]:
+    scheduled_count = len(solved.evaluation["scheduled_order"])
+    if max_nodes < scheduled_count + 1:
+        raise ValueError("Limit wezlow musi pomiescic pelna najlepsza sciezke.")
+    trace = solved.trace
+    selected = {path for path, state in trace.items() if state["status"] == "best"}
+    # Select real alternative branches with their ancestors. Sampling is only
+    # presentation; no omitted branch is reclassified as mathematically pruned.
+    priorities = {"improved": 0, "visited": 1, "pruned": 2, "dominated": 3}
+
+    def include(path: tuple[int, ...]) -> None:
+        ancestors = {path[:d] for d in range(len(path) + 1)}
+        if len(selected | ancestors) <= max_nodes and ancestors <= trace.keys():
+            selected.update(ancestors)
+
+    # Reserve actual cutoffs before a long yellow branch fills the display.
+    for status in ("improved", "pruned", "dominated", "visited"):
+        group = [p for p in trace if trace[p]["status"] == status and p not in selected]
+        group.sort(
+            key=lambda p: (sum(p[:d] not in selected for d in range(len(p) + 1)), -len(p), p)
+        )
+        for path in group[:2]:
+            include(path)
+    candidates = sorted(trace, key=lambda p: (priorities.get(trace[p]["status"], 4), -len(p), p))
+    for path in candidates:
+        include(path)
+    ordered = sorted(selected)
+    ids = {path: f"B{i + 1}" for i, path in enumerate(ordered)}
+    nodes = []
+    for path in ordered:
+        state = trace[path]
+        chosen = state["status"] == "best"
+        status = (
+            "best"
+            if chosen
+            else "odrzucony"
+            if state["status"] in {"pruned", "dominated"}
+            else "pokonany"
+        )
+        availability = ", ".join(f"M{i + 1}={t:g}" for i, t in enumerate(state["available"]))
+        if not path:
+            details = (
+                f"{solved.evaluation['machine_count']} maszyn | {solved.evaluation['search_status']}\n"
+                f"STO={solved.evaluation['sto']:g}; LB={solved.lower_bound:g}\n"
+                f"Stany={solved.visited}; odciete={solved.pruned}\n"
+                f"Widok {len(ordered)} wezlow; zapis sladu {len(trace)}"
+            )
+        else:
+            reason = {
+                "pruned": "odciecie: dolna granica",
+                "dominated": "odciecie: dominacja",
+                "visited": "sprawdzono",
+                "improved": "poprawiono wynik",
+                "best": "najlepsza sciezka",
+            }[state["status"]]
+            if state.get("origin") == "incumbent":
+                reason += " (rozwiazanie poczatkowe)"
+            details = (
+                f"STO prefiksu={state['sto']:g}; LB={state['bound']:g}\n{availability}\n{reason}"
+            )
+            if len(path) == scheduled_count:
+                details += "\nkolejnosc: " + " -> ".join(jobs[i].job_id for i in path)
+        nodes.append(
+            EsmTreeNode(
+                node_id=ids[path],
+                parent_id=ids[path[:-1]] if path else "",
+                edge_label=jobs[path[-1]].job_id if path else "",
+                label=f"{ids[path]} | {jobs[path[-1]].job_id}" if path else "B1 | Przeplyw MOpt",
+                details=details,
+                depth=len(path),
+                chosen=chosen,
+                leaf=len(path) == scheduled_count or status == "odrzucony",
+                status=status,
+                score=state["sto"],
+            )
+        )
+    return nodes
+
+
 def _positive_number(value: object, row_number: int, column: str) -> float:
     try:
         number = float(str(value).strip().replace(",", "."))
     except ValueError:
         raise ValueError(f"Wiersz {row_number}: {column} nie jest liczba.") from None
-    if number <= 0:
+    if not isfinite(number) or number <= 0:
         raise ValueError(f"Wiersz {row_number}: {column} musi byc dodatnie.")
     return number
 
@@ -401,7 +731,7 @@ def _optional_nonnegative_number(row: pd.Series, column: str, row_number: int) -
         number = float(str(value).strip().replace(",", "."))
     except ValueError:
         raise ValueError(f"Wiersz {row_number}: {column} nie jest liczba.") from None
-    if number < 0:
+    if not isfinite(number) or number < 0:
         raise ValueError(f"Wiersz {row_number}: {column} nie moze byc ujemne.")
     return number
 

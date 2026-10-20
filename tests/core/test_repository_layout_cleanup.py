@@ -13,15 +13,36 @@ def test_esm_data_is_the_only_tracked_data_source():
     esm_path = Path("data/esm/esm_jobs.csv")
     assert esm_path.exists()
     existing = sorted(path.as_posix() for path in Path("data").rglob("*") if path.is_file())
-    assert existing == sorted([
+    expected = [
         "data/esm/esm_jobs.csv",
+        "data/esm/README.md",
+        "data/esm/article/README.md",
+        "data/esm/article/mper-2017-0026.pdf",
         "data/esm/examples/esm_jobs_05_tight_deadlines.csv",
         "data/esm/examples/esm_jobs_06_component_wait.csv",
         "data/esm/examples/esm_jobs_07_parallel_balance.csv",
         "data/esm/examples/esm_jobs_08_changeovers.csv",
         "data/esm/examples/esm_jobs_09_urgent_mix.csv",
         "data/esm/examples/esm_jobs_10_mixed_constraints.csv",
-    ])
+    ]
+    expected += [f"data/esm/article/esm_paper_0{i}.csv" for i in range(1, 5)]
+    expected += [
+        f"data/esm/examples/{name}.csv"
+        for name in [
+            "esm_flow_10_three_machines",
+            "esm_flow_10_bottleneck",
+            "esm_flow_10_urgent",
+            "esm_flow_06_ties",
+            "esm_flow_10_eight_machines",
+            "esm_flow_10_eco_components",
+            "esm_flow_10_eco_trap",
+            "esm_flow_10_component_wait",
+            "esm_flow_10_intentional_idle",
+            "esm_flow_10_multiple_optima",
+            "esm_flow_10_blocked_components",
+        ]
+    ]
+    assert existing == sorted(expected)
 
 
 def test_esm_sample_matches_the_four_job_pdf_example() -> None:
@@ -44,6 +65,7 @@ def test_gitignore_keeps_only_esm_data_and_local_backups():
     assert "!/data/esm/esm_jobs.csv" in text
     assert "!/data/esm/examples/" in text
     assert "!/data/esm/examples/*.csv" in text
+    assert "!/data/esm/article/" in text
     assert ".aoa-backups/" in text
     assert ".pytest-run/" in text
     assert ".uv-cache-codex/" in text

@@ -19,6 +19,7 @@ class TheoryPage(ctk.CTkFrame):
         self.family_buttons: dict[str, ctk.CTkButton] = {}
         self.hero_value_labels: dict[str, ctk.CTkLabel] = {}
         self.example_values = {"mt": 0.60, "mo": 0.30, "mzo": 0.10, "gen": 0.20}
+        self.esm_comparison = None
 
         self._build_layout()
         self._show_model(find_theory_model(self.selected_key))
@@ -34,12 +35,12 @@ class TheoryPage(ctk.CTkFrame):
         header = make_card(self.page, radius=16, fg_color="#0d1a26")
         header.grid(row=0, column=0, sticky="ew", padx=14, pady=(12, 6))
         header.grid_columnconfigure(0, weight=1)
-        label(header, "Teoria modeli — jedna animacja", size=24, weight="bold").grid(
+        label(header, "Teoria modeli i porownanie harmonogramow", size=24, weight="bold").grid(
             row=0, column=0, sticky="w", padx=24, pady=(14, 2)
         )
         label(
             header,
-            "Wybierz model i oglądaj jeden spójny film: dane, mechanizm, przepływ i wynik.",
+            "Wybierz animacje modelu albo porownaj cztery harmonogramy ESM na tych samych danych.",
             size=13,
             color="#cbd5e1",
         ).grid(row=1, column=0, sticky="w", padx=24, pady=(0, 14))
@@ -71,8 +72,16 @@ class TheoryPage(ctk.CTkFrame):
             command=lambda: self._set_family("line"),
         )
         self.family_buttons["line"].grid(row=0, column=2, padx=(6, 0))
+        self.esm_button = ctk.CTkButton(
+            family_box,
+            text="ESM: 4 Gantty",
+            width=160,
+            height=34,
+            command=self.show_esm_comparison,
+        )
+        self.esm_button.grid(row=0, column=3, padx=(6, 0))
 
-        label(top, "Jeden renderer animacji", size=12, weight="bold", color="#93c5fd").grid(
+        label(top, "Animacja lub Gantty 2 x 2", size=12, weight="bold", color="#93c5fd").grid(
             row=0, column=2, sticky="e", padx=18, pady=10
         )
 
@@ -92,6 +101,7 @@ class TheoryPage(ctk.CTkFrame):
         self.model_menu.grid(row=0, column=1, sticky="ew", padx=(0, 4), pady=6)
 
         body = ctk.CTkFrame(self.page, fg_color="transparent")
+        self.body = body
         body.grid(row=2, column=0, sticky="ew", padx=14, pady=(0, 14))
         body.grid_columnconfigure(0, weight=1)
 
@@ -102,6 +112,7 @@ class TheoryPage(ctk.CTkFrame):
 
     def _build_learning_details(self, parent: ctk.CTkFrame) -> None:
         details = make_card(parent, radius=14, fg_color="#0d1a26")
+        self.learning_details = details
         details.grid(row=1, column=0, sticky="ew", pady=(10, 0))
         details.grid_columnconfigure(0, weight=1)
         label(details, "Wyjaśnienie krok po kroku", size=19, weight="bold").grid(
@@ -172,6 +183,12 @@ class TheoryPage(ctk.CTkFrame):
         self._show_model(self.models[0])
 
     def _show_model(self, model: TheoryModel) -> None:
+        if self.esm_comparison is not None:
+            self.esm_comparison.grid_remove()
+        self.animation.grid()
+        self.learning_details.grid()
+        self.model_menu.configure(state="normal")
+        self.esm_button.configure(fg_color="#111f2d")
         self.selected_key = model.key
         self._refresh_model_menu()
         self._refresh_family_buttons()
@@ -179,6 +196,31 @@ class TheoryPage(ctk.CTkFrame):
         self._update_learning_details(model)
         self.animation.set_model(model)
         self.animation.set_example_values(self.example_values)
+
+    def show_esm_comparison(self, path=None, machines=3, time_mode=None) -> None:
+        from .esm_comparison import EsmGanttComparison
+
+        if path is None:
+            engineering = getattr(self.winfo_toplevel(), "pages", {}).get("EngineeringModePage")
+            if engineering is not None:
+                path = engineering.path_var.get()
+                machines = int(engineering.machine_var.get())
+                time_mode = engineering.time_mode_code()
+        if self.esm_comparison is None:
+            self.esm_comparison = EsmGanttComparison(self.body)
+        if path is not None:
+            self.esm_comparison.set_context(path, machines, time_mode)
+        self.animation.grid_remove()
+        self.learning_details.grid_remove()
+        self.model_menu.configure(state="disabled")
+        self.esm_button.configure(fg_color=BLUE)
+        for button in self.family_buttons.values():
+            button.configure(fg_color="#111f2d")
+        self.hero_value_labels["Tryb"].configure(text="ESM")
+        self.hero_value_labels["Model"].configure(text="4 Gantty")
+        self.hero_value_labels["Kroki"].configure(text="—")
+        self.esm_comparison.grid(row=0, column=0, sticky="ew")
+        self.esm_comparison.run_analysis()
 
     def _refresh_model_menu(self) -> None:
         self.model_labels = {model.title: model.key for model in self.models}
