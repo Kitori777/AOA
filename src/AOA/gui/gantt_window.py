@@ -81,7 +81,7 @@ class GanttComparisonWindow(ctk.CTkToplevel):
         ctk.CTkLabel(
             self,
             text="Kazdy panel to osobna metoda. Czerwone obramowanie: opoznione zlecenie. "
-            "Linie kropkowane: terminy. Wykresy przedstawiaja harmonogram nominalny.",
+            "Linie kropkowane: terminy; przerywane: termin + tolerancja kary. Wykresy przedstawiaja harmonogram nominalny.",
             wraplength=1150,
             text_color="#cbd5e1",
         ).grid(row=2, column=0, sticky="ew", padx=12, pady=(4, 12))

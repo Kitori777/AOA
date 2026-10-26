@@ -197,7 +197,11 @@ class TheoryPage(ctk.CTkFrame):
         self.animation.set_model(model)
         self.animation.set_example_values(self.example_values)
 
-    def show_esm_comparison(self, path=None, machines=3, time_mode=None) -> None:
+    def show_esm_comparison(
+        self, path=None, machines=3, time_mode=None, *, objective=None, penalties=None
+    ) -> None:
+        from AOA.core.esm_costs import job_penalty
+
         from .esm_comparison import EsmGanttComparison
 
         if path is None:
@@ -206,10 +210,14 @@ class TheoryPage(ctk.CTkFrame):
                 path = engineering.path_var.get()
                 machines = int(engineering.machine_var.get())
                 time_mode = engineering.time_mode_code()
+                objective = engineering.objective_code()
+                penalties = {job.job_id: job_penalty(job) for job in engineering.jobs}
         if self.esm_comparison is None:
             self.esm_comparison = EsmGanttComparison(self.body)
         if path is not None:
-            self.esm_comparison.set_context(path, machines, time_mode)
+            self.esm_comparison.set_context(
+                path, machines, time_mode, objective=objective, penalties=penalties
+            )
         self.animation.grid_remove()
         self.learning_details.grid_remove()
         self.model_menu.configure(state="disabled")

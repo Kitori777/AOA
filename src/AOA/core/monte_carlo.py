@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
 import pandas as pd
 
+from AOA.core.esm_costs import DelayPenalty
 from AOA.core.machine_catalog import MachineSpec, ReliabilitySpec
 
 
@@ -71,6 +73,8 @@ def simulate_schedule_risk(
     events: pd.DataFrame,
     machines: tuple[MachineSpec, ...] | list[MachineSpec],
     config: MonteCarloConfig | None = None,
+    *,
+    delay_penalties: Mapping[str, DelayPenalty] | None = None,
 ) -> MonteCarloResult:
     """Simulate pause-and-resume failures while preserving job and machine order."""
 
@@ -114,9 +118,7 @@ def simulate_schedule_risk(
             "event_order": int(record["_event_order"]),
             "setup_h": setup_h,
             "processing_h": processing_h,
-            "baseline_release": _number(
-                record.get("setup_start"), _number(record["t_start"])
-            ),
+            "baseline_release": _number(record.get("setup_start"), _number(record["t_start"])),
             "baseline_end": _number(record["t_end"]),
             "deadline": _number(record.get("termin_h"), 0.0),
         }
@@ -128,6 +130,12 @@ def simulate_schedule_risk(
         ):
             final_events[job_id] = compact
     rng = np.random.default_rng(configuration.seed)
+    if delay_penalties is not None:
+        if set(final_events) - set(delay_penalties):
+            raise ValueError("Brak parametrów kosztów dla symulowanych zleceń.")
+        for penalty in delay_penalties.values():
+            if not isinstance(penalty, DelayPenalty):
+                raise ValueError("Parametry kosztów muszą mieć typ DelayPenalty (minuty).")
     run_rows: list[dict[str, float | int]] = []
     downtime_by_machine: dict[str, list[float]] = {
         machine_id: [] for machine_id in sorted(machine_by_id)
@@ -165,6 +173,7 @@ def simulate_schedule_risk(
         makespan = max(completion_by_event.values(), default=0.0)
         total_lateness = 0.0
         late_jobs = 0
+        total_cost = 0.0
         for final_event in final_events.values():
             deadline = final_event["deadline"]
             lateness = (
@@ -174,6 +183,13 @@ def simulate_schedule_risk(
             )
             total_lateness += lateness
             late_jobs += int(lateness > 0)
+            if delay_penalties is not None:
+                total_cost += delay_penalties[final_event["job_id"]].charge(
+                    completion_by_event[final_event["event_order"]] * 60,
+                    deadline * 60,
+                )
+        if not math.isfinite(total_cost):
+            raise ValueError("Suma kosztów symulacji przekracza zakres obliczeń.")
         total_downtime = sum(machine_downtime.values())
         run_rows.append(
             {
@@ -185,6 +201,8 @@ def simulate_schedule_risk(
                 "failure_count": failure_count,
             }
         )
+        if delay_penalties is not None:
+            run_rows[-1]["total_tardiness_cost"] = total_cost
         for machine_id, downtime_h in machine_downtime.items():
             downtime_by_machine[machine_id].append(downtime_h)
 
@@ -209,11 +227,13 @@ def simulate_schedule_risk(
         "p90_downtime_h": round(float(runs["downtime_h"].quantile(0.9)), 6),
         "failure_probability": round(float((runs["failure_count"] > 0).mean()), 6),
         "risk_score_h": round(
-            mean_makespan
-            + configuration.risk_aversion * max(0.0, p90_makespan - mean_makespan),
+            mean_makespan + configuration.risk_aversion * max(0.0, p90_makespan - mean_makespan),
             6,
         ),
     }
+    if delay_penalties is not None:
+        summary["mean_tardiness_cost"] = float(runs["total_tardiness_cost"].mean())
+        summary["p90_tardiness_cost"] = float(runs["total_tardiness_cost"].quantile(0.9))
     return MonteCarloResult(runs, machine_summary, summary)
 
 
@@ -239,7 +259,10 @@ def _sample_downtime(
     if setup_h > 0 and value.post_changeover_failure_probability > 0:
         exposure = 1.0
         if value.post_changeover_risk_window_h > 0:
-            exposure = min(processing_h, value.post_changeover_risk_window_h) / value.post_changeover_risk_window_h
+            exposure = (
+                min(processing_h, value.post_changeover_risk_window_h)
+                / value.post_changeover_risk_window_h
+            )
         if rng.random() < value.post_changeover_failure_probability * exposure:
             failures += 1
             downtime += value.post_changeover_downtime_h or value.mttr_h

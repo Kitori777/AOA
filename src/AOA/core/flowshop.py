@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from math import isfinite
 from time import perf_counter
 
+from AOA.core.esm_costs import cost_parameters, job_penalty, objective_value, validate_objective
 from AOA.core.optimization.models import Job
 
 FLOW_METHODS = ("MT", "MO", "MZO", "MOPT", "ECO_WASTE", "COMPONENT_READY_EDD", "ROBUST_MC")
@@ -22,6 +23,8 @@ class FlowShopJob(Job):
     """A job with an explicit processing time on every visited machine."""
 
     machine_setup_times: tuple[float, ...] = ()
+    tardiness_cost_per_min: float = 1.0
+    allowed_tardiness_min: float = 0.0
 
 
 @dataclass
@@ -48,6 +51,7 @@ def validate_flowshop(jobs: Sequence[Job], n_machines: int) -> None:
     ):
         raise ValueError("Identyfikatory zlecen musza byc niepuste i unikalne.")
     for job in jobs:
+        job_penalty(job)
         if len(job.machine_times) < n_machines:
             raise ValueError(
                 f"{job.job_id}: CSV zawiera czasy dla {len(job.machine_times)} maszyn, "
@@ -118,10 +122,17 @@ def advance_flowshop(
 def flowshop_key(result: dict) -> tuple:
     return (
         result["unscheduled_count"],
-        round(result["sto"], 9),
-        round(result["total_waste_kg"], 9),
+        round(objective_value(result), 9),
+        round(result["sto"] if result.get("objective") == "waste" else result["total_waste_kg"], 9),
         round(result["completion_total"], 9),
     )
+
+
+def _add_waste(total: float, job: Job, previous: Job | None) -> float:
+    value = total + job.waste_kg + changeover_factor(previous, job) * job.changeover_waste_kg
+    if not isfinite(value):
+        raise ValueError("Suma odpadu przekracza zakres obliczeń. Zmniejsz wartości odpadu.")
+    return value
 
 
 def _advance(available: tuple[float, ...], times: tuple[float, ...]) -> tuple[float, ...]:
@@ -133,16 +144,19 @@ def _advance(available: tuple[float, ...], times: tuple[float, ...]) -> tuple[fl
     return tuple(ends)
 
 
-def evaluate_flowshop(sequence: Sequence[Job], *, n_machines: int) -> dict:
+def evaluate_flowshop(sequence: Sequence[Job], *, n_machines: int, objective: str = "sto") -> dict:
     validate_flowshop(sequence, n_machines)
+    validate_objective(objective)
     available = (0.0,) * n_machines
     steps = []
     sto = 0.0
+    total_cost = 0.0
     waste = 0.0
     previous = None
     blocked = []
     scheduled_order = []
     for job in sequence:
+        penalty = job_penalty(job)
         if job.stock_status == "UNSCHEDULABLE":
             blocked.append(job.job_id)
             steps.append(
@@ -152,14 +166,20 @@ def evaluate_flowshop(sequence: Sequence[Job], *, n_machines: int) -> dict:
                     "scheduled": False,
                     "unscheduled_reason": "Brak kompletu komponentow.",
                     "tardiness_positive": 0.0,
+                    "tardiness_cost_per_min": penalty.rate_per_min,
+                    "allowed_tardiness_min": penalty.grace_min,
                 }
             )
             continue
         ends, setups = advance_flowshop(available, job, previous)
         changeover_waste = changeover_factor(previous, job) * job.changeover_waste_kg
-        waste += job.waste_kg + changeover_waste
+        waste = _add_waste(waste, job, previous)
         tardiness = max(0.0, ends[-1] - job.deadline)
         sto += tardiness
+        charge = penalty.charge(ends[-1], job.deadline)
+        total_cost += charge
+        if not isfinite(total_cost):
+            raise ValueError("Suma kosztów przekracza zakres obliczeń.")
         for machine, duration in enumerate(job.machine_times[:n_machines]):
             steps.append(
                 {
@@ -170,6 +190,12 @@ def evaluate_flowshop(sequence: Sequence[Job], *, n_machines: int) -> dict:
                     "completion_time": ends[machine],
                     "deadline": job.deadline,
                     "tardiness_positive": tardiness if machine == n_machines - 1 else 0.0,
+                    "tardiness_cost_per_min": penalty.rate_per_min,
+                    "allowed_tardiness_min": penalty.grace_min,
+                    "chargeable_tardiness_min": max(0.0, tardiness - penalty.grace_min)
+                    if machine == n_machines - 1
+                    else 0.0,
+                    "tardiness_cost": charge if machine == n_machines - 1 else 0.0,
                     "setup_time": setups[machine],
                     "setup_start": ends[machine] - duration - setups[machine],
                     "components_ready_min": job.components_ready_h,
@@ -187,6 +213,9 @@ def evaluate_flowshop(sequence: Sequence[Job], *, n_machines: int) -> dict:
         "order": [job.job_id for job in sequence],
         "steps": steps,
         "sto": sto,
+        "objective": objective,
+        "total_tardiness_cost": total_cost,
+        "cost_parameters": cost_parameters(sequence),
         "completion_total": available[-1],
         "machine_count": n_machines,
         "unscheduled_count": len(blocked),
@@ -214,8 +243,9 @@ def solve_flowshop(
     n_machines: int,
     time_limit_s: float = 10.0,
     max_states: int = 100_000,
+    objective: str = "sto",
 ) -> FlowShopResult:
-    """Minimize (sum tardiness, makespan), retaining a bounded real search trace.
+    """Minimize the selected objective, retaining a bounded real search trace.
 
     Independent-job completion bounds ignore contention among remaining jobs.
     Ranked bounds use the r shortest processing times on each stage plus the
@@ -225,11 +255,34 @@ def solve_flowshop(
     Equal states are explored only once; the solver does not enumerate all ties.
     """
     validate_flowshop(jobs, n_machines)
+    validate_objective(objective)
     if not isfinite(time_limit_s) or time_limit_s < 0 or max_states < 0:
         raise ValueError("Limity obliczen musza byc nieujemne i skonczone.")
     started = perf_counter()
     times = [j.machine_times[:n_machines] for j in jobs]
     index_by_id = {j.job_id: i for i, j in enumerate(jobs)}
+    penalties = [job_penalty(j) for j in jobs]
+
+    def charge(i: int, completion: float) -> float:
+        return (
+            penalties[i].charge(completion, jobs[i].deadline)
+            if objective == "cost"
+            else max(0.0, completion - jobs[i].deadline)
+        )
+
+    def sequence_sto(order: tuple[int, ...]) -> float:
+        ends = (0.0,) * n_machines
+        total = 0.0
+        previous = None
+        for i in order:
+            ends, _ = advance_flowshop(ends, jobs[i], previous)
+            total += max(0.0, ends[-1] - jobs[i].deadline)
+            previous = jobs[i]
+        return total
+
+    def search_key(score: float, waste: float, finish: float) -> tuple[float, float, float]:
+        primary, secondary = (waste, score) if objective == "waste" else (score, waste)
+        return round(primary, 9), round(secondary, 9), round(finish, 9)
 
     def sequence_key(order: tuple[int, ...]) -> tuple[float, float, float, tuple[str, ...]]:
         available = (0.0,) * n_machines
@@ -238,16 +291,11 @@ def solve_flowshop(
         previous = None
         for i in order:
             available, _setups = advance_flowshop(available, jobs[i], previous)
-            score += max(0.0, available[-1] - jobs[i].deadline)
-            waste += (
-                jobs[i].waste_kg
-                + changeover_factor(previous, jobs[i]) * jobs[i].changeover_waste_kg
-            )
+            score += charge(i, available[-1])
+            waste = _add_waste(waste, jobs[i], previous)
             previous = jobs[i]
         return (
-            round(score, 9),
-            round(waste, 9),
-            round(available[-1], 9),
+            *search_key(score, waste, available[-1]),
             tuple(jobs[i].job_id for i in order),
         )
 
@@ -259,7 +307,8 @@ def solve_flowshop(
     ]
     best_order = min(seeds, key=sequence_key)
     best_key = sequence_key(best_order)
-    initial_sto = best_key[0]
+    initial_sto = sequence_sto(best_order)
+    initial_objective = best_key[0]
     # Insertion descent is deterministic and supplies a useful incumbent even
     # when a user intentionally sets a zero search budget.
     improving = True
@@ -274,7 +323,8 @@ def solve_flowshop(
                     best_order, best_key, improving = candidate, key, True
 
     result = FlowShopResult(evaluation={}, source_jobs=tuple(jobs))
-    seed_sto = best_key[0]
+    seed_sto = sequence_sto(best_order)
+    seed_objective = best_key[0]
     best_from_search = False
     frontier: dict[tuple[int, int], list[tuple[tuple[float, ...], float, float]]] = {}
     full_mask = sum(1 << index_by_id[j.job_id] for j in admitted)
@@ -289,9 +339,7 @@ def solve_flowshop(
         remaining = [i for i in range(len(jobs)) if mask & (1 << i)]
         if not remaining:
             return score, available[-1]
-        independent = sum(
-            max(0.0, _advance(available, times[i])[-1] - jobs[i].deadline) for i in remaining
-        )
+        independent = sum(charge(i, _advance(available, times[i])[-1]) for i in remaining)
         ranked = [0.0] * len(remaining)
         finish_bound = available[-1]
         for stage in range(n_machines):
@@ -301,24 +349,44 @@ def solve_flowshop(
                 cumulative += duration
                 ranked[rank] = max(ranked[rank], cumulative + tail)
             finish_bound = max(finish_bound, cumulative + tail)
-        sorted_due = sorted(jobs[i].deadline for i in remaining)
+        sorted_due = sorted(
+            jobs[i].deadline + (penalties[i].grace_min if objective == "cost" else 0.0)
+            for i in remaining
+        )
         ranked_score = sum(max(0.0, end - due) for end, due in zip(ranked, sorted_due, strict=True))
+        if objective == "cost":
+            # A common minimum rate is safe even when the job/rank pairing is
+            # unknown. Sorting heterogeneous rates with due dates is not safe.
+            ranked_score *= min(penalties[i].rate_per_min for i in remaining)
         return score + max(independent, ranked_score), finish_bound
 
-    root_bound = bounds(full_mask, (0.0,) * n_machines, 0.0)
+    def search_bounds(
+        mask: int, available: tuple[float, ...], score: float, waste: float
+    ) -> tuple[float, float, float]:
+        lower_score, lower_finish = bounds(mask, available, score)
+        # Every remaining admitted job contributes its base waste. Future
+        # transitions are nonnegative, so ignoring them is an optimistic bound.
+        lower_waste = waste + sum(j.waste_kg for i, j in enumerate(jobs) if mask & (1 << i))
+        if not isfinite(lower_waste):
+            raise ValueError("Suma odpadu przekracza zakres obliczeń.")
+        return search_key(lower_score, lower_waste, lower_finish)
+
+    root_bound = search_bounds(full_mask, (0.0,) * n_machines, 0.0, 0.0)
     result.lower_bound = root_bound[0]
 
     def record(
         path: tuple[int, ...],
         available: tuple[float, ...],
         score: float,
-        lower: tuple[float, float],
+        waste: float,
+        lower: tuple[float, float, float],
         status: str,
     ) -> None:
         if len(result.trace) < 2500 or path in result.trace:
             result.trace[path] = {
                 "available": available,
-                "sto": score,
+                "sto": sequence_sto(path) if objective == "cost" else score,
+                "objective_value": waste if objective == "waste" else score,
                 "bound": lower[0],
                 "status": status,
             }
@@ -333,34 +401,22 @@ def solve_flowshop(
             result.stop_reason = "limit stanow" if result.visited >= max_states else "limit czasu"
             return
         result.visited += 1
-        lower = bounds(mask, available, score)
-        record(path, available, score, lower, "visited")
-        waste_bound = waste + sum(j.waste_kg for i, j in enumerate(jobs) if mask & (1 << i))
-        lower_sto, lower_finish = round(lower[0], 9), round(lower[1], 9)
-        waste_bound = round(waste_bound, 9)
-        if lower_sto > best_key[0] or (
-            lower_sto == best_key[0]
-            and (
-                waste_bound > best_key[1]
-                or waste_bound == best_key[1]
-                and lower_finish > best_key[2]
-            )
-        ):
+        lower = search_bounds(mask, available, score, waste)
+        record(path, available, score, waste, lower, "visited")
+        if lower > best_key[:3]:
             result.pruned += 1
-            record(path, available, score, lower, "pruned")
+            record(path, available, score, waste, lower, "pruned")
             return
         if mask == 0:
             key = (
-                round(score, 9),
-                round(waste, 9),
-                round(available[-1], 9),
+                *search_key(score, waste, available[-1]),
                 tuple(jobs[i].job_id for i in path),
             )
             if key < best_key:
                 best_order, best_key = path, key
                 best_from_search = True
                 result.improvements += 1
-                record(path, available, score, lower, "improved")
+                record(path, available, score, waste, lower, "improved")
             return
         state_key = (mask, path[-1] if path and stateful_setups else -1)
         states = frontier.setdefault(state_key, [])
@@ -371,7 +427,7 @@ def solve_flowshop(
             for ends, cost, saved_waste in states
         ):
             result.pruned += 1
-            record(path, available, score, lower, "dominated")
+            record(path, available, score, waste, lower, "dominated")
             return
         states[:] = [
             (ends, cost, saved_waste)
@@ -388,16 +444,12 @@ def solve_flowshop(
             if mask & (1 << i):
                 previous = jobs[path[-1]] if path else None
                 ends, _setups = advance_flowshop(available, jobs[i], previous)
-                new_waste = (
-                    waste
-                    + jobs[i].waste_kg
-                    + changeover_factor(previous, jobs[i]) * jobs[i].changeover_waste_kg
-                )
-                new_score = score + max(0.0, ends[-1] - jobs[i].deadline)
+                new_waste = _add_waste(waste, jobs[i], previous)
+                new_score = score + charge(i, ends[-1])
                 new_mask = mask ^ (1 << i)
                 candidates.append(
                     (
-                        bounds(new_mask, ends, new_score),
+                        search_bounds(new_mask, ends, new_score, new_waste),
                         jobs[i].deadline,
                         jobs[i].job_id,
                         i,
@@ -418,14 +470,16 @@ def solve_flowshop(
     # A seeded path may not have been visited: label it explicitly as incumbent.
     ends = (0.0,) * n_machines
     score = 0.0
+    waste = 0.0
     mask = full_mask
     for depth in range(len(best_order) + 1):
         path = best_order[:depth]
         original = result.trace.get(path)
         result.trace[path] = {
             "available": ends,
-            "sto": score,
-            "bound": bounds(mask, ends, score)[0],
+            "sto": sequence_sto(path) if objective == "cost" else score,
+            "objective_value": waste if objective == "waste" else score,
+            "bound": search_bounds(mask, ends, score, waste)[0],
             "status": "best",
             "origin": "search" if original or best_from_search else "incumbent",
         }
@@ -433,14 +487,15 @@ def solve_flowshop(
             i = best_order[depth]
             previous = jobs[best_order[depth - 1]] if depth else None
             ends, _setups = advance_flowshop(ends, jobs[i], previous)
-            score += max(0.0, ends[-1] - jobs[i].deadline)
+            score += charge(i, ends[-1])
+            waste = _add_waste(waste, jobs[i], previous)
             mask ^= 1 << i
     result.evaluation = evaluate_flowshop(
-        [jobs[i] for i in best_order] + blocked_jobs, n_machines=n_machines
+        [jobs[i] for i in best_order] + blocked_jobs, n_machines=n_machines, objective=objective
     )
     result.elapsed_s = perf_counter() - started
     if result.confirmed:
-        result.lower_bound = result.evaluation["sto"]
+        result.lower_bound = objective_value(result.evaluation)
     result.evaluation.update(
         {
             "optimality_status": "OPTIMAL_CONFIRMED" if result.confirmed else "BEST_KNOWN",
@@ -455,6 +510,8 @@ def solve_flowshop(
             "lower_bound": result.lower_bound,
             "initial_sto": initial_sto,
             "seed_sto": seed_sto,
+            "initial_objective": initial_objective,
+            "seed_objective": seed_objective,
         }
     )
     if blocked_jobs:

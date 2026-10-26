@@ -19,16 +19,31 @@ zewnętrznej usługi do podstawowej pracy.
   dla przepływu przez **1–8 maszyn**, do **10 zleceń**.
   Główny plik to `data/esm/esm_jobs.csv`: jeden czas na zlecenie, początkowo
   wybrane są 3 maszyny. Program przygotowuje operacje podczas obliczeń,
-  bez zmiany CSV. Domyślnie dzieli łączny czas na etapy; drugi przykład pokazuje
-  pełny czas na każdej maszynie. Drzewo, ranking i Gantt używają tego samego
+  bez zmiany CSV. Sposób rozłożenia czasu wybiera się w ustawieniach.
+  Drzewo, ranking i Gantt używają tego samego
   modelu przepływu. Główny przycisk **Utwórz wykresy Gantta (2 × 2)** pokazuje
   wszystkie zaznaczone metody, po cztery na zakładkę. Okno dopasowuje wykresy
   do rozmiaru ekranu. W Theory dostępne jest też porównanie MT/MO/MZO/MOpt.
   Wszystkie panele mają wspólną skalę czasu i kolory zleceń.
-  Zestawy „Podstawowe 4”, „Dodatkowe 3” i „Wszystkie” przyspieszają wybór metod.
+  Drzewo przesuwa się przez przytrzymanie lewego przycisku myszy i przeciągnięcie.
+  Nawigacja przesuwa gotowy obraz; nie przerysowuje całego drzewa przy ruchu myszy.
+  Ustawienia rozdzielają produkcję, cel i algorytmy. Opcje „Opóźnienia”,
+  „Koszt opóźnień” oraz „Odpad” mają krótkie wyjaśnienia, a sposób liczenia czasu
+  pokazuje przykład z danych. Zestawy „Podstawowe · 4”, „Rozszerzone · 3”
+  i „Wszystkie · 7” mają licznik zaznaczonych metod.
   Gotowe wyniki i operacje można zapisać do CSV dla Excela, opis skopiować do
   schowka, a wszystkie zakładki Ganttów wyeksportować do PNG i SVG.
-  Rozszerzony przykład `esm_flow_10_eco_components.csv` zawiera gotowość
+  [Tryb kosztowy](docs/engineering-costs.md) uwzględnia stawkę i dopuszczalne
+  opóźnienie każdego zlecenia, edytowane w pamięci bez zmiany głównego CSV.
+  MOpt i heurystyki mogą minimalizować koszt, a Robust ocenia średnią i P90
+  kosztu w symulacjach. W `data/esm/article/costs` jest 16 wariantów ze źródeł.
+  Opcja [Minimalizacja odpadu [kg]](docs/engineering-waste.md) nadaje pierwszeństwo
+  odpadowi w ECO i porównaniu z MOpt; remisy rozstrzygają STO i koniec produkcji.
+  Lista przykładów zawiera tylko dane z publikacji i główny plik.
+  Pozycja **ART3 | 300 zamiast 330 | przykład 2, W2** pozwala od razu
+  sprawdzić sporny wynik z tabeli 4. Przypadki syntetyczne znajdują się
+  wyłącznie w `tests/fixtures/esm`, poza listą programu.
+  Testowy zestaw `esm_flow_10_eco_components.csv` zawiera gotowość
   komponentów, materiały, odpad i przezbrojenia na każdej z trzech maszyn.
   Osiem opisanych studiów przypadku obejmuje też przerwany MOpt, opłacalny
   przestój, konflikt STO–odpad i plan niepełny. ECO/Component poprawiają
@@ -214,7 +229,7 @@ python -m pip install pytest pytest-cov ruff mypy pre-commit pyinstaller
 
 Główny zestaw to `data/esm/esm_jobs.csv`, z jednym czasem na zlecenie.
 Liczbę maszyn oraz sposób liczenia etapów wybiera się w programie.
-Osobny przykład syntetyczny `data/esm/examples/esm_flow_10_three_machines.csv`
+Osobny zestaw testowy `tests/fixtures/esm/esm_flow_10_three_machines.csv`
 zawiera 3 maszyny i 10 zleceń z gotowymi czasami etapów. Przykładowy wiersz:
 
 ```csv
@@ -227,12 +242,12 @@ a MOpt szuka minimum sumy dodatnich opóźnień po ostatniej maszynie. Przy remi
 wybierany jest krótszy czas zakończenia całej produkcji. MOpt ma limit 10 sekund
 i 100 000 stanów; wyczerpanie limitu oznacza wynik bez potwierdzenia optimum.
 
-Katalog `examples` zawiera wąskie gardło M2, pilne zlecenia, równorzędne
-optima i pełne 8 maszyn. `data/esm/article` zawiera PDF MPER 2017-0026 oraz
-cztery przykłady z jego tabel. [Spis danych](data/esm/README.md).
-Sześć starszych rozszerzonych przykładów zastąpiono danymi przepływowymi,
-zachowując nazwy plików dla istniejących skrótów. Nazwy w aplikacji opisują
-aktualną zawartość. Dane odtwarza `scripts/generate_esm_examples.py`.
+Katalog `tests/fixtures/esm` zawiera dane regresji dla wąskiego gardła M2,
+pilnych zleceń, równorzędnych optimów i 8 maszyn. Nie są przykładami na liście
+programu. `data/esm/article` zawiera PDF MPER 2017-0026 oraz cztery jego przykłady;
+`article/costs` zawiera 16 wariantów z dwóch dokumentów kosztowych.
+[Spis danych](data/esm/README.md). Generator `scripts/generate_esm_examples.py`
+zapisuje syntetyczne zestawy wyłącznie w katalogu danych testowych.
 
 Można wybrać mniej etapów niż zapisano w CSV: używane są pierwsze M1…Mm,
 a termin dotyczy ostatniego wybranego etapu. Aby użyć więcej etapów, trzeba

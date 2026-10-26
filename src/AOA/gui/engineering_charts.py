@@ -4,6 +4,7 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.patches import Patch
 
+from AOA.core.esm_costs import OBJECTIVES
 from AOA.core.esm_project import EsmTreeNode, build_esm_gantt_rows
 from AOA.core.visualization_service import build_solution_tree_figure_from_records
 
@@ -118,6 +119,13 @@ def _draw_gantt(
         )
         if row["final_operation"]:
             axis.axvline(float(row["deadline"]), color=color, linestyle=":", alpha=0.35)
+            if float(row.get("allowed_tardiness_min", 0)) > 0:
+                axis.axvline(
+                    float(row["deadline"]) + float(row["allowed_tardiness_min"]),
+                    color=color,
+                    linestyle="--",
+                    alpha=0.55,
+                )
     axis.set_yticks(list(range(len(machine_names))), machine_names)
     axis.set_xlim(0, shown_end)
     if distant_deadlines:
@@ -136,7 +144,12 @@ def _draw_gantt(
     suffix = f" | niezaplanowane: {unscheduled}" if unscheduled else ""
     title = f"Gantt - {method_label}{suffix}"
     if compact:
-        title += f"\nSTO = {result['sto']:.2f} min | koniec = {result['completion_total']:.2f} min"
+        title += (
+            f"\nodpad = {result.get('total_waste_kg', 0):.2f} kg | STO = {result['sto']:.2f} min"
+        )
+        title += f"\nkoniec = {result['completion_total']:.2f} min"
+        if "total_tardiness_cost" in result:
+            title += f" | koszt = {result['total_tardiness_cost']:.2f} j.p."
     axis.set_title(
         title, color="white", fontsize=10 if compact else 12, pad=20 if distant_deadlines else 10
     )
@@ -154,18 +167,20 @@ def build_esm_gantt_figure(result: dict, method_label: str) -> Figure:
         facecolor="#071019",
     )
     _draw_gantt(figure.add_subplot(111), result, method_label, job_colors=_job_colors([result]))
+    figure.suptitle(OBJECTIVES[result.get("objective", "sto")], color="white", fontsize=11)
     if result.get("model") == "flowshop":
         figure.text(
             0.5,
             0.02,
             f"Przeplyw | {result['machine_count']} maszyn | STO={result['sto']:g} min | "
             f"Koniec={result['completion_total']:g} min | odpad={result['total_waste_kg']:.2f} kg | "
+            f"koszt={result.get('total_tardiness_cost', 0):.2f} j.p. | "
             "szare: przezbrojenie; czerwone: opoznienie",
             ha="center",
             color="#cbd5e1",
             fontsize=8,
         )
-    figure.tight_layout(rect=(0, 0.05, 1, 1))
+    figure.tight_layout(rect=(0, 0.05, 1, 0.95))
     return figure
 
 
@@ -194,9 +209,14 @@ def build_esm_gantt_grid_figure(
         raise ValueError("Brak wynikow do porownania.")
     combined = [*context, *results]
     counts = {r["machine_count"] for r in combined}
+    if len({r.get("objective", "sto") for r in combined}) != 1 or any(
+        r.get("cost_parameters", {}) != combined[0].get("cost_parameters", {}) for r in combined
+    ):
+        raise ValueError("Gantty wymagają tego samego kryterium i parametrów kosztów.")
     orders = [{s["job_id"] for s in r["steps"]} for r in combined]
     if len(counts) != 1 or any(ids != orders[0] for ids in orders):
         raise ValueError("Gantty musza dotyczyc tych samych zlecen i liczby maszyn.")
+    title += f" | {OBJECTIVES[results[0].get('objective', 'sto')]}"
     figure = Figure(
         figsize=(13, max(7.5, 1.0 * results[0]["machine_count"] + 4)), dpi=100, facecolor="#071019"
     )

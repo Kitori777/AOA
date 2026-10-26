@@ -249,7 +249,7 @@ def main():
         ],
     )
     for stem, title, origin in THESIS_CASES:
-        source = ROOT / "data" / "esm" / "examples" / f"{stem}.csv"
+        source = ROOT / "tests" / "fixtures" / "esm" / f"{stem}.csv"
         jobs = load_esm_jobs(source)
         before = {r["method"]: r for r in before_results(jobs)}
         started = perf_counter()

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from concurrent.futures import Future, ThreadPoolExecutor
 from hashlib import sha256
 from pathlib import Path
@@ -11,12 +12,19 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 from matplotlib.figure import Figure
 
 from AOA.config import BASE_DIR, DATA_DIR
+from AOA.core.esm_costs import (
+    OBJECTIVES,
+    DelayPenalty,
+    cost_parameters,
+    job_penalty,
+    with_job_penalties,
+)
 from AOA.core.esm_project import (
     ESM_DEFAULT_SCENARIO,
-    ESM_MAX_MACHINES,
     ESM_METHODS,
     ESM_TIME_MODES,
     build_mopt_solution_tree,
+    esm_csv_has_costs,
     esm_method_warnings,
     evaluate_esm_methods,
     list_esm_scenarios,
@@ -26,6 +34,7 @@ from AOA.core.esm_project import (
 from AOA.core.flowshop import FLOW_METHODS
 from AOA.core.optimization.models import Job
 from AOA.gui.engineering_charts import build_mopt_tree_figure
+from AOA.gui.engineering_cost_editor import EngineeringCostEditor
 from AOA.gui.engineering_exports import (
     METHOD_LABELS,
     EngineeringContext,
@@ -34,17 +43,18 @@ from AOA.gui.engineering_exports import (
     operation_rows,
     write_csv,
 )
+from AOA.gui.engineering_settings import EngineeringSettingsPanel
 from AOA.gui.gantt_window import GanttComparisonWindow
 from AOA.gui.theme import COLORS
 
 METHOD_HELP = {
-    "MT": "najpierw najblizszy wymagany termin realizacji",
-    "MO": "najpierw najkrotszy czas obrobki",
-    "MZO": "najpierw najdluzszy czas obrobki",
-    "MOPT": "minimum sumy opoznien; wynik oznaczony statusem potwierdzenia optimum",
-    "ECO_WASTE": "porownuje kolejnosci: opoznienia, odpad i przezbrojenia na kazdej maszynie",
-    "COMPONENT_READY_EDD": "nie wpuszcza zlecen bez komponentow; porownuje gotowosc i terminy",
-    "ROBUST_MC": "1000 scenariuszy wyboru + 1000 niezaleznej weryfikacji; wyniki w minutach",
+    "MT": "Najpierw zlecenia z najbliższym terminem realizacji.",
+    "MO": "Najpierw zlecenia z najkrótszym czasem obróbki.",
+    "MZO": "Najpierw zlecenia z najdłuższym czasem obróbki.",
+    "MOPT": "Szuka minimum wybranego celu. Wynik pokazuje, czy optimum zostało potwierdzone.",
+    "ECO_WASTE": "Ogranicza zmiany materiału i kształtu. Wybierz cel Odpad, aby kg miały pierwszeństwo.",
+    "COMPONENT_READY_EDD": "Uwzględnia gotowość komponentów i terminy. Bez kompletu komponentów zlecenie nie ruszy.",
+    "ROBUST_MC": "Ocenia kolejności w 1000 symulacji awarii. Kolejne 1000 niezależnie sprawdza wynik.",
 }
 
 
@@ -60,15 +70,12 @@ class EngineeringModePage(ctk.CTkFrame):
             (scenario.label for scenario in self.scenarios if scenario.path == default_path),
             "START: esm_jobs.csv - jeden czas zlecenia",
         )
-        self.example_time_modes = {
-            "PRZYKLAD: ten sam esm_jobs.csv - podzial lacznego czasu": "total",
-            "PRZYKLAD: ten sam esm_jobs.csv - pelny czas na kazdym etapie": "per_machine",
-        }
-        self.scenario_paths.update({label: default_path for label in self.example_time_modes})
         self.scenario_var = ctk.StringVar(value=default_label)
         self.path_var = ctk.StringVar(value=str(default_path))
         self.machine_var = ctk.StringVar(value="3")
         self.time_mode_var = ctk.StringVar(value=ESM_TIME_MODES["total"])
+        self.objective_var = ctk.StringVar(value=OBJECTIVES["sto"])
+        self.cost_editor: EngineeringCostEditor | None = None
         self.model_var = ctk.StringVar(value="Model: przeplyw M1 -> M2 -> M3")
         self.status_var = ctk.StringVar(value="Gotowe. Wczytaj przyklad ESM i uruchom obliczenia.")
         self.context_var = ctk.StringVar(value="Dane nie zostały jeszcze wczytane.")
@@ -188,7 +195,7 @@ class EngineeringModePage(ctk.CTkFrame):
         )
         self.input_tree = ttk.Treeview(
             card,
-            columns=("job", "processing", "deadline", "ready", "material"),
+            columns=("job", "processing", "deadline", "ready", "material", "rate", "grace"),
             show="headings",
             height=10,
             style="Esm.Treeview",
@@ -199,6 +206,8 @@ class EngineeringModePage(ctk.CTkFrame):
             ("deadline", "Wymagany termin [min]", 240),
             ("ready", "Komponenty od [min]", 160),
             ("material", "Material / ksztalt", 180),
+            ("rate", "Stawka [j.p./min]", 130),
+            ("grace", "Tolerancja [min]", 130),
         ):
             self.input_tree.heading(name, text=title)
             self.input_tree.column(name, width=width, anchor="center", stretch=True)
@@ -216,50 +225,33 @@ class EngineeringModePage(ctk.CTkFrame):
         card = ctk.CTkFrame(self.page, corner_radius=14, fg_color=COLORS["surface"])
         card.grid(row=2, column=0, sticky="ew", padx=18, pady=7)
         card.grid_columnconfigure((0, 1), weight=1)
-        ctk.CTkLabel(card, text="2. Metody", font=("Segoe UI", 16, "bold")).grid(
+        ctk.CTkLabel(card, text="2. Ustawienia i algorytmy", font=("Segoe UI", 16, "bold")).grid(
             row=0, column=0, columnspan=2, sticky="w", padx=14, pady=(12, 6)
         )
-        machine_bar = ctk.CTkFrame(card, corner_radius=10, fg_color="#0d2a3a")
-        machine_bar.grid(row=1, column=0, columnspan=2, sticky="ew", padx=7, pady=6)
-        machine_bar.grid_columnconfigure(1, weight=1)
-        ctk.CTkLabel(
-            machine_bar,
-            text="Liczba maszyn",
-            font=("Segoe UI", 12, "bold"),
-        ).grid(row=0, column=0, sticky="w", padx=12, pady=10)
-        ctk.CTkSegmentedButton(
-            machine_bar,
-            values=[str(value) for value in range(1, ESM_MAX_MACHINES + 1)],
-            variable=self.machine_var,
-            command=self._machine_changed,
-        ).grid(row=0, column=1, sticky="e", padx=12, pady=8)
-        ctk.CTkLabel(machine_bar, text="Sposob liczenia czasu").grid(
-            row=1, column=0, sticky="w", padx=12, pady=6
+        self.settings_panel = EngineeringSettingsPanel(
+            card,
+            machine_var=self.machine_var,
+            time_mode_var=self.time_mode_var,
+            objective_var=self.objective_var,
+            method_vars=self.method_vars,
+            on_machine=self._machine_changed,
+            on_time_mode=self._time_mode_changed,
+            on_objective=self._objective_changed,
+            on_costs=self.show_cost_editor,
+            on_preset=self.select_method_preset,
         )
-        self.time_mode_menu = ctk.CTkOptionMenu(
-            machine_bar,
-            variable=self.time_mode_var,
-            values=list(ESM_TIME_MODES.values()),
-            command=self._time_mode_changed,
-            width=330,
-        )
-        self.time_mode_menu.grid(row=1, column=1, sticky="e", padx=12, pady=6)
-        presets = ctk.CTkFrame(machine_bar, fg_color="transparent")
-        presets.grid(row=2, column=0, columnspan=2, sticky="ew", padx=8, pady=(0, 8))
-        presets.grid_columnconfigure((0, 1, 2), weight=1)
-        self.preset_buttons = {}
-        for column, (name, label) in enumerate(
-            (("basic", "Podstawowe 4"), ("extra", "Dodatkowe 3"), ("all", "Wszystkie"))
-        ):
-            button = ctk.CTkButton(
-                presets, text=label, command=lambda name=name: self.select_method_preset(name)
-            )
-            button.grid(row=0, column=column, sticky="ew", padx=4, pady=4)
-            self.preset_buttons[name] = button
+        self.settings_panel.grid(row=1, column=0, columnspan=2, sticky="ew", padx=14, pady=(8, 10))
+        # Keep existing loading, editor and preset entry points on the page.
+        self.time_mode_menu = self.settings_panel.time_mode_menu
+        self.cost_button = self.settings_panel.cost_button
+        self.preset_buttons = self.settings_panel.preset_buttons
+        self._method_shells = []
+        self._method_notes = []
         for index, method in enumerate(ESM_METHODS):
             row, column = divmod(index, 2)
             shell = ctk.CTkFrame(card, corner_radius=10, fg_color="#102333")
-            shell.grid(row=row + 2, column=column, sticky="ew", padx=7, pady=6)
+            shell.grid(row=row + 2, column=column, sticky="nsew", padx=7, pady=6)
+            self._method_shells.append(shell)
             checkbox = ctk.CTkCheckBox(
                 shell,
                 text=METHOD_LABELS[method],
@@ -269,13 +261,15 @@ class EngineeringModePage(ctk.CTkFrame):
             )
             checkbox.pack(anchor="w", padx=12, pady=(10, 2))
             self.method_checkboxes[method] = checkbox
-            ctk.CTkLabel(
+            note = ctk.CTkLabel(
                 shell,
                 text=METHOD_HELP[method],
                 text_color=COLORS["text_muted"],
                 wraplength=500,
                 justify="left",
-            ).pack(anchor="w", padx=40, pady=(0, 10))
+            )
+            note.pack(anchor="w", padx=40, pady=(0, 10))
+            self._method_notes.append(note)
         action_row = 2 + (len(ESM_METHODS) + 1) // 2
         self.run_button = ctk.CTkButton(
             card,
@@ -295,9 +289,31 @@ class EngineeringModePage(ctk.CTkFrame):
         self.progress = ctk.CTkProgressBar(card, mode="indeterminate")
         self.progress.grid(row=action_row + 1, column=0, columnspan=2, sticky="ew", padx=14)
         self.progress.grid_remove()
-        ctk.CTkLabel(card, textvariable=self.activity_var, anchor="w").grid(
+        self.activity_label = ctk.CTkLabel(card, textvariable=self.activity_var, anchor="w")
+        self.activity_label.grid(
             row=action_row + 2, column=0, columnspan=2, sticky="ew", padx=14, pady=(0, 10)
         )
+        self._methods_card_wide: bool | None = None
+        card.bind("<Configure>", lambda event: self._layout_methods(event.width))
+
+    def _layout_methods(self, width: int) -> None:
+        width = int(self._reverse_widget_scaling(width))
+        wide = width >= 1060
+        columns = 2 if wide else 1
+        if wide != self._methods_card_wide:
+            self._methods_card_wide = wide
+            for index, shell in enumerate(self._method_shells):
+                row, column = divmod(index, columns)
+                shell.grid(row=row + 2, column=column, columnspan=1 if wide else 2)
+            action_row = 2 + (len(ESM_METHODS) + columns - 1) // columns
+            self.run_button.grid(row=action_row)
+            progress_visible = bool(self.progress.winfo_manager())
+            self.progress.grid_configure(row=action_row + 1)
+            if not progress_visible:
+                self.progress.grid_remove()
+            self.activity_label.grid(row=action_row + 2)
+        for note in self._method_notes:
+            note.configure(wraplength=max(220, width // columns - 110))
 
     def _build_charts(self) -> None:
         card = ctk.CTkFrame(self.page, corner_radius=14, fg_color=COLORS["surface"])
@@ -385,7 +401,19 @@ class EngineeringModePage(ctk.CTkFrame):
         )
         self.result_tree = ttk.Treeview(
             card,
-            columns=("rank", "method", "order", "sto", "finish", "waste", "p90", "time", "proof"),
+            columns=(
+                "rank",
+                "method",
+                "order",
+                "sto",
+                "cost",
+                "finish",
+                "waste",
+                "p90",
+                "p90_cost",
+                "time",
+                "proof",
+            ),
             show="headings",
             height=7,
             style="Esm.Treeview",
@@ -395,9 +423,11 @@ class EngineeringModePage(ctk.CTkFrame):
             ("method", "Metoda", 120),
             ("order", "Kolejnosc", 270),
             ("sto", "Suma opoznien", 145),
+            ("cost", "Koszt [j.p.]", 120),
             ("finish", "Koniec [min]", 130),
             ("waste", "Odpad [kg]", 95),
             ("p90", "P90 konca [min]", 120),
+            ("p90_cost", "P90 kosztu [j.p.]", 130),
             ("time", "Obliczenia [s]", 110),
             ("proof", "Optimum", 160),
         )
@@ -458,7 +488,9 @@ class EngineeringModePage(ctk.CTkFrame):
         if path is None:
             return
         self.path_var.set(str(path))
-        self.load_selected_data(time_mode=self.example_time_modes.get(label))
+        self.load_selected_data()
+        if self.jobs and path.resolve().is_relative_to((DATA_DIR / "esm/article").resolve()):
+            self.method_vars["MOPT"].set(True)
 
     def load_default_data(self) -> None:
         if Path(self.path_var.get()).is_file():
@@ -470,6 +502,7 @@ class EngineeringModePage(ctk.CTkFrame):
         self.jobs = []
         self._loaded_path = None
         self._loaded_sha256 = ""
+        self.settings_panel.refresh([])
         self._clear_results()
         self._replace_rows(self.input_tree, [])
         self.model_var.set("Dane wymagają ponownego wczytania.")
@@ -512,11 +545,14 @@ class EngineeringModePage(ctk.CTkFrame):
             self._loaded_path = str(source)
             self._loaded_sha256 = sha256(source_bytes).hexdigest()
             self._source_dirty = False
+            self.objective_var.set(OBJECTIVES["cost" if esm_csv_has_costs(source_bytes) else "sto"])
             self._clear_results()
             flow = bool(jobs[0].machine_times)
             stages = len(jobs[0].machine_times)
             if flow:
                 self.machine_var.set(str(stages))
+            elif esm_csv_has_costs(source_bytes):
+                self.machine_var.set("1")
             self.time_mode_var.set(ESM_TIME_MODES[time_mode or ("file" if flow else "total")])
             self.time_mode_menu.configure(
                 values=[
@@ -548,6 +584,8 @@ class EngineeringModePage(ctk.CTkFrame):
                         if job.stock_status == "UNSCHEDULABLE"
                         else f"{job.components_ready_h:g}",
                         " / ".join(filter(None, (job.material, job.shape))) or "-",
+                        f"{job_penalty(job).rate_per_min:g}",
+                        f"{job_penalty(job).grace_min:g}",
                     )
                     for job in self.jobs
                 ],
@@ -603,6 +641,8 @@ class EngineeringModePage(ctk.CTkFrame):
             or str(Path(self.path_var.get()).resolve()) != context.source_path
             or int(self.machine_var.get()) != context.machine_count
             or self.time_mode_code() != context.time_mode
+            or self.objective_code() != context.objective
+            or json.loads(context.cost_parameters_json) != cost_parameters(self.jobs)
         ):
             raise ValueError("Wyniki dotyczą poprzednich ustawień. Wczytaj dane i oblicz ponownie.")
         return context
@@ -666,6 +706,10 @@ class EngineeringModePage(ctk.CTkFrame):
                 machine_count=int(self.machine_var.get()),
                 time_mode=self.time_mode_code(),
                 source_sha256=self._loaded_sha256,
+                objective=self.objective_code(),
+                cost_parameters_json=json.dumps(
+                    cost_parameters(self.jobs), ensure_ascii=False, sort_keys=True
+                ),
             )
             self._future = self._executor.submit(
                 evaluate_esm_methods,
@@ -673,6 +717,7 @@ class EngineeringModePage(ctk.CTkFrame):
                 selected,
                 n_machines=int(self.machine_var.get()),
                 time_mode=self.time_mode_code(),
+                objective=self.objective_code(),
             )
             self.status_var.set(
                 "Obliczanie w tle... MOpt: do 10 s / 100 000 stanow. Okno pozostaje aktywne."
@@ -713,9 +758,13 @@ class EngineeringModePage(ctk.CTkFrame):
                         METHOD_LABELS[result["method"]],
                         " -> ".join(result["order"]),
                         f"{result['sto']:g}",
+                        f"{result['total_tardiness_cost']:.2f}",
                         f"{result['completion_total']:g}",
                         f"{result.get('total_waste_kg', 0):.2f}",
                         f"{risk['p90_makespan_min']:.2f}" if risk.get("available") else "-",
+                        f"{risk['p90_tardiness_cost']:.2f}"
+                        if risk.get("available") and "p90_tardiness_cost" in risk
+                        else "-",
                         f"{result['elapsed_s']:.3f}" if "elapsed_s" in result else "-",
                         {
                             "OPTIMAL_CONFIRMED": "potwierdzone",
@@ -761,7 +810,8 @@ class EngineeringModePage(ctk.CTkFrame):
             self._show_figure(
                 "Drzewo MOpt - przeplyw",
                 build_mopt_tree_figure(nodes),
-                f"{mopt['search_status']}; STO={mopt['sto']:g} min. "
+                f"{mopt['search_status']}; kryterium: {OBJECTIVES[mopt.get('objective', 'sto')]}; "
+                f"Odpad={mopt['total_waste_kg']:g} kg; STO={mopt['sto']:g} min; koszt={mopt['total_tardiness_cost']:g} j.p. "
                 "Te same operacje i ograniczenia co w rankingu oraz na Gantcie. "
                 "Zielone: najlepsza sciezka; zolte: sprawdzone; czerwone: odciecia.",
             )
@@ -815,10 +865,37 @@ class EngineeringModePage(ctk.CTkFrame):
             scroller.xview_moveto(max(0.0, 0.5 - scroller.winfo_width() / (2 * width)))
 
         window.after_idle(center_chart)
-        NavigationToolbar2Tk(canvas, toolbar_frame).update()
-        ctk.CTkLabel(window, text=note, text_color=COLORS["text_muted"], wraplength=1100).pack(
-            pady=(4, 12)
-        )
+        toolbar = NavigationToolbar2Tk(canvas, toolbar_frame)
+        toolbar.update()
+        dragging = False
+
+        def start_drag(event) -> None:
+            nonlocal dragging
+            dragging = not bool(toolbar.mode)
+            if dragging:
+                scroller.scan_mark(event.x_root, event.y_root)
+
+        def move_drag(event) -> None:
+            if dragging and event.state & 0x0100 and not toolbar.mode:
+                # Screen coordinates stay stable while the embedded plot moves.
+                # Scroll the existing bitmap; do not redraw the Matplotlib tree.
+                scroller.scan_dragto(event.x_root, event.y_root, gain=1)
+
+        def stop_drag(_event) -> None:
+            nonlocal dragging
+            dragging = False
+
+        for widget in (scroller, canvas.get_tk_widget()):
+            widget.bind("<ButtonPress-1>", start_drag, add="+")
+            widget.bind("<Double-Button-1>", start_drag, add="+")
+            widget.bind("<Motion>", move_drag, add="+")
+            widget.bind("<ButtonRelease-1>", stop_drag, add="+")
+        ctk.CTkLabel(
+            window,
+            text="Przesuwanie widoku: przytrzymaj lewy przycisk myszy i przeciągnij. " + note,
+            text_color=COLORS["text_muted"],
+            wraplength=1100,
+        ).pack(pady=(4, 12))
         window.lift()
 
     def _set_summary(self, text: str) -> None:
@@ -844,6 +921,7 @@ class EngineeringModePage(ctk.CTkFrame):
     def _set_summary_for_result(self, result: dict, warnings: list[str]) -> None:
         lines = [
             f"Metoda: {METHOD_LABELS[result['method']]}",
+            f"Kryterium: {OBJECTIVES[result.get('objective', 'sto')]}; koszt: {result.get('total_tardiness_cost', 0):g} j.p.",
             f"Kolejnosc: {' -> '.join(result['order'])}",
             (
                 f"STO: {result['sto']:g} min; koniec: {result['completion_total']:g} min; "
@@ -878,6 +956,11 @@ class EngineeringModePage(ctk.CTkFrame):
                 lines.append("Monte Carlo: brak dopuszczonych operacji do symulacji.")
         unscheduled = int(result.get("unscheduled_count", 0))
         validation = result.get("risk_validation_summary", {})
+        if validation.get("available") and "mean_tardiness_cost" in validation:
+            lines.append(
+                f"Niezależna weryfikacja kosztu: średnia {validation['mean_tardiness_cost']:.2f} j.p.; "
+                f"P90 {validation['p90_tardiness_cost']:.2f} j.p. (ziarno {validation['seed']})."
+            )
         if validation.get("available"):
             lines.append(
                 f"Niezalezna weryfikacja ({validation['iterations']} symulacji, "
@@ -913,10 +996,12 @@ class EngineeringModePage(ctk.CTkFrame):
             "file": "Oryginalne czasy etapow z CSV.",
         }[mode]
         self.model_var.set(f"Przeplyw przez {machines} maszyn. {explanation}")
+        self.settings_panel.refresh(self.jobs if not self._source_dirty else [])
         if self._loaded_path is not None and not self._source_dirty:
             self.context_var.set(
                 f"Wczytano: {self._loaded_path}\n"
                 f"Zlecenia: {len(self.jobs)} | Maszyny: {machines} | {ESM_TIME_MODES[mode]}"
+                f" | Kryterium: {OBJECTIVES[self.objective_code()]}"
             )
 
     def _time_mode_changed(self, _value: str) -> None:
@@ -924,6 +1009,48 @@ class EngineeringModePage(ctk.CTkFrame):
         self._clear_results()
         self._update_model_label()
         self.status_var.set("Zmieniono sposob liczenia czasu. Utworz wykres ponownie.")
+
+    def objective_code(self) -> str:
+        return next(key for key, label in OBJECTIVES.items() if label == self.objective_var.get())
+
+    def _objective_changed(self, _value: str) -> None:
+        self._generation += 1
+        self._clear_results()
+        self._update_model_label()
+        self.status_var.set("Zmieniono kryterium. Uruchom porównanie ponownie.")
+
+    def show_cost_editor(self) -> None:
+        if not self._source_ready():
+            return
+        if self.cost_editor is not None and self.cost_editor.winfo_exists():
+            self.cost_editor.lift()
+            return
+        generation = self._generation
+        self.cost_editor = EngineeringCostEditor(
+            self,
+            self.jobs,
+            lambda parameters: self.apply_cost_parameters(parameters, generation=generation),
+        )
+
+    def apply_cost_parameters(
+        self, parameters: dict[str, DelayPenalty], *, generation: int | None = None
+    ) -> None:
+        if (
+            self._source_dirty
+            or not self.jobs
+            or (generation is not None and generation != self._generation)
+        ):
+            raise ValueError("Zmieniono dane lub ustawienia. Otwórz edytor kosztów ponownie.")
+        self.jobs = with_job_penalties(self.jobs, parameters)
+        self._generation += 1
+        self._clear_results()
+        for iid, job in zip(self.input_tree.get_children(), self.jobs, strict=True):
+            self.input_tree.set(iid, "rate", f"{job_penalty(job).rate_per_min:g}")
+            self.input_tree.set(iid, "grace", f"{job_penalty(job).grace_min:g}")
+        self._update_model_label()
+        self.status_var.set(
+            "Zmieniono parametry kosztów w pamięci. CSV bez zmian; oblicz ponownie."
+        )
 
     def _machine_changed(self, _value: str) -> None:
         if (
@@ -947,7 +1074,11 @@ class EngineeringModePage(ctk.CTkFrame):
             if hasattr(top, "show") and hasattr(top, "pages"):
                 top.show("TheoryPage")
                 top.pages["TheoryPage"].show_esm_comparison(
-                    self.path_var.get(), int(self.machine_var.get()), self.time_mode_code()
+                    self.path_var.get(),
+                    int(self.machine_var.get()),
+                    self.time_mode_code(),
+                    objective=self.objective_code(),
+                    penalties={job.job_id: job_penalty(job) for job in self.jobs},
                 )
             else:
                 from AOA.gui.pages.theory_page.esm_comparison import EsmGanttComparison
@@ -958,7 +1089,11 @@ class EngineeringModePage(ctk.CTkFrame):
                 comparison = EsmGanttComparison(window)
                 comparison.pack(fill="both", expand=True)
                 comparison.set_context(
-                    self.path_var.get(), int(self.machine_var.get()), self.time_mode_code()
+                    self.path_var.get(),
+                    int(self.machine_var.get()),
+                    self.time_mode_code(),
+                    objective=self.objective_code(),
+                    penalties={job.job_id: job_penalty(job) for job in self.jobs},
                 )
                 comparison.run_analysis()
         except (OSError, ValueError) as exc:

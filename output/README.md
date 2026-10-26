@@ -1,5 +1,25 @@
 # Lokalne raporty i wykresy
 
+Kontrolę kosztów odtwarza `scripts/check_engineering_costs.py`:
+[porównanie CSV](engineering-costs/comparison.csv), [operacje CSV](engineering-costs/operations.csv),
+[drzewo MOpt](engineering-costs/tree-cost.png), [wynik kontroli](engineering-costs/verification.json).
+Opis: [koszty opóźnień](../docs/engineering-costs.md).
+
+Minimalizację odpadu odtwarza `scripts/check_engineering_waste.py`:
+[raport 3 × 10](engineering-waste/raport.md), [Gantty 1–4](engineering-waste/gantt-1.png),
+[Gantty 5–7](engineering-waste/gantt-2.png), [kontrola GUI](engineering-waste/verification.json).
+Opis: [kryterium odpadu](../docs/engineering-waste.md).
+
+Ustawienia produkcji, celu i wyboru metod sprawdza `scripts/check_engineering_settings.py`:
+[wynik kontroli układu i przycisków](engineering-settings/verification.json).
+Opcja `--preview` otwiera ten sam panel do obejrzenia. Lokalny
+[podgląd panelu](engineering-settings/panel-wide.png) pochodzi z natywnego okna.
+
+[Raport kosztowy 3 × 10 i wariantów źródłowych](engineering-costs/raport.md)
+odtwarza `scripts/report_engineering_costs.py`. [Wyniki JSON](engineering-costs/results.json)
+zawierają parametry oraz status optimum; [warianty publikacji](engineering-costs/paper-variants.csv)
+zestawiają wyniki obliczeń z wartościami w dokumentach.
+
 Ten indeks jest częścią repozytorium. Wygenerowane raporty, obrazy i wyniki
 pozostają lokalne i są pomijane przez Git. Po świeżym pobraniu projektu pliki
 wskazane poniżej mogą jeszcze nie istnieć.

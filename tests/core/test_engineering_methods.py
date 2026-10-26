@@ -27,7 +27,7 @@ from AOA.core.monte_carlo import MonteCarloConfig
 from AOA.core.optimization.models import Job
 from AOA.gui.engineering_charts import build_esm_gantt_figure
 
-EXAMPLE = "data/esm/examples/esm_flow_10_eco_components.csv"
+EXAMPLE = "tests/fixtures/esm/esm_flow_10_eco_components.csv"
 EXTRA = ["ECO_WASTE", "COMPONENT_READY_EDD", "ROBUST_MC"]
 
 
@@ -217,7 +217,7 @@ def test_mc_is_repeatable_for_a_fixed_seed():
 
 @pytest.mark.parametrize("stages", range(1, 9))
 def test_refined_methods_remain_feasible_on_one_through_eight_machines(stages):
-    jobs = load_esm_jobs("data/esm/examples/esm_flow_10_eight_machines.csv")
+    jobs = load_esm_jobs("tests/fixtures/esm/esm_flow_10_eight_machines.csv")
     for method in (sequence_eco_flowshop, sequence_component_ready_flowshop):
         sequence = method(jobs, n_machines=stages)
         assert {j.job_id for j in sequence} == {j.job_id for j in jobs}
@@ -232,7 +232,7 @@ def test_refined_methods_remain_feasible_on_one_through_eight_machines(stages):
     ("filename", "expected"), [("eco_trap", (86, 30, 205)), ("component_wait", (92, 22, 193))]
 )
 def test_counterexamples_reach_the_proven_optimum_after_additional_refinement(filename, expected):
-    jobs = load_esm_jobs(f"data/esm/examples/esm_flow_10_{filename}.csv")
+    jobs = load_esm_jobs(f"tests/fixtures/esm/esm_flow_10_{filename}.csv")
     optimum = solve_flowshop(jobs, n_machines=3)
     assert optimum.confirmed
     for method in (sequence_eco_flowshop, sequence_component_ready_flowshop):
@@ -261,7 +261,7 @@ def test_refinement_budget_returns_a_complete_nonworse_incumbent(monkeypatch):
 
 
 def test_intentional_idle_avoids_delaying_the_urgent_delivery():
-    jobs = load_esm_jobs("data/esm/examples/esm_flow_10_intentional_idle.csv")
+    jobs = load_esm_jobs("tests/fixtures/esm/esm_flow_10_intentional_idle.csv")
     busy = evaluate_flowshop(jobs, n_machines=3)
     solved = solve_flowshop(jobs, n_machines=3)
     assert busy["sto"] == 35
@@ -274,7 +274,7 @@ def test_intentional_idle_avoids_delaying_the_urgent_delivery():
 
 
 def test_limited_mopt_can_lose_to_a_heuristic_without_disproving_its_optimum():
-    jobs = load_esm_jobs("data/esm/examples/esm_flow_10_urgent.csv")
+    jobs = load_esm_jobs("tests/fixtures/esm/esm_flow_10_urgent.csv")
     limited = solve_flowshop(jobs, n_machines=3, max_states=100)
     component = evaluate_flowshop(
         sequence_component_ready_flowshop(jobs, n_machines=3), n_machines=3

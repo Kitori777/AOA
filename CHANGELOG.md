@@ -1,5 +1,46 @@
 ﻿# CHANGELOG
 
+## Unreleased - 2026-10-26
+
+* W oknie drzewa można przeciągać widok lewym przyciskiem myszy. Przesuwany
+  jest gotowy rysunek, bez ponownego renderowania drzewa przy każdym ruchu.
+  Zachowano działanie narzędzi przesuwania i powiększania z paska.
+* Fizycznie uporządkowano kosztowe CSV: osobne foldery ART3_1_maszyna
+  i DYLEWSKI_2_maszyny, podfoldery przykładów oraz nazwy zawierające artykuł,
+  przykład, wariant i koszt. Plik spornego przypadku ma nazwę
+  ART3_Przyklad_2_W2_koszt_300_zamiast_330.csv. Zawartość 16 CSV bez zmian;
+  program, manifest, generator, testy i opisy korzystają z nowych ścieżek.
+* W danych i listach programu pozostawiono tylko główny CSV oraz 20 przykładów
+  z publikacji. 17 syntetycznych zestawów przeniesiono do tests/fixtures/esm;
+  testy, generatory i raporty korzystają z nowej lokalizacji.
+* Przykład do drzewa „300 zamiast 330” jest wyróżniony bezpośrednio po głównym
+  pliku. Opisy ART3, DYLEWSKI i MPER wskazują źródło i sprawdzony wynik.
+* Siedem oryginalnych wariantów z Art3 jest dostępnych razem na początku listy
+  przykładów pod czytelnymi nazwami ART3, ze sprawdzonym minimum. Wybór ustawia
+  jedną maszynę i cel kosztowy oraz zaznacza MOpt. Przy 2/W2 opis wskazuje
+  rozbieżność 300 względem 330 z artykułu. Istniejące CSV pozostają bez zmian.
+* Uporządkowano ustawienia trybu inżynierskiego: osobne karty produkcji i celu,
+  trzy opisane opcje minimalizacji, przykład czasu z wczytanego zlecenia oraz
+  ustawienia stawek przy celu kosztowym. Zestawy algorytmów mają licznik wyboru.
+* Panel i lista algorytmów składają się w jedną kolumnę w mniejszym oknie;
+  zawijanie tekstu uwzględnia skalowanie interfejsu. Obliczenia i CSV bez zmian.
+
+## Unreleased - 2026-10-23
+
+* Dodano kryterium „Minimalizacja odpadu [kg]”: ECO, MOpt i wspólny ranking
+  porównują najpierw odpad, potem STO i koniec produkcji. Theory, drzewo,
+  Gantty 2×2 i eksport zachowują kryterium. Dane wejściowe pozostają bez zmian.
+* Sumowanie odpadu odrzuca przepełnienie liczbowe. Dodano testy niezależnego
+  pełnego przeglądu dla 1–8 maszyn i kontrolę natywnego GUI na przykładzie 3 × 10.
+* Tryb inżynierski oblicza koszt opóźnienia każdego zlecenia z uwzględnieniem
+  stawki za minutę i dopuszczalnego opóźnienia. Edytor parametrów działa w pamięci.
+* Dodano wybór kryterium STO/koszt w siedmiu metodach, MOpt, drzewie, Theory,
+  Ganttach i eksporcie. Robust liczy średni koszt i P90 w symulacjach,
+  zachowując niezależną ocenę wybranej kolejności.
+* Dodano 16 wariantów z dokumentów jedno- i dwumaszynowych. Udokumentowano
+  rozbieżność: przykład 2/W2 z pierwszego dokumentu ma minimum 300 zamiast 330.
+  Czasy, terminy oraz wszystkie wcześniejsze CSV pozostają bez zmian.
+
 ## Unreleased - 2026-10-20
 
 * W trybie inżynierskim dodano zestawy wyboru metod (4 podstawowe, 3 dodatkowe,

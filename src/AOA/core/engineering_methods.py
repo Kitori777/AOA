@@ -13,6 +13,7 @@ from math import sqrt
 
 import pandas as pd
 
+from AOA.core.esm_costs import DelayPenalty, validate_objective
 from AOA.core.flowshop import (
     advance_flowshop,
     evaluate_flowshop,
@@ -42,6 +43,7 @@ def _refine(
     *,
     max_evaluations: int = 3000,
     retained: list[list[Job]] | None = None,
+    objective: str = "sto",
 ) -> list[Job]:
     """Insertion and swap descent with a shared, deterministic evaluation budget.
 
@@ -59,7 +61,10 @@ def _refine(
         if ids not in cache:
             if len(cache) >= max_evaluations:
                 raise BudgetExhausted
-            cache[ids] = (*flowshop_key(evaluate_flowshop(order, n_machines=n_machines)), ids)
+            cache[ids] = (
+                *flowshop_key(evaluate_flowshop(order, n_machines=n_machines, objective=objective)),
+                ids,
+            )
         return cache[ids]
 
     unique = {tuple(j.job_id for j in seed): seed for seed in seeds if seed}
@@ -117,7 +122,11 @@ def _refine(
 
 
 def sequence_eco_flowshop(
-    jobs: Sequence[Job], *, n_machines: int, retained: list[list[Job]] | None = None
+    jobs: Sequence[Job],
+    *,
+    n_machines: int,
+    retained: list[list[Job]] | None = None,
+    objective: str = "sto",
 ) -> list[Job]:
     validate_flowshop(jobs, n_machines)
     active, blocked = _partition(jobs)
@@ -129,11 +138,17 @@ def sequence_eco_flowshop(
         flowshop_order(active, "MT", n_machines),
         flowshop_order(active, "MO", n_machines),
     ]
-    return _refine(seeds, n_machines, retained=retained) + blocked
+    if objective == "sto":
+        return _refine(seeds, n_machines, retained=retained) + blocked
+    return _refine(seeds, n_machines, retained=retained, objective=objective) + blocked
 
 
 def sequence_component_ready_flowshop(
-    jobs: Sequence[Job], *, n_machines: int, retained: list[list[Job]] | None = None
+    jobs: Sequence[Job],
+    *,
+    n_machines: int,
+    retained: list[list[Job]] | None = None,
+    objective: str = "sto",
 ) -> list[Job]:
     validate_flowshop(jobs, n_machines)
     active, blocked = _partition(jobs)
@@ -152,7 +167,9 @@ def sequence_component_ready_flowshop(
         sorted(active, key=lambda j: (j.components_ready_h, j.deadline, j.job_id)),
         flowshop_order(active, "MT", n_machines),
     ]
-    return _refine(seeds, n_machines, retained=retained) + blocked
+    if objective == "sto":
+        return _refine(seeds, n_machines, retained=retained) + blocked
+    return _refine(seeds, n_machines, retained=retained, objective=objective) + blocked
 
 
 def _events_in_hours(evaluation: dict) -> pd.DataFrame:
@@ -194,6 +211,11 @@ def _mean_intervals(runs: pd.DataFrame) -> dict:
             mean = float(values.mean())
             margin = 1.96 * float(values.std(ddof=1)) / sqrt(count)
             result[f"mean_{target}_ci95_min"] = [max(0.0, mean - margin), mean + margin]
+        if "total_tardiness_cost" in runs:
+            values = runs["total_tardiness_cost"]
+            mean = float(values.mean())
+            margin = 1.96 * float(values.std(ddof=1)) / sqrt(count)
+            result["mean_tardiness_cost_ci95"] = [max(0.0, mean - margin), mean + margin]
     return result
 
 
@@ -219,6 +241,13 @@ def _choose_robust(
     best = None
     best_key = None
     for evaluation in candidates:
+        cost_mode = evaluation.get("objective", "sto") == "cost"
+        waste_mode = evaluation.get("objective") == "waste"
+        penalties = {
+            job_id: DelayPenalty(**parameters)
+            for job_id, parameters in evaluation.get("cost_parameters", {}).items()
+        }
+        risk_kwargs = {"delay_penalties": penalties} if "cost_parameters" in evaluation else {}
         events = _events_in_hours(evaluation)
         if events.empty:
             result = {
@@ -237,14 +266,15 @@ def _choose_robust(
                 float("inf"),
             )
         else:
-            risk = simulate_schedule_risk(events, specs, configuration)
+            risk = simulate_schedule_risk(events, specs, configuration, **risk_kwargs)
             summary = _risk_in_minutes(risk.summary)
             summary["available"] = True
-            late = summary["mean_lateness_min"]
+            late = summary["mean_tardiness_cost"] if cost_mode else summary["mean_lateness_min"]
+            late_p90 = summary["p90_tardiness_cost"] if cost_mode else summary["p90_lateness_min"]
             finish = summary["mean_makespan_min"]
             key = (
                 evaluation["unscheduled_count"],
-                late + configuration.risk_aversion * max(0.0, summary["p90_lateness_min"] - late),
+                late + configuration.risk_aversion * max(0.0, late_p90 - late),
                 evaluation["total_waste_kg"],
                 finish
                 + configuration.risk_aversion * max(0.0, summary["p90_makespan_min"] - finish),
@@ -254,6 +284,10 @@ def _choose_robust(
                 "risk_summary": summary,
                 "risk_machine_summary": risk.machine_summary.to_dict("records"),
             }
+        if waste_mode:
+            # Failures only pause/resume operations in this model: kilograms
+            # stay deterministic. Risk-adjusted tardiness breaks waste ties.
+            key = (key[0], key[2], key[1], key[3])
         if best_key is None or key < best_key:
             best, best_key = result, key
     if best is None:
@@ -262,8 +296,21 @@ def _choose_robust(
     # a new winner, avoiding another round of selection on the validation data.
     validation = {"available": False, "iterations": 0, "reason": "Brak dopuszczonych operacji."}
     if best["risk_summary"]["available"]:
+        validation_kwargs = (
+            {
+                "delay_penalties": {
+                    job_id: DelayPenalty(**parameters)
+                    for job_id, parameters in best["cost_parameters"].items()
+                }
+            }
+            if "cost_parameters" in best
+            else {}
+        )
         checked = simulate_schedule_risk(
-            _events_in_hours(best), specs, replace(configuration, seed=configuration.seed + 1)
+            _events_in_hours(best),
+            specs,
+            replace(configuration, seed=configuration.seed + 1),
+            **validation_kwargs,
         )
         validation = {
             **_risk_in_minutes(checked.summary),
@@ -287,16 +334,20 @@ def evaluate_robust_flowshop(
     n_machines: int,
     machines: Sequence[MachineSpec] | None = None,
     config: MonteCarloConfig | None = None,
+    objective: str = "sto",
 ) -> dict:
     validate_flowshop(jobs, n_machines)
+    validate_objective(objective)
     active, blocked = _partition(jobs)
     orders = [
         flowshop_order(active, method, n_machines) + blocked for method in ("MT", "MO", "MZO")
     ]
     retained: list[list[Job]] = []
     orders += [
-        sequence_eco_flowshop(jobs, n_machines=n_machines, retained=retained),
-        sequence_component_ready_flowshop(jobs, n_machines=n_machines, retained=retained),
+        sequence_eco_flowshop(jobs, n_machines=n_machines, retained=retained, objective=objective),
+        sequence_component_ready_flowshop(
+            jobs, n_machines=n_machines, retained=retained, objective=objective
+        ),
     ]
     orders += [order + blocked for order in retained]
     if active:
@@ -305,7 +356,10 @@ def evaluate_robust_flowshop(
             + blocked
         ]
     unique = {tuple(j.job_id for j in order): order for order in orders}
-    candidates = [evaluate_flowshop(order, n_machines=n_machines) for order in unique.values()]
+    candidates = [
+        evaluate_flowshop(order, n_machines=n_machines, objective=objective)
+        for order in unique.values()
+    ]
     return _choose_robust(candidates, n_machines=n_machines, machines=machines, config=config)
 
 

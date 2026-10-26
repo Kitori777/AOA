@@ -64,13 +64,16 @@ docs/alice_sources/*.html
 /data/*
 !/data/esm/
 !/data/esm/esm_jobs.csv
-!/data/esm/examples/
-!/data/esm/examples/*.csv
 !/data/esm/README.md
 !/data/esm/article/
 !/data/esm/article/*.csv
 !/data/esm/article/*.pdf
 !/data/esm/article/README.md
+!/data/esm/article/costs/
+!/data/esm/article/costs/**/
+!/data/esm/article/costs/**/*.csv
+!/data/esm/article/costs/manifest.json
+!/data/esm/article/costs/README.md
 /data/weekly_plans/
 
 # Local desktop / temp artifacts

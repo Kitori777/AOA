@@ -14,7 +14,7 @@ Przeniesione CSV zachowują dotychczasowe nazwy i zawartość.
 | `esm_paper_03.csv` | 5 | 6 | 2 | 3 | 1 |
 | `esm_paper_04.csv` | 7 | 7 | 2 | 4 | 0 |
 
-W programie wybierz przykład oznaczony „Artykuł 2017”. Odtworzenie publikacji
+W programie wybierz przykład oznaczony „MPER 2017”. Odtworzenie publikacji
 wymaga dwóch maszyn i **Oryginalnych czasów etapów z pliku**. Wybranie innej
 liczby maszyn przelicza czasy w programie i jest osobnym eksperymentem.
 

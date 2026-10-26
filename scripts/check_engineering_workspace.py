@@ -185,8 +185,9 @@ def main() -> None:
             assert all(len(r["steps"]) == 4 * count for r in page.results)
             if count == 1:
                 assert next(r for r in page.results if r["method"] == "MOPT")["sto"] == 80
-        for label, mode in page.example_time_modes.items():
-            page.select_scenario(label)
+        for mode in ("total", "per_machine"):
+            page.time_mode_var.set(ESM_TIME_MODES[mode])
+            page._time_mode_changed(ESM_TIME_MODES[mode])
             assert page.time_mode_code() == mode
             page.gantt_button.invoke()
             wait_until(lambda: bool(page.results))
@@ -235,7 +236,12 @@ def main() -> None:
         page.run_analysis()
         wait_until(lambda: bool(page.results))
         assert all(len(r["steps"]) == 24 for r in page.results)
-        page.path_var.set(str(DATA_DIR / "esm" / "examples" / "esm_flow_10_eco_components.csv"))
+        page.path_var.set(
+            str(
+                Path(__file__).resolve().parents[1]
+                / "tests/fixtures/esm/esm_flow_10_eco_components.csv"
+            )
+        )
         page.load_selected_data()
         for name, variable in page.method_vars.items():
             variable.set(name in {"ECO_WASTE", "COMPONENT_READY_EDD", "ROBUST_MC"})
@@ -286,7 +292,7 @@ def main() -> None:
         assert not callback_errors, callback_errors
         print(
             "ENGINEERING_GUI_OK default=esm_jobs.csv 1/2/3_machines=OK button_calculates=OK "
-            "runtime_examples=2 unchanged_csv=OK stale_result=discarded paper3=1 example_8_machines=OK "
+            "manual_time_modes=2 unchanged_csv=OK stale_result=discarded paper3=1 fixture_8_machines=OK "
             "advanced_methods=3 MAIN_BUTTON_2x2=OK MAIN_BUTTON_7_METHODS=OK resize_1920=OK theory_2x2=OK theory_modes=OK "
             "presets=OK clipboard=OK csv_exports=OK export_pages=2 pending_path=blocked worker_failure=recovered render_failure=clean",
             flush=True,

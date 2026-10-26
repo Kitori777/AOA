@@ -1,11 +1,12 @@
-# Osiem przypadków do pracy inżynierskiej
+# Syntetyczne przypadki regresji
 
 Każdy zestaw ma 10 zleceń i trasę przez 3 maszyny. Dane są syntetyczne,
 dobrane celowo dla określonego zjawiska. Nie są pomiarami fabryki ani próbą
-pozwalającą oszacować częstość takich sytuacji. W interfejsie szukaj nazw
-zaczynających się od `PRACA`; przykład ryzyka ma nazwę `ECO, komponenty i ryzyko`.
+pozwalającą oszacować częstość takich sytuacji. Służą wyłącznie testom
+i raportom deweloperskim. Nie są dostępne na liście przykładów programu;
+w danych użytkownika pozostawiono wyłącznie przykłady publikacji i główny CSV.
 
-| CSV w `data/esm/examples/` | Pytanie do analizy |
+| CSV w `tests/fixtures/esm/` | Pytanie do analizy |
 |---|---|
 | `esm_flow_10_urgent.csv` | Czy heurystyka może pokonać MOpt przerwany po 100 stanach? |
 | `esm_flow_10_eco_trap.csv` | Czy dalsza poprawa może zmniejszyć odpad bez zwiększenia STO? |

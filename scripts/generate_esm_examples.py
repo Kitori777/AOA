@@ -1,4 +1,4 @@
-"""Recreate the reviewed flow-shop CSV examples, without touching the legacy base CSV."""
+"""Regenerate synthetic test fixtures and the four faithful MPER table transcriptions."""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ import random
 from collections.abc import Sequence
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1] / "data" / "esm" / "examples"
-ARTICLE = ROOT.parent / "article"
+ROOT = Path(__file__).resolve().parents[1] / "tests" / "fixtures" / "esm"
+ARTICLE = Path(__file__).resolve().parents[1] / "data" / "esm" / "article"
 
 # These are deliberately selected teaching cases, not a frequency estimate.
 THESIS_CASES = [
@@ -96,8 +96,7 @@ def main() -> None:
         (9, "urgent_mix", 83),
         (10, "mixed_constraints", 41),
     ]:
-        # Keep filenames so older shortcuts remain valid. Their descriptions
-        # in ESM_SCENARIO_LABELS explain the new, purely flow-shop content.
+        # Keep fixture filenames stable for regression tests and reports.
         write_example(f"esm_jobs_{count:02}_{name}.csv", generated(seed, count))
     paper = [
         [((5, 4), 10), ((6, 3), 14), ((7, 2), 11)],

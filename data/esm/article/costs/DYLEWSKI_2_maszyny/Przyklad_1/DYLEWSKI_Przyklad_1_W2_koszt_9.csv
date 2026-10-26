@@ -1,0 +1,4 @@
+zlecenie,czas_m1_min,czas_m2_min,termin_min,dopuszczalne_opoznienie_min,koszt_opoznienia_na_min
+Z1,5,4,10,0,1
+Z2,6,3,14,0,2
+Z3,7,2,11,0,1

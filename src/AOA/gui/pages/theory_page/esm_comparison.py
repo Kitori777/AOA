@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
 from tkinter import filedialog, ttk
@@ -10,9 +11,11 @@ import customtkinter as ctk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 
 from AOA.config import DATA_DIR
+from AOA.core.esm_costs import OBJECTIVES, DelayPenalty, with_job_penalties
 from AOA.core.esm_project import (
     ESM_COMPARISON_METHODS,
     ESM_TIME_MODES,
+    esm_csv_has_costs,
     evaluate_esm_methods,
     list_esm_scenarios,
     load_esm_jobs,
@@ -28,13 +31,10 @@ class EsmGanttComparison(ctk.CTkFrame):
         self.path_var = ctk.StringVar(value=str(DATA_DIR / "esm" / "esm_jobs.csv"))
         self.machine_var = ctk.StringVar(value="3")
         self.time_mode_var = ctk.StringVar(value=ESM_TIME_MODES["total"])
+        self.objective_var = ctk.StringVar(value=OBJECTIVES["sto"])
+        self._penalty_overrides: dict[str, DelayPenalty] | None = None
         self.status_var = ctk.StringVar(value="Wybierz liczbe maszyn i utworz cztery Gantty.")
         self.scenarios = {s.label: s.path for s in list_esm_scenarios(DATA_DIR / "esm")}
-        self.runtime_examples = {
-            "PRZYKLAD: ten sam plik - podzial lacznego czasu": "total",
-            "PRZYKLAD: ten sam plik - pelny czas na kazdym etapie": "per_machine",
-        }
-        self.scenarios.update({label: Path(self.path_var.get()) for label in self.runtime_examples})
         self.scenario_var = ctk.StringVar(value=next(iter(self.scenarios), "esm_jobs.csv"))
         self.jobs = load_esm_jobs(self.path_var.get())
         self.results: list[dict] = []
@@ -81,6 +81,12 @@ class EsmGanttComparison(ctk.CTkFrame):
             command=self._invalidate,
         )
         self.time_mode_menu.grid(row=0, column=1, sticky="ew")
+        ctk.CTkOptionMenu(
+            controls,
+            values=list(OBJECTIVES.values()),
+            variable=self.objective_var,
+            command=self._invalidate,
+        ).grid(row=1, column=0, columnspan=2, sticky="ew", pady=6)
         self.run_button = ctk.CTkButton(
             self,
             text="UTWORZ CZTERY GANTTY (MT / MO / MZO / MOpt)",
@@ -111,9 +117,20 @@ class EsmGanttComparison(ctk.CTkFrame):
         )
 
     def set_context(
-        self, path: str | Path, machines: int = 3, time_mode: str | None = None
+        self,
+        path: str | Path,
+        machines: int = 3,
+        time_mode: str | None = None,
+        *,
+        objective: str | None = None,
+        penalties: Mapping[str, DelayPenalty] | None = None,
     ) -> None:
         jobs = load_esm_jobs(path)
+        self._penalty_overrides = dict(penalties) if penalties is not None else None
+        if self._penalty_overrides is not None:
+            jobs = with_job_penalties(jobs, self._penalty_overrides)
+        criterion = objective or ("cost" if esm_csv_has_costs(Path(path).read_bytes()) else "sto")
+        self.objective_var.set(OBJECTIVES[criterion])
         self.jobs = jobs
         self.path_var.set(str(path))
         self.machine_var.set(str(machines))
@@ -141,9 +158,10 @@ class EsmGanttComparison(ctk.CTkFrame):
         path = self.scenarios[label]
         try:
             jobs = load_esm_jobs(path)
-            mode = self.runtime_examples.get(label)
             machines = len(jobs[0].machine_times) or int(self.machine_var.get())
-            self.set_context(path, machines, mode)
+            if not jobs[0].machine_times and esm_csv_has_costs(path.read_bytes()):
+                machines = 1
+            self.set_context(path, machines)
             self.scenario_var.set(label)
         except (ValueError, OSError) as exc:
             self._invalidate()
@@ -156,7 +174,10 @@ class EsmGanttComparison(ctk.CTkFrame):
         if path:
             try:
                 jobs = load_esm_jobs(path)
-                self.set_context(path, len(jobs[0].machine_times) or int(self.machine_var.get()))
+                machines = len(jobs[0].machine_times) or (
+                    1 if esm_csv_has_costs(Path(path).read_bytes()) else int(self.machine_var.get())
+                )
+                self.set_context(path, machines)
             except (OSError, ValueError) as exc:
                 self._invalidate()
                 self.status_var.set(str(exc))
@@ -197,6 +218,8 @@ class EsmGanttComparison(ctk.CTkFrame):
         try:
             # Re-read so all four methods use a single fresh immutable snapshot.
             self.jobs = load_esm_jobs(self.path_var.get())
+            if self._penalty_overrides is not None:
+                self.jobs = with_job_penalties(self.jobs, self._penalty_overrides)
             self._invalidate()
             generation = self._generation
             self._future = self._executor.submit(
@@ -205,6 +228,9 @@ class EsmGanttComparison(ctk.CTkFrame):
                 list(ESM_COMPARISON_METHODS),
                 n_machines=int(self.machine_var.get()),
                 time_mode=self.time_mode_code(),
+                objective=next(
+                    key for key, label in OBJECTIVES.items() if label == self.objective_var.get()
+                ),
             )
             self.status_var.set("Obliczanie czterech harmonogramow w tle...")
             self.after(50, lambda: self._poll(generation))
@@ -236,6 +262,7 @@ class EsmGanttComparison(ctk.CTkFrame):
             self.status_var.set(
                 f"{len(self.jobs)} zlecen, {self.machine_var.get()} maszyn; "
                 f"{ESM_TIME_MODES[self.time_mode_code()]}. MOpt: {mopt['search_status']}. "
+                f"Kryterium: {OBJECTIVES[mopt['objective']]}; odpad {mopt['total_waste_kg']:g} kg; koszt {mopt['total_tardiness_cost']:g} j.p.; STO {mopt['sto']:g} min. "
                 "Wspolna skala i kolory. Czerwone obramowanie: opoznienie po ostatniej operacji."
             )
         except Exception as exc:

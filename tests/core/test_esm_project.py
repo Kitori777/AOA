@@ -78,16 +78,22 @@ def test_esm_rejects_algorithms_outside_engineering_mode() -> None:
         evaluate_esm_methods(jobs, ["MT", "GENETIC"])
 
 
-def test_esm_examples_cover_five_through_ten_jobs() -> None:
+def test_esm_menu_contains_only_article_examples_and_the_main_file() -> None:
     scenarios = list_esm_scenarios("data/esm")
 
-    assert set(range(3, 11)) <= {scenario.job_count for scenario in scenarios}
+    assert len(scenarios) == 21
+    assert all(s.path.name == "esm_jobs.csv" or "article" in s.path.parts for s in scenarios)
+    assert len([s for s in scenarios if s.label.startswith("ART3 |")]) == 7
+    assert len([s for s in scenarios if s.label.startswith("DYLEWSKI |")]) == 9
+    assert len([s for s in scenarios if s.label.startswith("MPER 2017 |")]) == 4
+    assert scenarios[1].path.name == "ART3_Przyklad_2_W2_koszt_300_zamiast_330.csv"
+    assert "300 zamiast 330" in scenarios[1].label
     assert scenarios[0].path.name == "esm_jobs.csv"
     assert scenarios[0].machine_count == 1
 
 
 def test_replaced_example_supplies_explicit_three_stage_times() -> None:
-    jobs = load_esm_jobs("data/esm/examples/esm_jobs_08_changeovers.csv")
+    jobs = load_esm_jobs("tests/fixtures/esm/esm_jobs_08_changeovers.csv")
 
     assert len(jobs) == 8
     assert all(len(job.machine_times) == 3 for job in jobs)
@@ -151,7 +157,7 @@ def test_mopt_tree_matches_pdf_backward_branching_and_exact_optimum() -> None:
 
 
 def test_mopt_tree_caps_large_visual_trace_without_losing_best_path() -> None:
-    jobs = load_esm_jobs("data/esm/examples/esm_jobs_10_mixed_constraints.csv")
+    jobs = load_esm_jobs("tests/fixtures/esm/esm_jobs_10_mixed_constraints.csv")
     nodes = build_mopt_solution_tree(jobs, max_nodes=80, n_machines=3)
 
     assert len(nodes) <= 80
@@ -171,7 +177,7 @@ def test_gantt_rows_are_sequential_and_minute_based() -> None:
 
 
 def test_gantt_rows_and_figure_show_multiple_machines() -> None:
-    jobs = load_esm_jobs("data/esm/examples/esm_jobs_07_parallel_balance.csv")
+    jobs = load_esm_jobs("tests/fixtures/esm/esm_jobs_07_parallel_balance.csv")
     result = evaluate_esm_methods(jobs, ["MO"], n_machines=3)[0]
     rows = build_esm_gantt_rows(result)
     figure = build_esm_gantt_figure(result, "MO")

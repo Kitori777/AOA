@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pandas as pd
@@ -18,31 +19,24 @@ def test_esm_data_is_the_only_tracked_data_source():
         "data/esm/README.md",
         "data/esm/article/README.md",
         "data/esm/article/mper-2017-0026.pdf",
-        "data/esm/examples/esm_jobs_05_tight_deadlines.csv",
-        "data/esm/examples/esm_jobs_06_component_wait.csv",
-        "data/esm/examples/esm_jobs_07_parallel_balance.csv",
-        "data/esm/examples/esm_jobs_08_changeovers.csv",
-        "data/esm/examples/esm_jobs_09_urgent_mix.csv",
-        "data/esm/examples/esm_jobs_10_mixed_constraints.csv",
     ]
     expected += [f"data/esm/article/esm_paper_0{i}.csv" for i in range(1, 5)]
-    expected += [
-        f"data/esm/examples/{name}.csv"
-        for name in [
-            "esm_flow_10_three_machines",
-            "esm_flow_10_bottleneck",
-            "esm_flow_10_urgent",
-            "esm_flow_06_ties",
-            "esm_flow_10_eight_machines",
-            "esm_flow_10_eco_components",
-            "esm_flow_10_eco_trap",
-            "esm_flow_10_component_wait",
-            "esm_flow_10_intentional_idle",
-            "esm_flow_10_multiple_optima",
-            "esm_flow_10_blocked_components",
-        ]
-    ]
+    expected += ["data/esm/article/costs/README.md", "data/esm/article/costs/manifest.json"]
+    costs = Path("data/esm/article/costs")
+    cases = json.loads((costs / "manifest.json").read_text(encoding="utf-8"))
+    assert len(cases) == 16
+    assert not list(costs.glob("*.csv"))
+    assert {p.name for p in costs.iterdir() if p.is_dir()} == {
+        "ART3_1_maszyna",
+        "DYLEWSKI_2_maszyny",
+    }
+    expected += [(costs / case["file"]).as_posix() for case in cases]
     assert existing == sorted(expected)
+
+
+def test_synthetic_regression_data_is_outside_the_selectable_data_directory():
+    assert not Path("data/esm/examples").exists()
+    assert len(list(Path("tests/fixtures/esm").glob("*.csv"))) == 17
 
 
 def test_esm_sample_matches_the_four_job_pdf_example() -> None:
@@ -63,8 +57,7 @@ def test_gitignore_keeps_only_esm_data_and_local_backups():
     assert "/data/*" in text
     assert "!/data/esm/" in text
     assert "!/data/esm/esm_jobs.csv" in text
-    assert "!/data/esm/examples/" in text
-    assert "!/data/esm/examples/*.csv" in text
+    assert "!/data/esm/examples/" not in text
     assert "!/data/esm/article/" in text
     assert ".aoa-backups/" in text
     assert ".pytest-run/" in text

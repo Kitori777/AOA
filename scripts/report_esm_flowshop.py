@@ -20,11 +20,6 @@ from AOA.gui.engineering_charts import build_esm_gantt_figure, build_mopt_tree_f
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "output" / "engineering"
 FEATURED = {
-    "esm_flow_10_three_machines.csv": "Główny przykład: 3 maszyny i 10 zleceń",
-    "esm_flow_10_bottleneck.csv": "Wąskie gardło na M2",
-    "esm_flow_10_urgent.csv": "Pilne zlecenia kontra długie operacje",
-    "esm_flow_06_ties.csv": "Równorzędne optima",
-    "esm_flow_10_eight_machines.csv": "Weryfikacja pełnych 8 maszyn",
     "esm_paper_01.csv": "Artykuł: przykład 1",
 }
 
@@ -36,7 +31,7 @@ def main() -> None:
     markdown = [
         "# Raport ESM: przepływ przez wiele maszyn",
         "",
-        "Dane syntetyczne poza przykładami artykułu. Czasy dotyczą pojedynczego "
+        "Dane z publikacji dostępnych na liście programu. Czasy dotyczą pojedynczego "
         "uruchomienia silnika w tym środowisku, bez renderowania i startu GUI.",
         "",
         "STO oznacza sumę dodatnich opóźnień po ostatniej maszynie. "

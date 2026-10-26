@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import csv
+import io
 import re
 from dataclasses import dataclass, replace
 from functools import cache
@@ -14,6 +16,7 @@ from AOA.core.engineering_methods import (
     sequence_component_ready_flowshop,
     sequence_eco_flowshop,
 )
+from AOA.core.esm_costs import objective_value, validate_objective
 from AOA.core.flowshop import (
     FLOW_METHODS,
     FlowShopJob,
@@ -25,6 +28,14 @@ from AOA.core.flowshop import (
     validate_flowshop,
 )
 from AOA.core.optimization.models import Job
+
+COST_COLUMNS = ("koszt_opoznienia_na_min", "dopuszczalne_opoznienie_min")
+
+
+def esm_csv_has_costs(content: bytes) -> bool:
+    header = next(csv.reader(io.StringIO(content.decode("utf-8-sig"))), [])
+    return any(column in header for column in COST_COLUMNS)
+
 
 ESM_METHODS: tuple[str, ...] = (
     "MT",
@@ -58,24 +69,31 @@ ESM_TIME_MODES = {
 
 ESM_SCENARIO_LABELS: dict[str, str] = {
     "esm_jobs.csv": "START: esm_jobs.csv - jeden czas zlecenia",
-    "esm_jobs_05_tight_deadlines.csv": "3 maszyny / 5 zlecen - pierwsze rozgalezienia",
-    "esm_jobs_06_component_wait.csv": "3 maszyny / 6 zlecen - porownanie kolejnosci",
-    "esm_jobs_07_parallel_balance.csv": "3 maszyny / 7 zlecen - rozne obciazenia",
-    "esm_jobs_08_changeovers.csv": "3 maszyny / 8 zlecen - konflikt terminow",
-    "esm_jobs_09_urgent_mix.csv": "3 maszyny / 9 zlecen - pilne i dlugie",
-    "esm_jobs_10_mixed_constraints.csv": "PRACA: 3 x 10 - konflikt STO i odpadu",
-    "esm_flow_10_three_machines.csv": "Przyklad: 3 maszyny / 10 zlecen - porownanie metod",
-    "esm_flow_10_bottleneck.csv": "3 maszyny / 10 zlecen - waskie gardlo M2",
-    "esm_flow_10_urgent.csv": "PRACA: 3 x 10 - MOpt z limitem stanow",
-    "esm_flow_10_eco_trap.csv": "PRACA: 3 x 10 - pulapka przezbrojen ECO",
-    "esm_flow_10_component_wait.csv": "PRACA: 3 x 10 - dostawy i poprawa Component",
-    "esm_flow_10_intentional_idle.csv": "PRACA: 3 x 10 - oplacalny przestoj",
-    "esm_flow_10_multiple_optima.csv": "PRACA: 3 x 10 - wiele rownorzednych optimow",
-    "esm_flow_10_blocked_components.csv": "PRACA: 3 x 10 - pozornie lepszy plan niepelny",
-    "esm_flow_06_ties.csv": "3 maszyny / 6 zlecen - rownorzedne optima",
-    "esm_flow_10_eight_machines.csv": "8 maszyn / 10 zlecen - pelny przeplyw",
-    "esm_flow_10_eco_components.csv": "3 maszyny / 10 zlecen - ECO, komponenty i ryzyko",
-    **{f"esm_paper_0{i}.csv": f"Artykul 2017 - przyklad {i} / 2 maszyny" for i in range(1, 5)},
+    **{
+        f"esm_paper_0{i}.csv": f"MPER 2017 | przykład {i} | 2 maszyny | minimum STO {sto} min"
+        for i, sto in enumerate((9, 6, 1, 0), 1)
+    },
+    **{
+        f"ART3_Przyklad_{problem}_W{variant}_koszt_{minimum}{'_zamiast_330' if (problem, variant) == (2, 2) else ''}.csv": (
+            "ART3 | 300 zamiast 330 | przykład 2, W2 | tabela 4 | 1 maszyna"
+            if (problem, variant) == (2, 2)
+            else f"ART3 | przykład {problem}, W{variant} | 1 maszyna | minimum {minimum} j.p."
+        )
+        for problem, variant, minimum in (
+            (1, 1, 80),
+            (1, 2, 60),
+            (1, 3, 50),
+            (1, 4, 30),
+            (1, 5, 110),
+            (2, 1, 160),
+            (2, 2, 300),
+        )
+    },
+    **{
+        f"DYLEWSKI_Przyklad_{problem}_W{variant}_koszt_{minimum}.csv": f"DYLEWSKI | przykład {problem}, W{variant} | 2 maszyny | minimum {minimum} j.p."
+        for problem, minima in ((1, (9, 9, 16)), (2, (11, 16)), (3, (154, 183, 219, 248)))
+        for variant, minimum in enumerate(minima, 1)
+    },
 }
 
 
@@ -125,7 +143,11 @@ def list_esm_scenarios(directory: str | Path) -> list[EsmScenario]:
             continue
         scenarios.append(
             EsmScenario(
-                label=ESM_SCENARIO_LABELS.get(path.name, f"{path.stem} ({job_count} zlecen)"),
+                label=ESM_SCENARIO_LABELS.get(
+                    path.name,
+                    ("KOSZTY: " if path.parent.name == "costs" else "")
+                    + f"{path.stem} ({job_count} zlecen)",
+                ),
                 path=path,
                 job_count=job_count,
                 machine_count=len(jobs[0].machine_times) or 1,
@@ -133,7 +155,13 @@ def list_esm_scenarios(directory: str | Path) -> list[EsmScenario]:
         )
     return sorted(
         scenarios,
-        key=lambda item: (item.path.name != ESM_DEFAULT_SCENARIO, item.job_count, item.label),
+        key=lambda item: (
+            item.path.name != ESM_DEFAULT_SCENARIO,
+            item.path.name != "ART3_Przyklad_2_W2_koszt_300_zamiast_330.csv",
+            not item.label.startswith("ART3 |"),
+            item.job_count,
+            item.label,
+        ),
     )
 
 
@@ -184,7 +212,11 @@ def dataframe_to_esm_jobs(frame: pd.DataFrame) -> list[Job]:
             else _positive_number(row["czas_obrobki_min"], row_number, "czas_obrobki_min")
         )
         deadline = _positive_number(row["termin_min"], row_number, "termin_min")
-        job_type = FlowShopJob if machine_times else Job
+        has_costs = any(
+            column in frame.columns
+            for column in ("koszt_opoznienia_na_min", "dopuszczalne_opoznienie_min")
+        )
+        job_type = FlowShopJob if machine_times or has_costs else Job
         jobs.append(
             job_type(
                 job_id=job_id,
@@ -208,6 +240,17 @@ def dataframe_to_esm_jobs(frame: pd.DataFrame) -> list[Job]:
                 machine_times=machine_times,
             )
         )
+        if has_costs:
+            assert isinstance(jobs[-1], FlowShopJob)
+            jobs[-1] = replace(
+                jobs[-1],
+                tardiness_cost_per_min=_optional_nonnegative_number(
+                    row, "koszt_opoznienia_na_min", row_number, default=1.0
+                ),
+                allowed_tardiness_min=_optional_nonnegative_number(
+                    row, "dopuszczalne_opoznienie_min", row_number
+                ),
+            )
         if machine_times and setup_columns:
             flow_job = jobs[-1]
             assert isinstance(flow_job, FlowShopJob)
@@ -231,6 +274,7 @@ def evaluate_esm_methods(
     time_limit_s: float = 10.0,
     max_states: int = 100_000,
     time_mode: str | None = None,
+    objective: str = "sto",
 ) -> list[dict]:
     if not jobs:
         raise ValueError("Brak zlecen do obliczen.")
@@ -246,6 +290,7 @@ def evaluate_esm_methods(
         n_machines=n_machines,
         time_limit_s=time_limit_s,
         max_states=max_states,
+        objective=objective,
     )
     effective = esm_time_mode(jobs, n_machines, time_mode)
     for result in results:
@@ -320,8 +365,10 @@ def evaluate_flowshop_methods(
     n_machines: int,
     time_limit_s: float = 10.0,
     max_states: int = 100_000,
+    objective: str = "sto",
 ) -> list[dict]:
     validate_flowshop(jobs, n_machines)
+    validate_objective(objective)
     if not selected_methods:
         raise ValueError("Wybierz przynajmniej jedna metode.")
     if unsupported := [m for m in selected_methods if m not in FLOW_METHODS]:
@@ -332,20 +379,26 @@ def evaluate_flowshop_methods(
         started = perf_counter()
         if method == "MOPT":
             solved = solve_flowshop(
-                jobs, n_machines=n_machines, time_limit_s=time_limit_s, max_states=max_states
+                jobs,
+                n_machines=n_machines,
+                time_limit_s=time_limit_s,
+                max_states=max_states,
+                objective=objective,
             )
             evaluation = dict(solved.evaluation)
             evaluation["flowshop_solution"] = solved
         elif method == "ROBUST_MC":
-            evaluation = evaluate_robust_flowshop(jobs, n_machines=n_machines)
+            evaluation = evaluate_robust_flowshop(jobs, n_machines=n_machines, objective=objective)
         else:
             if method == "ECO_WASTE":
-                order = sequence_eco_flowshop(jobs, n_machines=n_machines)
+                order = sequence_eco_flowshop(jobs, n_machines=n_machines, objective=objective)
             elif method == "COMPONENT_READY_EDD":
-                order = sequence_component_ready_flowshop(jobs, n_machines=n_machines)
+                order = sequence_component_ready_flowshop(
+                    jobs, n_machines=n_machines, objective=objective
+                )
             else:
                 order = flowshop_order(jobs, method, n_machines)
-            evaluation = evaluate_flowshop(order, n_machines=n_machines)
+            evaluation = evaluate_flowshop(order, n_machines=n_machines, objective=objective)
         results.append({**evaluation, "method": method, "elapsed_s": perf_counter() - started})
     results.sort(key=lambda r: (*flowshop_key(r), r["method"]))
     reference = solved.evaluation if solved else results[0]
@@ -365,6 +418,10 @@ def evaluate_flowshop_methods(
         elif result["method"] == "ROBUST_MC":
             result["optimality_status"] = "RISK_ASSESSED"
         result["sto_gap_min"] = max(0.0, result["sto"] - reference["sto"])
+        result["cost_gap"] = max(
+            0.0, result["total_tardiness_cost"] - reference["total_tardiness_cost"]
+        )
+        result["waste_gap_kg"] = max(0.0, result["total_waste_kg"] - reference["total_waste_kg"])
     return results
 
 
@@ -389,7 +446,7 @@ def esm_method_warnings(jobs: list[Job], selected_methods: list[str]) -> list[st
             warnings.append(
                 "Robust Monte Carlo: wybor 1000 symulacji (42), weryfikacja 1000 (43); "
                 "syntetyczne profile MTBF=80 h, "
-                "MTTR=2 h. Czasy sa przeliczane min -> h -> min. Ranking pokazuje nominalne STO."
+                "MTTR=2 h. Czasy sa przeliczane min -> h -> min. Ranking pokazuje wyniki nominalne."
             )
         return warnings
     warnings = []
@@ -427,6 +484,8 @@ def build_esm_gantt_rows(result: dict) -> list[dict[str, float | str]]:
             "end": float(step["completion_time"]),
             "duration": float(step["processing_time"]),
             "deadline": float(step["deadline"]),
+            "allowed_tardiness_min": float(step.get("allowed_tardiness_min", 0.0)),
+            "tardiness_cost": float(step.get("tardiness_cost", 0.0)),
             "tardiness": float(step["tardiness_positive"]),
             "setup": float(step.get("setup_time", 0.0)),
             "final_operation": bool(step.get("final_operation", True)),
@@ -442,6 +501,7 @@ def build_mopt_solution_tree(
     max_nodes: int = 80,
     n_machines: int = 1,
     solution: FlowShopResult | None = None,
+    objective: str | None = None,
 ) -> list[EsmTreeNode]:
     """Build an exact, educational backward-branching MOpt solution tree.
 
@@ -451,15 +511,21 @@ def build_mopt_solution_tree(
     is expanded so the diagram can explain both a checked and a pruned route.
     """
 
+    criterion = objective or (solution.evaluation.get("objective", "sto") if solution else "sto")
+    validate_objective(criterion)
     if solution is not None and tuple(jobs) != solution.source_jobs:
         jobs = prepare_esm_flow_jobs(
             jobs, n_machines=n_machines, time_mode=solution.evaluation.get("time_mode")
         )
-    elif n_machines > 1 and not any(job.machine_times for job in jobs):
+    elif (n_machines > 1 or criterion != "sto") and not any(job.machine_times for job in jobs):
         jobs = prepare_esm_flow_jobs(jobs, n_machines=n_machines)
     if any(job.machine_times for job in jobs):
-        solved = solution or solve_flowshop(jobs, n_machines=n_machines)
-        if solved.evaluation["machine_count"] != n_machines or solved.source_jobs != tuple(jobs):
+        solved = solution or solve_flowshop(jobs, n_machines=n_machines, objective=criterion)
+        if (
+            solved.evaluation["machine_count"] != n_machines
+            or solved.source_jobs != tuple(jobs)
+            or solved.evaluation.get("objective", "sto") != criterion
+        ):
             raise ValueError("Drzewo i wynik musza dotyczyc tych samych danych i liczby maszyn.")
         return _flowshop_tree(jobs, solved, max_nodes=max_nodes)
     if not jobs:
@@ -635,6 +701,9 @@ def build_mopt_solution_tree(
 
 
 def _flowshop_tree(jobs: list[Job], solved: FlowShopResult, *, max_nodes: int) -> list[EsmTreeNode]:
+    metric = {"sto": "STO [min]", "cost": "Koszt [j.p.]", "waste": "Odpad [kg]"}[
+        solved.evaluation.get("objective", "sto")
+    ]
     scheduled_count = len(solved.evaluation["scheduled_order"])
     if max_nodes < scheduled_count + 1:
         raise ValueError("Limit wezlow musi pomiescic pelna najlepsza sciezke.")
@@ -677,7 +746,8 @@ def _flowshop_tree(jobs: list[Job], solved: FlowShopResult, *, max_nodes: int) -
         if not path:
             details = (
                 f"{solved.evaluation['machine_count']} maszyn | {solved.evaluation['search_status']}\n"
-                f"STO={solved.evaluation['sto']:g}; LB={solved.lower_bound:g}\n"
+                f"{metric}={objective_value(solved.evaluation):g}; LB={solved.lower_bound:g}\n"
+                f"STO={solved.evaluation['sto']:g} min\n"
                 f"Stany={solved.visited}; odciete={solved.pruned}\n"
                 f"Widok {len(ordered)} wezlow; zapis sladu {len(trace)}"
             )
@@ -691,9 +761,7 @@ def _flowshop_tree(jobs: list[Job], solved: FlowShopResult, *, max_nodes: int) -
             }[state["status"]]
             if state.get("origin") == "incumbent":
                 reason += " (rozwiazanie poczatkowe)"
-            details = (
-                f"STO prefiksu={state['sto']:g}; LB={state['bound']:g}\n{availability}\n{reason}"
-            )
+            details = f"{metric} prefiksu={state.get('objective_value', state['sto']):g}; LB={state['bound']:g}\n{availability}\n{reason}"
             if len(path) == scheduled_count:
                 details += "\nkolejnosc: " + " -> ".join(jobs[i].job_id for i in path)
         nodes.append(
@@ -707,7 +775,7 @@ def _flowshop_tree(jobs: list[Job], solved: FlowShopResult, *, max_nodes: int) -
                 chosen=chosen,
                 leaf=len(path) == scheduled_count or status == "odrzucony",
                 status=status,
-                score=state["sto"],
+                score=state.get("objective_value", state["sto"]),
             )
         )
     return nodes
@@ -723,10 +791,14 @@ def _positive_number(value: object, row_number: int, column: str) -> float:
     return number
 
 
-def _optional_nonnegative_number(row: pd.Series, column: str, row_number: int) -> float:
+def _optional_nonnegative_number(
+    row: pd.Series, column: str, row_number: int, *, default: float = 0.0
+) -> float:
     value = row.get(column, "")
+    if column in COST_COLUMNS and pd.isna(value):
+        raise ValueError(f"Wiersz {row_number}: {column} musi być skończone i nieujemne.")
     if pd.isna(value) or not str(value).strip():
-        return 0.0
+        return default
     try:
         number = float(str(value).strip().replace(",", "."))
     except ValueError:

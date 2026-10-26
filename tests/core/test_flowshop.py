@@ -72,7 +72,7 @@ def test_branch_bounds_and_dominance_agree_with_exhaustive_oracle(stages, seed):
 
 
 def test_primary_ten_job_example_is_solved_and_all_rules_are_comparable():
-    jobs = load_esm_jobs("data/esm/examples/esm_flow_10_three_machines.csv")
+    jobs = load_esm_jobs("tests/fixtures/esm/esm_flow_10_three_machines.csv")
     results = evaluate_esm_methods(jobs, ["MT", "MO", "MZO", "MOPT"], n_machines=3)
     assert {r["method"]: r["sto"] for r in results} == {
         "MT": 157,
@@ -104,7 +104,7 @@ def test_primary_ten_job_example_is_solved_and_all_rules_are_comparable():
 
 @pytest.mark.parametrize("limits", [{"max_states": 0}, {"max_states": 1}, {"time_limit_s": 0}])
 def test_budget_exhaustion_keeps_feasible_incumbent_without_claiming_optimum(limits):
-    jobs = load_esm_jobs("data/esm/examples/esm_flow_10_three_machines.csv")
+    jobs = load_esm_jobs("tests/fixtures/esm/esm_flow_10_three_machines.csv")
     result = solve_flowshop(jobs, n_machines=3, **limits)
     assert not result.confirmed
     assert result.stop_reason
@@ -117,7 +117,7 @@ def test_budget_exhaustion_keeps_feasible_incumbent_without_claiming_optimum(lim
 
 
 def test_tree_is_capped_preserves_solution_and_only_uses_real_trace_records():
-    jobs = load_esm_jobs("data/esm/examples/esm_flow_10_three_machines.csv")
+    jobs = load_esm_jobs("tests/fixtures/esm/esm_flow_10_three_machines.csv")
     solved = solve_flowshop(jobs, n_machines=3)
     nodes = build_mopt_solution_tree(jobs, n_machines=3, solution=solved, max_nodes=40)
     assert len(nodes) <= 40
@@ -185,7 +185,7 @@ def test_csv_rejects_missing_or_excess_machine_columns(columns):
 
 
 def test_flowshop_rejects_missing_times_and_parallel_only_constraints():
-    jobs = load_esm_jobs("data/esm/examples/esm_flow_10_three_machines.csv")
+    jobs = load_esm_jobs("tests/fixtures/esm/esm_flow_10_three_machines.csv")
     with pytest.raises(ValueError, match="wybrano 4"):
         solve_flowshop(jobs, n_machines=4)
     with pytest.raises(ValueError, match="stalej trasy"):
@@ -193,7 +193,7 @@ def test_flowshop_rejects_missing_times_and_parallel_only_constraints():
 
 
 def test_eight_machine_gantt_has_all_operations_and_stable_job_colours():
-    jobs = load_esm_jobs("data/esm/examples/esm_flow_10_eight_machines.csv")
+    jobs = load_esm_jobs("tests/fixtures/esm/esm_flow_10_eight_machines.csv")
     result = evaluate_esm_methods(jobs, ["MO"], n_machines=8)[0]
     assert len(build_esm_gantt_rows(result)) == 80
     figure = build_esm_gantt_figure(result, "MO")

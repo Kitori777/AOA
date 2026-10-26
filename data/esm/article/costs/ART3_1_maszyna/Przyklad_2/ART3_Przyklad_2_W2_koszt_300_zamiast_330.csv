@@ -1,0 +1,6 @@
+zlecenie,czas_obrobki_min,termin_min,dopuszczalne_opoznienie_min,koszt_opoznienia_na_min
+Z1,20,30,0,1
+Z2,40,60,0,1
+Z3,30,70,0,2
+Z4,50,80,0,2
+Z5,60,120,0,4

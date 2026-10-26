@@ -133,8 +133,9 @@ przepływ ma stałą trasę M1…Mm, a nie przydział do maszyn równoległych.
 
 ## Trzy dodatkowe metody: przykład 3 maszyn / 10 zleceń
 
-Wczytaj `data/esm/examples/esm_flow_10_eco_components.csv`. To osobny zestaw
-syntetyczny; podstawowe dane z artykułu i wcześniejsze CSV pozostają zachowane.
+Testy i raporty korzystają z `tests/fixtures/esm/esm_flow_10_eco_components.csv`.
+To zestaw syntetyczny, poza listą przykładów programu. Podstawowe dane
+artykułów pozostają w `data/esm`.
 
 * `components_ready_min` blokuje start przygotowania na M1 do wskazanej chwili.
   `UNSCHEDULABLE` oznacza trwały brak komponentów: żaden etap tego zlecenia

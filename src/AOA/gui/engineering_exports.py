@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import csv
+import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
+from AOA.core.esm_costs import OBJECTIVES
 from AOA.core.esm_project import ESM_TIME_MODES
 
 METHOD_LABELS = {
@@ -36,6 +38,8 @@ class EngineeringContext:
     machine_count: int
     time_mode: str
     source_sha256: str
+    objective: str = "sto"
+    cost_parameters_json: str = "{}"
 
 
 def _context_row(context: EngineeringContext) -> dict:
@@ -44,6 +48,8 @@ def _context_row(context: EngineeringContext) -> dict:
         "sha256_csv": context.source_sha256,
         "liczba_maszyn": context.machine_count,
         "interpretacja_czasu": context.time_mode,
+        "kryterium": context.objective,
+        "parametry_kosztow_json": context.cost_parameters_json,
     }
 
 
@@ -65,6 +71,7 @@ def comparison_rows(results: list[dict], context: EngineeringContext) -> list[di
                 "metoda": METHOD_LABELS[result["method"]],
                 "kolejnosc": " -> ".join(result["order"]),
                 "sto_min": result["sto"],
+                "koszt_opoznien_jp": result.get("total_tardiness_cost", ""),
                 "koniec_min": result["completion_total"],
                 "odpad_kg": result.get("total_waste_kg", 0),
                 "czas_obliczen_s": result.get("elapsed_s", ""),
@@ -75,6 +82,8 @@ def comparison_rows(results: list[dict], context: EngineeringContext) -> list[di
                 "zablokowane_zlecenia": " -> ".join(result.get("blocked_jobs", [])),
                 "p90_konca_min": risk.get("p90_makespan_min", "") if available else "",
                 "p90_sto_min": risk.get("p90_lateness_min", "") if available else "",
+                "sredni_koszt_jp": risk.get("mean_tardiness_cost", "") if available else "",
+                "p90_kosztu_jp": risk.get("p90_tardiness_cost", "") if available else "",
                 "seria_mc": series if available else "",
                 "liczba_symulacji": risk.get("iterations", "") if available else "",
                 "ziarno_mc": risk.get("seed", "") if available else "",
@@ -94,6 +103,9 @@ def operation_rows(results: list[dict], context: EngineeringContext) -> list[dic
                     "metoda": METHOD_LABELS[result["method"]],
                     "status_optimum": result.get("optimality_status", ""),
                     "zlecenie": step["job_id"],
+                    "stawka_jp_na_min": step.get("tardiness_cost_per_min", ""),
+                    "tolerancja_min": step.get("allowed_tardiness_min", ""),
+                    "koszt_opoznienia_jp": step.get("tardiness_cost", "") if scheduled else "",
                     "zaplanowane": "tak" if scheduled else "nie",
                     "powod_braku": step.get("unscheduled_reason", ""),
                     "maszyna": step.get("machine_id", "") if scheduled else "",
@@ -120,6 +132,12 @@ def format_result_description(result: dict, context: EngineeringContext) -> str:
         f"Dane: {context.source_path}",
         f"SHA-256 CSV: {context.source_sha256}",
         f"Maszyny: {context.machine_count}; {ESM_TIME_MODES[context.time_mode]}.",
+        f"Kryterium: {OBJECTIVES[context.objective]}; koszt opóźnień: {result.get('total_tardiness_cost', 0):g} j.p.",
+        "Stawki i tolerancje: "
+        + "; ".join(
+            f"{job_id}: {p['rate_per_min']:g} j.p./min, {p['grace_min']:g} min"
+            for job_id, p in json.loads(context.cost_parameters_json).items()
+        ),
         f"Kolejność: {' -> '.join(result['order'])}.",
         f"STO: {result['sto']:g} min; koniec produkcji: {result['completion_total']:g} min; "
         f"odpad: {result.get('total_waste_kg', 0):g} kg.",
@@ -132,10 +150,14 @@ def format_result_description(result: dict, context: EngineeringContext) -> str:
         lines.append(
             f"Niezaplanowane zlecenia: {result['unscheduled_count']} "
             f"({', '.join(result.get('blocked_jobs', []))}). "
-            "STO dotyczy tylko zaplanowanej części."
+            "STO i koszt dotyczą tylko zaplanowanej części."
         )
     risk, series = _risk(result)
     if risk.get("available"):
+        if "mean_tardiness_cost" in risk:
+            lines.append(
+                f"Monte Carlo — {series}: średni koszt {risk['mean_tardiness_cost']:.2f} j.p.; P90 kosztu {risk['p90_tardiness_cost']:.2f} j.p."
+            )
         lines.append(
             f"Monte Carlo — {series}: {risk['iterations']} symulacji, ziarno {risk['seed']}; "
             f"P90 końca: {risk['p90_makespan_min']:.2f} min; "
